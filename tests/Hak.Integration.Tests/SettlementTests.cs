@@ -121,6 +121,13 @@ public class SettlementTests
         Assert.Equal(ErrorCodes.InvalidStateTransition, await CodeOf(() => s.Settlement.VoidAsync(h.Approver, created[0].Id, "lần 2")));
         Assert.Equal(2, (await s.Settlement.OpenItemsAsync(h.Auditor, h.Acc["AR"], null, Mar31)).Count(i => i.Side == Side.Debit));
 
+        // History for the manual-matching screen: voided rows stay listed with their reason.
+        var history = await s.Settlement.AllocationsAsync(h.Auditor, h.Acc["AR"], h.Partner["KH01"]);
+        Assert.Equal(2, history.Count);
+        var voided = Assert.Single(history, a => !a.IsActive);
+        Assert.Equal((created[0].Id, 1_000_000m, "Ghép nhầm", Hak.Domain.Settlement.SettlementOrigins.Auto), (voided.Id, voided.Amount, voided.VoidReason, voided.Origin));
+        Assert.All(history, a => Assert.NotEqual("?", a.DebitVoucherNumber));
+
         var ex = await Assert.ThrowsAnyAsync<Exception>(() => s.Db.Database.ExecuteSqlRawAsync("DELETE FROM settlement_allocations"));
         Assert.Contains("LEDGER_IMMUTABLE", ex.Message);
         var ex2 = await Assert.ThrowsAnyAsync<Exception>(() => s.Db.Database.ExecuteSqlRawAsync("UPDATE settlement_allocations SET amount = 1"));

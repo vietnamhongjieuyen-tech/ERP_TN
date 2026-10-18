@@ -81,6 +81,8 @@ public static class Phase2Endpoints
             var list = await s.AutoAllocateAsync(await http.SessionAsync(), r.AccountId, r.PartnerId, r.Date);
             return Results.Ok(list.Select(a => new { a.Id, a.DebitLineId, a.CreditLineId, a.Amount }));
         });
+        api.MapGet("/settlement/allocations", async (HttpContext http, Guid accountId, Guid partnerId, SettlementService s) =>
+            Results.Ok(await s.AllocationsAsync(await http.SessionAsync(), accountId, partnerId)));
         api.MapPost("/settlement/{id:guid}/void", async (HttpContext http, Guid id, ReasonRequest r, SettlementService s) =>
         { await s.VoidAsync(await http.SessionAsync(), id, r.Reason); return Results.NoContent(); });
         api.MapGet("/reports/aging", async (HttpContext http, Guid accountId, DateOnly asOf, SettlementService s) =>

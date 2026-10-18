@@ -19,7 +19,7 @@ Trạng thái: `NOT_STARTED` · `DESIGNED` · `IN_PROGRESS` (code + test, thiế
 | **Chứng từ thu/chi tiền mặt & ngân hàng** (CR/CP/BR/BP) sinh định khoản theo quy tắc | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ | ✅ | Chưa in phiếu thu/chi; chưa tạm ứng/hoàn ứng, kiểm kê quỹ |
 | Chặn/cảnh báo quỹ âm (kể cả chứng từ lùi ngày) | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ (thông báo lỗi) | ✅ | |
 | Chuyển tiền nội bộ không qua doanh thu/chi phí | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ | ✅ | |
-| **Công nợ: SettlementAllocation** (thanh toán một phần/nhiều lần, một phiếu nhiều hóa đơn, ứng trước, bù trừ FIFO, hủy phân bổ, đảo chứng từ tự giải phóng phân bổ) | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ (chọn hóa đơn khi thu/chi, bù trừ tự động) | ✅ | Chưa có UI phân bổ tay/hủy phân bổ; chưa công nợ ngoại tệ; chưa biên bản đối chiếu công nợ |
+| **Công nợ: SettlementAllocation** (thanh toán một phần/nhiều lần, một phiếu nhiều hóa đơn, ứng trước, bù trừ FIFO, hủy phân bổ, đảo chứng từ tự giải phóng phân bổ) | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ (chọn hóa đơn khi thu/chi, bù trừ tự động; **khớp tay** 1 dòng Nợ + 1 dòng Có, **lịch sử phân bổ + hủy có lý do** ở màn Công nợ — 18/10/2026, đã thử tay) | ✅ | Công nợ ngoại tệ khớp qua "Thu/chi ngoại tệ theo hóa đơn"; chưa biên bản đối chiếu công nợ |
 | Tuổi nợ, đối chiếu sổ chi tiết công nợ ↔ sổ cái (ReconcileSubledger) | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ | ✅ | |
 | Kết chuyển cuối kỳ theo bộ quy tắc có phiên bản, idempotent | IN_PROGRESS | ✅ | ✅ tạo bút toán | ✅ | Chưa có UI cấu hình bộ quy tắc; **không seed quy tắc pháp lý** |
 | BCĐPS (**cộng dồn TK tổng hợp** từng cột, tổng chỉ tính TK chi tiết), **Sổ Nhật ký chung**, Sổ chi tiết TK / Sổ quỹ (TK đối ứng, số dư lũy kế); **xuất Excel .xlsx** (tự tạo, số giữ đúng giá trị thập phân, đã mở thử bằng Excel thật) cho BCĐPS, sổ chi tiết, nhật ký chung, tuổi nợ | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ | ✅ (.NET + Node: CRC32, zip, nội dung sheet) | Chưa in PDF / mẫu sổ theo chế độ (chờ TT99); các màn hình khác chưa có nút xuất Excel |
@@ -48,7 +48,7 @@ Trạng thái: `NOT_STARTED` · `DESIGNED` · `IN_PROGRESS` (code + test, thiế
 | Performance benchmark | NOT_STARTED | | | | Chưa đo, không công bố |
 | **Sao lưu / khôi phục mã hóa** (SQLite): ảnh chụp trực tuyến, AES-256-GCM theo khối, khóa PBKDF2-SHA256 600.000 vòng, phát hiện sai mật khẩu / sửa đổi / cắt cụt / sửa phần đầu; kiểm tra = SHA-256 + PRAGMA integrity_check + chuỗi nhật ký mọi công ty; khôi phục ra file mới (không ghi đè dữ liệu đang chạy); chỉ quản trị hệ thống; có nhật ký | AWAITING_REAL_DATA_VALIDATION | ✅ | ✅ (Quản trị) | ✅ | Chưa lịch sao lưu tự động, chưa chép ra ổ ngoài/đám mây; chế độ PostgreSQL dùng pg_dump (chưa có hướng dẫn vận hành) |
 | Tauri desktop shell, Installer MSI/EXE | NOT_STARTED | | | | Máy chưa có Rust/Cargo |
-| CI GitHub Actions (backend + frontend) | IN_PROGRESS | | | | Git đã cài (PortableGit 2.56), repo cục bộ đã khởi tạo; chưa có remote nên CI chưa chạy |
+| CI GitHub Actions (backend + frontend) | IN_PROGRESS | | | | Repo GitHub công khai (bản đã lược số liệu doanh nghiệp); CI chạy và đạt lần đầu 18/10/2026 (SQLite; chưa chạy test PostgreSQL trên CI) |
 | Môi trường: Rust 1.99 (rustup, người dùng), Git 2.56 portable, PostgreSQL 18.6 portable (127.0.0.1:5433) | — | | | | Rust MSVC cần thêm bộ “Desktop development with C++” của VS Build Tools (cần quyền admin) trước khi build Tauri |
 
 ## Kết quả test gần nhất (chạy thật trên máy này, 14/10/2026)

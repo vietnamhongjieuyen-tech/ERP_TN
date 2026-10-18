@@ -22,6 +22,9 @@ public sealed record AgingRow(Guid PartnerId, string PartnerCode, string Partner
 
 public sealed record AgingReport(Guid AccountId, string AccountCode, DateOnly AsOf, IReadOnlyList<string> BucketLabels, IReadOnlyList<AgingRow> Rows);
 
+public sealed record AllocationRow(Guid Id, DateOnly AllocationDate, Guid DebitLineId, string DebitVoucherNumber, Guid CreditLineId, string CreditVoucherNumber,
+    decimal Amount, decimal? ForeignAmount, string Origin, bool IsActive, DateTime? VoidedAt, string? VoidReason);
+
 public sealed record ReconcileRow(Guid AccountId, string AccountCode, Guid? PartnerId, decimal LedgerBalance, decimal SubledgerBalance, decimal Difference, string? Issue);
 
 public sealed record SubledgerReconciliation(DateOnly AsOf, IReadOnlyList<ReconcileRow> Rows)
@@ -131,6 +134,25 @@ public sealed class SettlementService(HakDbContext db, AuditService audit, ICloc
         ctx.Require(Permissions.ReportView);
         var items = await OpenItemsCoreAsync(ctx.CompanyId, accountId, partnerId, asOf);
         return includeSettled ? items : items.Where(i => i.Open != 0).ToList();
+    }
+
+    /// <summary>Allocations of one partner on one account (newest first), voided ones included so the history stays visible.</summary>
+    public async Task<IReadOnlyList<AllocationRow>> AllocationsAsync(SessionContext ctx, Guid accountId, Guid partnerId)
+    {
+        ctx.Require(Permissions.ReportView);
+        var allocs = await db.SettlementAllocations.AsNoTracking()
+            .Where(a => a.CompanyId == ctx.CompanyId && a.AccountId == accountId && a.PartnerId == partnerId).ToListAsync();
+        var lineIds = allocs.SelectMany(a => new[] { a.DebitLineId, a.CreditLineId }).Distinct().ToList();
+        var numbers = await (from l in db.JournalLines
+                             join e in db.JournalEntries on l.JournalEntryId equals e.Id
+                             where lineIds.Contains(l.Id)
+                             select new { l.Id, e.VoucherNumber }).AsNoTracking().ToDictionaryAsync(x => x.Id, x => x.VoucherNumber);
+        return allocs
+            .OrderByDescending(a => a.AllocationDate).ThenByDescending(a => a.CreatedAt)
+            .Select(a => new AllocationRow(a.Id, a.AllocationDate, a.DebitLineId, numbers.GetValueOrDefault(a.DebitLineId, "?"),
+                a.CreditLineId, numbers.GetValueOrDefault(a.CreditLineId, "?"), a.Amount, a.ForeignAmount, a.Origin,
+                a.VoidedAt is null, a.VoidedAt, a.VoidReason))
+            .ToList();
     }
 
     public async Task<AgingReport> AgingAsync(SessionContext ctx, Guid accountId, DateOnly asOf, int[]? bucketDays = null)
