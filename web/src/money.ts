@@ -99,3 +99,14 @@ export function amountInWords(value: string, unit = 'đồng'): string {
   text = (neg ? 'âm ' : '') + text + (unit ? ' ' + unit : '')
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
+/**
+ * Balance in words from the company's side (Bên A): a debit balance on the partner's account means the partner owes the
+ * company (receivable, or an advance paid to a supplier); a credit balance means the company owes the partner.
+ */
+export function balanceText(balance: string, partner: string): string {
+  if (balance === '0') return 'Hai bên không còn công nợ.'
+  return balance.startsWith('-')
+    ? `Bên A còn phải trả Bên B (${partner}): ${formatMoney(balance.slice(1))} đồng.`
+    : `Bên B (${partner}) còn phải trả Bên A: ${formatMoney(balance)} đồng.`
+}
+

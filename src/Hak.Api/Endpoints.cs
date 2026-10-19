@@ -76,12 +76,12 @@ public static class Endpoints
                               join c in db.Companies on ucr.CompanyId equals c.Id
                               join r in db.Roles on ucr.RoleId equals r.Id
                               where ucr.UserId == user.Id
-                              select new { c.Id, c.Code, c.Name, RoleId = r.Id, RoleName = r.Name }).ToListAsync();
+                              select new { c.Id, c.Code, c.Name, c.TaxCode, RoleId = r.Id, RoleName = r.Name }).ToListAsync();
             var roleIds = rows.Select(r => r.RoleId).Distinct().ToList();
             var perms = await db.RolePermissions.Where(p => roleIds.Contains(p.RoleId)).Select(p => new { p.RoleId, p.Permission }).ToListAsync();
-            return Results.Ok(rows.GroupBy(r => new { r.Id, r.Code, r.Name }).Select(g => new
+            return Results.Ok(rows.GroupBy(r => new { r.Id, r.Code, r.Name, r.TaxCode }).Select(g => new
             {
-                g.Key.Id, g.Key.Code, g.Key.Name,
+                g.Key.Id, g.Key.Code, g.Key.Name, g.Key.TaxCode,
                 roles = g.Select(r => r.RoleName).Distinct().ToList(),
                 permissions = perms.Where(p => g.Any(r => r.RoleId == p.RoleId)).Select(p => p.Permission).Distinct().ToList(),
             }).OrderBy(c => c.Code).ToList());

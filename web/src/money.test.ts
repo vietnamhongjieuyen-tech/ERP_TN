@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { addMoney, amountInWords, formatMoney, parseMoney, parseRate, today } from './money.ts'
+import { addMoney, amountInWords, balanceText, formatMoney, parseMoney, parseRate, today } from './money.ts'
 
 test('formatMoney groups with dots and uses comma decimals, never via Number', () => {
   assert.equal(formatMoney('1234567'), '1.234.567')
@@ -58,4 +58,9 @@ test('amountInWords reads Vietnamese money', () => {
   assert.equal(amountInWords('2000000000000'), 'Hai nghìn tỷ đồng')
   assert.equal(amountInWords('-30'), 'Âm ba mươi đồng')
   assert.equal(amountInWords('12.50', 'đô la Mỹ'), 'Mười hai phẩy năm đô la Mỹ')
+})
+test('balanceText states who owes whom from the company side', () => {
+  assert.equal(balanceText('0', 'KH A'), 'Hai bên không còn công nợ.')
+  assert.equal(balanceText('1500000', 'KH A'), 'Bên B (KH A) còn phải trả Bên A: 1.500.000 đồng.')
+  assert.equal(balanceText('-2000000.5', 'NCC B'), 'Bên A còn phải trả Bên B (NCC B): 2.000.000,5 đồng.')
 })

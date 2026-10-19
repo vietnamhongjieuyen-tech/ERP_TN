@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { get, post, type OpenItem, type TrialBalanceRow } from './api'
 import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
 import { addMoney, formatMoney, parseMoney, parseRate, today } from './money'
+import { ConfirmationDialog } from './Confirmation'
 
 const firstOfMonth = () => today().slice(0, 8) + '01'
 
@@ -119,6 +120,9 @@ export function ReceivablesView() {
   const [pickC, setPickC] = useState('')
   const [allocating, setAllocating] = useState(false)
   const [voiding, setVoiding] = useState<AllocationRow | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const confirmAccount = accounts.find(a => a.id === accountId)
+  const confirmPartner = partners.find(p => p.id === partnerId)
   const { busy, error, run } = useAction()
   const debitItem = items.find(o => o.journalLineId === pickD)
   const creditItem = items.find(o => o.journalLineId === pickC)
@@ -141,6 +145,7 @@ export function ReceivablesView() {
         <label>Đến ngày<input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
         <button className="primary" onClick={load} disabled={busy || !accountId}>Xem</button>
         <button onClick={auto} disabled={busy || !accountId || !partnerId}>Tự động bù trừ (FIFO)</button>
+        <button onClick={() => setConfirming(true)} disabled={!accountId || !partnerId} title="In biên bản đối chiếu công nợ với đối tượng đang chọn">Biên bản đối chiếu…</button>
         <ExportButton fileName={`Tuoi_no_${asOf}`} sheet="Tuổi nợ" disabled={!aging}
           columns={[{ header: 'Mã' }, { header: 'Đối tượng', width: 36 }, { header: 'Chưa đến hạn', numeric: true },
             ...(aging?.bucketLabels ?? []).map(b => ({ header: `Quá hạn ${b} ngày`, numeric: true })),
@@ -201,6 +206,7 @@ export function ReceivablesView() {
           </table>
         </div>
       )}
+      {confirming && confirmAccount && confirmPartner && <ConfirmationDialog account={confirmAccount} partner={confirmPartner} to={asOf} onClose={() => setConfirming(false)} />}
       {voiding && <VoidAllocationDialog alloc={voiding} onClose={() => setVoiding(null)} onDone={() => { setVoiding(null); load() }} />}
     </>
   )
