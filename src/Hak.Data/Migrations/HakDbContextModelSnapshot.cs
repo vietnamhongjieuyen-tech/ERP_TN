@@ -4691,6 +4691,81 @@ namespace Hak.Data.Migrations
                     b.ToTable("vouchers");
                 });
 
+            modelBuilder.Entity("Hak.Domain.Vouchers.VoucherAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("company_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("BLOB")
+                        .HasColumnName("content");
+
+                    b.Property<string>("Extension")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("extension");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("RemoveReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("remove_reason");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("removed_at");
+
+                    b.Property<Guid?>("RemovedBy")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("removed_by");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("size");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("uploaded_by");
+
+                    b.Property<Guid>("VoucherId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("voucher_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_voucher_attachments");
+
+                    b.HasIndex("VoucherId")
+                        .HasDatabaseName("ix_voucher_attachments_voucher_id");
+
+                    b.HasIndex("CompanyId", "VoucherId")
+                        .HasDatabaseName("ix_voucher_attachments_company_id_voucher_id");
+
+                    b.ToTable("voucher_attachments");
+                });
+
             modelBuilder.Entity("Hak.Domain.Vouchers.VoucherHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5700,6 +5775,16 @@ namespace Hak.Data.Migrations
                         .HasForeignKey("ReversesVoucherId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_vouchers_vouchers_reverses_voucher_id");
+                });
+
+            modelBuilder.Entity("Hak.Domain.Vouchers.VoucherAttachment", b =>
+                {
+                    b.HasOne("Hak.Domain.Vouchers.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_voucher_attachments_vouchers_voucher_id");
                 });
 
             modelBuilder.Entity("Hak.Domain.Vouchers.VoucherLine", b =>

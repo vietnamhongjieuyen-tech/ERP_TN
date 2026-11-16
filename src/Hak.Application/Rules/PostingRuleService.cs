@@ -22,7 +22,7 @@ public sealed record BusinessDocument(
     string? SourceSystem = null, string? SourceId = null);
 
 public sealed record BusinessDocumentLine(decimal Amount, Guid? CounterAccountId = null, Guid? SettleJournalLineId = null,
-    string? Description = null, DateOnly? DueDate = null);
+    string? Description = null, DateOnly? DueDate = null, Guid? AnalysisCodeId = null);
 
 public sealed class RuleDefinition
 {
@@ -222,7 +222,9 @@ public sealed class PostingRuleService(HakDbContext db, AuditService audit, IClo
                 result.Add(new VoucherLineInput(accountId, t.Side == "D" ? Side.Debit : Side.Credit, line.Amount,
                     t.Partner == "DOC:PARTNER" ? doc.PartnerId : null, Description: line.Description,
                     DueDate: t.DueDate == "LINE:DUE_DATE" ? line.DueDate : null,
-                    SettleJournalLineId: t.Settle == "LINE:SETTLE" ? line.SettleJournalLineId : null));
+                    SettleJournalLineId: t.Settle == "LINE:SETTLE" ? line.SettleJournalLineId : null,
+                    // Mã phân tích of the document line goes on the non-cash side (the expense, income or partner line), not on the cash account.
+                    AnalysisCodeId: accounts.TryGetValue(accountId, out var target) && target.CashKind == CashKind.None ? line.AnalysisCodeId : null));
             }
         }
         return result;

@@ -115,7 +115,7 @@ export function AnalysisReportView() {
           {rows.length === 0 && <tr><td colSpan={5} className="muted">Không có dòng chứng từ nào gắn mã phân tích trong khoảng ngày. Khai báo mã ở Thiết lập → Mã phân tích, rồi chọn mã trên dòng chứng từ.</td></tr>}
         </tbody>
       </table></div>}
-      <p className="muted">Không tính bút toán kết chuyển. "Có − Nợ" dương là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Chứng từ do phân hệ kho, hóa đơn, thu/chi sinh ra chưa mang mã phân tích.</p>
+      <p className="muted">Không tính bút toán kết chuyển. "Có − Nợ" dương là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Mã gắn được trên chứng từ nhập tay và phiếu thu / chi, báo Nợ / Có; chứng từ do phân hệ kho và hóa đơn sinh ra chưa mang mã phân tích.</p>
     </>
   )
 }

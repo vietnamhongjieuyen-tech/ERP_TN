@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { askDate, askText } from './dialogs'
 import { get, post, session, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog } from './common'
-import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
+import { addMoney, amountInWords, divideMoney, formatMoney, parseMoney, today } from './money'
 import type { Order } from './Orders'
 
 interface Warehouse { id: string; code: string; name: string; policies: { method: string; effectiveFrom: string }[] }
@@ -151,7 +151,7 @@ function StockDocs() {
               <thead><tr><th>STT</th><th>Tên vật tư, hàng hóa</th><th>Mã</th><th>ĐVT</th><th>Số lượng</th>{receipt && <th>Đơn giá</th>}{receipt && <th>Thành tiền</th>}</tr></thead>
               <tbody>{d.lines.map(l => { const x = it(l.itemId); return (
                 <tr key={l.lineNo}><td className="center">{l.lineNo}</td><td>{x?.name}</td><td>{x?.code}</td><td>{x?.unit}</td><td className="num">{formatMoney(l.quantity)}</td>
-                  {receipt && <td className="num"></td>}{receipt && <td className="num">{l.amount ? formatMoney(l.amount) : ''}</td>}</tr>) })}</tbody>
+                  {receipt && <td className="num">{l.amount ? formatMoney(divideMoney(l.amount, l.quantity) ?? '') : ''}</td>}{receipt && <td className="num">{l.amount ? formatMoney(l.amount) : ''}</td>}</tr>) })}</tbody>
               {receipt && <tfoot><tr><td colSpan={6}><b>Cộng</b></td><td className="num"><b>{formatMoney(total)}</b></td></tr></tfoot>}
             </table>
             {receipt && <p>Tổng số tiền (viết bằng chữ): <i>{amountInWords(total)}</i></p>}

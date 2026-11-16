@@ -90,6 +90,13 @@ public class RulesCashClosingTests
         var updated = await s.Documents.UpdateAsync(h.Preparer, v.Id, v.RowVersion, Receipt(h, 2_500_000, Mar10));
         Assert.Equal(2_500_000m, updated.TotalDebit);
 
+        // Mã phân tích of a document line lands on the non-cash side of the generated entry, never on the cash account.
+        var code = await new Hak.Application.Setup.WorkflowSetupService(s.Db, s.Audit, h.Clock).CreateAnalysisCodeAsync(h.Preparer, "Bộ phận", "VP", "Văn phòng");
+        var doc = Expense(h, 100_000, Mar10);
+        var tagged = await s.Documents.CreateAsync(h.Preparer, doc with { Lines = [doc.Lines[0] with { AnalysisCodeId = code.Id }] });
+        Assert.Equal(code.Id, tagged.Lines.Single(l => l.AccountId == h.Acc["EXP"]).AnalysisCodeId);
+        Assert.Null(tagged.Lines.Single(l => l.AccountId == h.Acc["CASH"]).AnalysisCodeId);
+
         Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => s.Documents.CreateAsync(h.Auditor, Receipt(h, 1, Mar10))));
         Assert.Equal(ErrorCodes.ValidationFailed, await CodeOf(() => s.Documents.CreateAsync(h.Preparer, Receipt(h, 1, Mar10) with { MainAccountId = h.Acc["BANK"] })));
     }

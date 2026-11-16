@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { takeParams } from './nav'
+import { Attachments } from './Attachments'
 import { SearchSelect } from './combo'
 import type { AnalysisCode } from './Analysis'
 import { askDate, askText } from './dialogs'
@@ -147,6 +148,7 @@ export function VouchersView() {
             <button onClick={printSheet}>In chứng từ</button>
           </div>
           <LinesTable voucher={v} />
+          <Attachments key={v.id} voucherId={v.id} />
           <VoucherPrint voucher={v} />
         </div>
       )}

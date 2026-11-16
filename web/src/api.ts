@@ -69,6 +69,27 @@ export async function postRaw<T>(path: string, text: string): Promise<T> {
   return data as T
 }
 
+/** Uploads a file as the request body (voucher attachments). */
+export async function uploadFile<T>(path: string, file: Blob): Promise<T> {
+  const headers: Record<string, string> = { 'X-Device': 'web', 'Content-Type': 'application/octet-stream' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (companyId) headers['X-Company-Id'] = companyId
+  const res = await send(`/api${path}`, { method: 'POST', headers, body: file })
+  const data = parse(await res.text(), res.status)
+  if (!res.ok) throw new ApiError(res.status, data?.code ?? 'HTTP_' + res.status, data?.message ?? res.statusText, data?.errors ?? [])
+  return data as T
+}
+
+/** Fetches a file with the session's credentials (a plain link could not send them). */
+export async function downloadBlob(path: string): Promise<Blob> {
+  const headers: Record<string, string> = { 'X-Device': 'web' }
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (companyId) headers['X-Company-Id'] = companyId
+  const res = await send(`/api${path}`, { method: 'GET', headers })
+  if (!res.ok) { const data = parse(await res.text(), res.status); throw new ApiError(res.status, data?.code ?? 'HTTP_' + res.status, data?.message ?? res.statusText) }
+  return await res.blob()
+}
+
 export const get = <T,>(p: string) => api<T>('GET', p)
 export const post = <T,>(p: string, b?: unknown) => api<T>('POST', p, b ?? {})
 export const put = <T,>(p: string, b?: unknown) => api<T>('PUT', p, b)

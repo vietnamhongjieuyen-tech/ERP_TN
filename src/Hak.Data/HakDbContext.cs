@@ -94,6 +94,7 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
     public DbSet<CostObject> CostObjects => Set<CostObject>();
     public DbSet<VoucherTemplate> VoucherTemplates => Set<VoucherTemplate>();
     public DbSet<AnalysisCode> AnalysisCodes => Set<AnalysisCode>();
+    public DbSet<VoucherAttachment> VoucherAttachments => Set<VoucherAttachment>();
     public DbSet<ProductionCostRun> ProductionCostRuns => Set<ProductionCostRun>();
     public DbSet<Hak.Domain.Reports.ReportDefinition> ReportDefinitions => Set<Hak.Domain.Reports.ReportDefinition>();
     public DbSet<Hak.Domain.Reports.ReportSnapshot> ReportSnapshots => Set<Hak.Domain.Reports.ReportSnapshot>();
@@ -204,6 +205,15 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
             e.Property(x => x.VoucherType).HasMaxLength(10);
             e.Property(x => x.Description).HasMaxLength(500);
             e.HasOne<Company>().WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<VoucherAttachment>(e =>
+        {
+            e.HasIndex(x => new { x.CompanyId, x.VoucherId });
+            e.Property(x => x.FileName).HasMaxLength(200);
+            e.Property(x => x.Extension).HasMaxLength(10);
+            e.Property(x => x.Sha256).HasMaxLength(64);
+            e.Property(x => x.RemoveReason).HasMaxLength(500);
+            e.HasOne<Voucher>().WithMany().HasForeignKey(x => x.VoucherId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<AnalysisCode>(e =>
         {

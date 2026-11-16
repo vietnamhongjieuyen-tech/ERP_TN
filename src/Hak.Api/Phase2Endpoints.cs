@@ -13,7 +13,7 @@ namespace Hak.Api;
 public sealed record RoleMappingRequest(string RoleCode, string AccountCode);
 public sealed record RuleRequest(string Code, string DocumentType, string BusinessEvent, int Priority, DateOnly EffectiveFrom, DateOnly? EffectiveTo,
     JsonElement Definition, JsonElement TestCases, string? Description);
-public sealed record DocumentLineRequest(decimal Amount, Guid? CounterAccountId, Guid? SettleJournalLineId, string? Description, DateOnly? DueDate);
+public sealed record DocumentLineRequest(decimal Amount, Guid? CounterAccountId, Guid? SettleJournalLineId, string? Description, DateOnly? DueDate, Guid? AnalysisCodeId = null);
 public sealed record DocumentRequest(string DocumentType, string BusinessEvent, DateOnly VoucherDate, DateOnly PostingDate, string Description,
     Guid? PartnerId, Guid? MainAccountId, List<DocumentLineRequest> Lines);
 public sealed record AllocateRequest(Guid LineA, Guid LineB, decimal Amount, DateOnly? Date, decimal? ForeignAmount = null);
@@ -29,7 +29,7 @@ public sealed record ApprovalLimitRequest(decimal? Limit);
 public static class Phase2Endpoints
 {
     private static BusinessDocument ToDoc(DocumentRequest r) => new(r.DocumentType, r.BusinessEvent, r.VoucherDate, r.PostingDate, r.Description,
-        r.PartnerId, r.MainAccountId, r.Lines.Select(l => new BusinessDocumentLine(l.Amount, l.CounterAccountId, l.SettleJournalLineId, l.Description, l.DueDate)).ToList());
+        r.PartnerId, r.MainAccountId, r.Lines.Select(l => new BusinessDocumentLine(l.Amount, l.CounterAccountId, l.SettleJournalLineId, l.Description, l.DueDate, l.AnalysisCodeId)).ToList());
 
     public static void MapPhase2Endpoints(this WebApplication app)
     {
@@ -115,6 +115,33 @@ public static class Phase2Endpoints
             Results.Ok(new { limit = await s.ApprovalLimitAsync(await http.SessionAsync()) }));
         api.MapPut("/company/approval-limit", async (HttpContext http, ApprovalLimitRequest r, WorkflowSetupService s) =>
         { await s.SetApprovalLimitAsync(await http.SessionAsync(), r.Limit); return Results.NoContent(); });
+
+        // ---- voucher attachments: the request body is the file itself ----
+        api.MapGet("/vouchers/{id:guid}/attachments", async (HttpContext http, Guid id, VoucherAttachmentService s) =>
+            Results.Ok(await s.ListAsync(await http.SessionAsync(), id)));
+        api.MapPost("/vouchers/{id:guid}/attachments", async (HttpContext http, Guid id, string fileName, VoucherAttachmentService s) =>
+        {
+            var ctx = await http.SessionAsync();
+            if (http.Request.ContentLength > VoucherAttachmentService.MaxBytes)
+                throw new DomainException(ErrorCodes.ValidationFailed, $"Tệp lớn hơn {VoucherAttachmentService.MaxBytes / 1024 / 1024} MB.");
+            using var buffer = new MemoryStream();
+            var chunk = new byte[81920];
+            for (int n; (n = await http.Request.Body.ReadAsync(chunk)) > 0;)
+            {
+                if (buffer.Length + n > VoucherAttachmentService.MaxBytes)
+                    throw new DomainException(ErrorCodes.ValidationFailed, $"Tệp lớn hơn {VoucherAttachmentService.MaxBytes / 1024 / 1024} MB.");
+                buffer.Write(chunk, 0, n);
+            }
+            return Results.Ok(await s.AddAsync(ctx, id, fileName, buffer.ToArray()));
+        });
+        api.MapGet("/attachments/{id:guid}", async (HttpContext http, Guid id, VoucherAttachmentService s) =>
+        {
+            var f = await s.DownloadAsync(await http.SessionAsync(), id);
+            http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            return Results.File(f.Content, f.ContentType, f.FileName);
+        });
+        api.MapPost("/attachments/{id:guid}/remove", async (HttpContext http, Guid id, ReasonRequest r, VoucherAttachmentService s) =>
+        { await s.RemoveAsync(await http.SessionAsync(), id, r.Reason); return Results.NoContent(); });
 
         // ---- overviews (read-only) ----
         api.MapGet("/dashboard", async (HttpContext http, DateOnly? asOf, Hak.Application.Overview.OverviewService s, IClock clock) =>

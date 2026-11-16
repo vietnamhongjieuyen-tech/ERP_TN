@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { htmlTableRows, parseStatementRows } from './bankfile'
+import { statementRowsFromPdf } from './pdftable'
 import { readSheetFile } from './sheetread'
 import { askDate, askText } from './dialogs'
 import { get, post, session } from './api'
@@ -153,9 +154,20 @@ function Reconciliation() {
   const readFile = (file: File | undefined) => run(async () => {
     if (!file) return
     const head = new TextDecoder().decode((await file.slice(0, 200).arrayBuffer())).replace(/^\uFEFF/, '').trimStart()
-    const rows = head.startsWith('<') ? htmlTableRows(await file.text()) : await readSheetFile(file)
+    const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer())
+    const isImage = (magic[0] === 0xff && magic[1] === 0xd8) || (magic[0] === 0x89 && magic[1] === 0x50)   // JPEG / PNG
+    let rows: string[][], ocr = false
+    if (head.startsWith('%PDF')) {
+      // A PDF with text is read directly; scanned pages go through OCR (slower: about half a minute per page).
+      const pdf = await (await import('./pdfread')).pdfTextItems(new Uint8Array(await file.arrayBuffer()), setInfo)
+      rows = statementRowsFromPdf(pdf.pages); ocr = pdf.ocrPages > 0
+    } else if (isImage) {
+      setInfo('Đang nhận dạng chữ (OCR) từ ảnh — có thể mất khoảng nửa phút…')
+      rows = statementRowsFromPdf(await (await import('./ocr')).ocrPages([file], (_, done) => setInfo(`Đang nhận dạng chữ (OCR) từ ảnh: ${Math.round(done * 100)}%`))); ocr = true
+    } else rows = head.startsWith('<') ? htmlTableRows(await file.text()) : await readSheetFile(file)
     const st = parseStatementRows(rows)
-    if (st.lines.length === 0) throw new Error(st.warnings.join(' ') || 'Không đọc được giao dịch nào từ tệp.')
+    if (ocr) st.warnings.unshift('Số liệu được nhận dạng từ ảnh (OCR) nên có thể sai ký tự — so từng dòng với sổ phụ gốc; số dư đầu + phát sinh phải bằng số dư cuối.')
+    if (st.lines.length === 0) { setInfo(''); throw new Error(st.warnings.join(' ') || 'Không đọc được giao dịch nào từ tệp.') }
     setHdr(h => ({ fromDate: st.fromDate ?? h.fromDate, toDate: st.toDate ?? h.toDate, opening: st.opening ? formatMoney(st.opening) : h.opening,
       closing: st.closing ? formatMoney(st.closing) : h.closing, sourceName: file.name }))
     setCsv(st.lines.map(l => `${l.transactionDate};${l.amount};${l.bankReference.replace(/;/g, ',')};${l.description}`).join('\n'))
@@ -192,7 +204,7 @@ function Reconciliation() {
       <details className="panel">
         <summary>Nhập sao kê (chọn tệp của ngân hàng, hoặc dán CSV: <code>yyyy-mm-dd;số tiền (+ vào / − ra);mã GD;nội dung</code>)</summary>
         <div className="form-row" style={{ marginTop: 8 }}>
-          <label>Tệp sao kê tải từ ngân hàng (.xls, .xlsx, .csv)<input type="file" accept=".xls,.xlsx,.csv,.txt,.htm,.html"
+          <label>Tệp sao kê / sổ phụ của ngân hàng (.xls, .xlsx, .csv, .pdf, hoặc ảnh chụp / bản quét .jpg, .png)<input type="file" accept=".xls,.xlsx,.csv,.txt,.htm,.html,.pdf,.jpg,.jpeg,.png"
             onChange={e => { readFile(e.target.files?.[0]); e.target.value = '' }} /></label>
         </div>
         <div className="form-row">

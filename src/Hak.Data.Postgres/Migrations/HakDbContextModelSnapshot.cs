@@ -4763,6 +4763,81 @@ namespace Hak.Data.Postgres.Migrations
                     b.ToTable("vouchers");
                 });
 
+            modelBuilder.Entity("Hak.Domain.Vouchers.VoucherAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("Extension")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("extension");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("RemoveReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("remove_reason");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("removed_at");
+
+                    b.Property<Guid?>("RemovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("removed_by");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("uploaded_at");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.Property<Guid>("VoucherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voucher_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_voucher_attachments");
+
+                    b.HasIndex("VoucherId")
+                        .HasDatabaseName("ix_voucher_attachments_voucher_id");
+
+                    b.HasIndex("CompanyId", "VoucherId")
+                        .HasDatabaseName("ix_voucher_attachments_company_id_voucher_id");
+
+                    b.ToTable("voucher_attachments");
+                });
+
             modelBuilder.Entity("Hak.Domain.Vouchers.VoucherHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5775,6 +5850,16 @@ namespace Hak.Data.Postgres.Migrations
                         .HasForeignKey("ReversesVoucherId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_vouchers_vouchers_reverses_voucher_id");
+                });
+
+            modelBuilder.Entity("Hak.Domain.Vouchers.VoucherAttachment", b =>
+                {
+                    b.HasOne("Hak.Domain.Vouchers.Voucher", null)
+                        .WithMany()
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_voucher_attachments_vouchers_voucher_id");
                 });
 
             modelBuilder.Entity("Hak.Domain.Vouchers.VoucherLine", b =>

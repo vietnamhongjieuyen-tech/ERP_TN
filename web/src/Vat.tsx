@@ -94,12 +94,13 @@ function ImportEInvoices() {
   const [result, setResult] = useState<{ imported: number; duplicates: number; statusChanges: number; rejected: string[] } | null>(null)
   const { busy, error, setError, run } = useAction()
   // invoice.xml files (or the zip downloaded from the tax portal): converted to the import format and shown below for review.
-  const readFiles = (files: FileList | null) => run(async () => {
-    if (!files || files.length === 0) return
+  // The files are taken out of the input at once: the caller empties the input right after, which also empties its FileList.
+  const readFiles = (picked: FileList | null) => { const files = [...(picked ?? [])]; return run(async () => {
+    if (files.length === 0) return
     const own = (await get<{ id: string; taxCode?: string | null }[]>('/me/companies')).find(c => c.id === session.companyId)?.taxCode ?? null
     const dec = new TextDecoder()
     const xmls: { name: string; xml: string }[] = []
-    for (const f of [...files]) {
+    for (const f of files) {
       const bytes = new Uint8Array(await f.arrayBuffer())
       if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
         for (const [name, data] of await readZip(bytes)) if (/\.xml$/i.test(name)) xmls.push({ name, xml: dec.decode(data) })
@@ -114,7 +115,7 @@ function ImportEInvoices() {
     setRead(`Đã đọc ${invoices.length} hóa đơn (${invoices.length - out} đầu vào, ${out} đầu ra). Bấm "Nhập" để đưa vào đối chiếu.`
       + (own ? '' : ' Công ty chưa khai mã số thuế nên mọi hóa đơn được coi là đầu vào — khai mã số thuế ở tab Hồ sơ rồi đọc lại nếu có hóa đơn đầu ra.')
       + (failed.length ? ` Không đọc được ${failed.length} tệp: ${failed.slice(0, 5).join(' | ')}` : ''))
-  })
+  }) }
   const send = () => run(async () => {
     try { JSON.parse(text) } catch { setError(new Error('Nội dung không phải JSON hợp lệ.')); return }
     // Send the raw text: the server fingerprints the exact file content to block re-import.

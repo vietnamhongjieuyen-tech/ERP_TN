@@ -81,6 +81,7 @@ builder.Services.AddScoped<Hak.Application.Backup.BackupService>();
 builder.Services.AddScoped<Hak.Application.Reports.ReportService>();
 builder.Services.AddScoped<Hak.Application.Overview.OverviewService>();
 builder.Services.AddScoped<WorkflowSetupService>();
+builder.Services.AddScoped<VoucherAttachmentService>();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new DecimalAsStringConverter()));
 
@@ -125,12 +126,17 @@ if (File.Exists(Path.Combine(webRoot, "index.html")))
         h["X-Content-Type-Options"] = "nosniff";
         h["X-Frame-Options"] = "DENY";
         h["Referrer-Policy"] = "no-referrer";
-        h["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'";
+        // script-src: 'wasm-unsafe-eval' lets the OCR engine (WebAssembly, served from this origin) compile; no remote or inline scripts.
+        h["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'";
         await next();
     });
     var files = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Path.GetFullPath(webRoot));
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = files });
-    app.UseStaticFiles(new StaticFileOptions { FileProvider = files });
+    // .mjs (PDF reader worker) and .gz (OCR language data) are not in every default content-type table.
+    var types = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+    types.Mappings[".mjs"] = "text/javascript";
+    types.Mappings[".gz"] = "application/gzip";
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = files, ContentTypeProvider = types });
     app.MapFallback(async http =>
     {
         if (http.Request.Path.StartsWithSegments("/api")) { http.Response.StatusCode = StatusCodes.Status404NotFound; return; }

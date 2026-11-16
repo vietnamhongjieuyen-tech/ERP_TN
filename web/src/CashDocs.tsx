@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { AnalysisCode } from './Analysis'
+import { SearchSelect } from './combo'
 import { get, post, type OpenItem, type Voucher } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, today } from './money'
@@ -12,7 +14,7 @@ const EVENTS: Record<string, { value: string; label: string; needsPartner: boole
        { value: 'INTERNAL_TRANSFER', label: 'Chuyển tiền nội bộ', needsPartner: false, needsCounter: true }],
 }
 
-interface DocLine { amount: string; counterAccountId: string; settle: string; description: string }
+interface DocLine { amount: string; counterAccountId: string; settle: string; description: string; analysisCodeId?: string }
 
 /** Phiếu thu/chi, báo Nợ/Có: định khoản do Posting Rule Engine sinh ra theo nghiệp vụ được chọn. */
 export function CashDocsView() {
@@ -27,6 +29,9 @@ export function CashDocsView() {
   const [openItems, setOpenItems] = useState<OpenItem[]>([])
   const [created, setCreated] = useState<Voucher | null>(null)
   const { busy, error, setError, run } = useAction()
+  const [codes, setCodes] = useState<AnalysisCode[]>([])
+  useEffect(() => { get<AnalysisCode[]>('/analysis-codes').then(setCodes).catch(() => setCodes([])) }, [])
+  const codeOptions = useMemo(() => codes.filter(c => c.isActive).map(c => ({ id: c.id, code: c.code, name: `${c.name} (${c.kind})` })), [codes])
   const ev = EVENTS[type].find(e => e.value === event) ?? EVENTS[type][0]
   const cashKind = type === 'CR' || type === 'CP' ? 'Cash' : 'Bank'
   const arapRole = event === 'CUSTOMER_RECEIPT' ? 'Receivable' : event === 'SUPPLIER_PAYMENT' ? 'Payable' : null
@@ -48,7 +53,8 @@ export function CashDocsView() {
     const v = await post<Voucher>('/documents', {
       documentType: type, businessEvent: event, voucherDate: date, postingDate: date, description,
       partnerId: partnerId || null, mainAccountId: mainAccountId || null,
-      lines: lines.map((l, i) => ({ amount: amounts[i], counterAccountId: l.counterAccountId || null, settleJournalLineId: l.settle || null, description: l.description || null, dueDate: null })),
+      lines: lines.map((l, i) => ({ amount: amounts[i], counterAccountId: l.counterAccountId || null, settleJournalLineId: l.settle || null, description: l.description || null, dueDate: null,
+        analysisCodeId: l.analysisCodeId || null })),
     })
     setCreated(v)
     setLines([{ amount: '', counterAccountId: '', settle: '', description: '' }])
@@ -81,7 +87,7 @@ export function CashDocsView() {
           <label style={{ flex: 1, minWidth: 220 }}>Diễn giải<input value={description} onChange={e => setDescription(e.target.value)} /></label>
         </div>
         <table className="grid">
-          <thead><tr><th>#</th><th className="num">Số tiền</th>{ev.needsCounter && <th>TK đối ứng</th>}{ev.needsPartner && <th>Thanh toán cho chứng từ</th>}<th>Diễn giải</th><th /></tr></thead>
+          <thead><tr><th>#</th><th className="num">Số tiền</th>{ev.needsCounter && <th>TK đối ứng</th>}{ev.needsPartner && <th>Thanh toán cho chứng từ</th>}<th>Diễn giải</th>{codeOptions.length > 0 && <th title="Mã quản trị gắn vào dòng đối ứng (chi phí, doanh thu, công nợ)">Mã phân tích</th>}<th /></tr></thead>
           <tbody>
             {lines.map((l, i) => (
               <tr key={i}>
@@ -99,6 +105,7 @@ export function CashDocsView() {
                     {openItems.map(o => <option key={o.journalLineId} value={o.journalLineId}>{o.voucherNumber} · {o.postingDate} · còn {formatMoney(o.open)}</option>)}
                   </select></td>}
                 <td><input aria-label="Diễn giải dòng" value={l.description} onChange={e => upd(i, { description: e.target.value })} /></td>
+                {codeOptions.length > 0 && <td><SearchSelect options={codeOptions} value={l.analysisCodeId ?? ''} onChange={id => upd(i, { analysisCodeId: id })} ariaLabel="Mã phân tích" placeholder="—" width={150} /></td>}
                 <td><button aria-label="Xóa dòng" onClick={() => setLines(ls => ls.filter((_, j) => j !== i))}>✕</button></td>
               </tr>
             ))}

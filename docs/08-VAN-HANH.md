@@ -125,6 +125,8 @@ pg_dump -h 127.0.0.1 -U hak_app -Fc -f D:\hak-backup\hak-%DATE%.dump hak
 - Khóa bí mật của hệ thống gửi dữ liệu (khóa trao đổi) được mã hóa trong CSDL bằng Windows DPAPI; chỉ hiện một lần lúc cấp.
 - Ngừng dùng người dùng → mọi phiên của người đó bị đóng ngay.
 - Sổ cái, sổ kho, phân bổ, khấu hao… **không sửa/xóa được** (trigger CSDL). Sai sót xử lý bằng chứng từ đảo/điều chỉnh. Tuyệt đối không sửa trực tiếp trong CSDL.
+- Tệp đính kèm chứng từ lưu trong cơ sở dữ liệu (tối đa 10 MB mỗi tệp): dung lượng CSDL và bản sao lưu tăng theo; chỉ nhận PDF, ảnh, tệp văn phòng, XML, không nhận tệp chạy được hay trang web.
+- Nhận dạng chữ (OCR) sổ phụ chạy trong trình duyệt bằng tesseract.js (Apache-2.0) với dữ liệu tiếng Việt / tiếng Anh nằm sẵn trong thư mục `wwwroot/ocr` của gói cài: không cần mạng, không gửi ảnh ra ngoài.
 - Nhật ký kiểm toán là chuỗi băm; xem tại **Quản trị → Nhật ký**; bản sao lưu kiểm tra lại toàn chuỗi.
 
 ## 8. Sự cố thường gặp

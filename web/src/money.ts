@@ -53,6 +53,20 @@ export function addMoney(values: string[]): string {
   return (neg ? '-' : '') + (abs / SCALE).toString() + (frac ? '.' + frac : '')
 }
 
+/** Exact a ÷ b on decimal strings, rounded half-up to `decimals` places (unit price = amount ÷ quantity); null when b is 0 or invalid. */
+export function divideMoney(a: string, b: string, decimals = 2): string | null {
+  if (!DEC.test(a) || !DEC.test(b)) return null
+  const scaled = (v: string) => { const n = v.startsWith('-'); const [i, f = ''] = (n ? v.slice(1) : v).split('.'); const x = BigInt(i) * 10000n + BigInt((f + '0000').slice(0, 4)); return n ? -x : x }
+  const x = scaled(a), y = scaled(b)
+  if (y === 0n) return null
+  const p = 10n ** BigInt(decimals)
+  const neg = (x < 0n) !== (y < 0n), ax = x < 0n ? -x : x, ay = y < 0n ? -y : y
+  const q = (ax * p * 2n + ay) / (ay * 2n)
+  const frac = (q % p).toString().padStart(decimals, '0').replace(/0+$/, '')
+  const out = (q / p).toString() + (frac ? '.' + frac : '')
+  return neg && out !== '0' ? '-' + out : out
+}
+
 /** Local calendar date (yyyy-mm-dd). Not toISOString(): that is UTC and gives yesterday before 07:00 in Vietnam. */
 export const today = () => {
   const d = new Date()

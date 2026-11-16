@@ -17,6 +17,8 @@ Menu bên trái chia nhóm: Tổng hợp, Tiền, Mua – Bán – Kho, Tài s�
 
 **Nháp → Chờ duyệt → Đã duyệt → Đã ghi sổ.** Người lập và người duyệt phải là hai người khác nhau. Chứng từ đã ghi sổ không sửa, không xóa được: làm sai thì **Đảo** (sinh chứng từ đảo) rồi lập lại, hoặc lập chứng từ **Điều chỉnh**.
 
+**Đính kèm chứng từ gốc**: chọn một chứng từ trong danh sách, mục "Tệp đính kèm" bên dưới bảng định khoản cho thêm tệp (PDF, ảnh, Excel, Word, XML… tối đa 10 MB mỗi tệp, 20 tệp mỗi chứng từ), kể cả sau khi đã ghi sổ. "Xem" mở PDF / ảnh, "Tải về" lưu tệp. Tệp không bị xóa: "Gỡ" yêu cầu ghi lý do, tệp đã gỡ vẫn hiện trong danh sách và người có quyền xem nhật ký vẫn mở được. Tệp nằm trong cơ sở dữ liệu nên có mặt trong bản sao lưu.
+
 Duyệt nhiều chứng từ: tick các dòng trong danh sách rồi bấm Gửi duyệt / Duyệt / Ghi sổ / Duyệt và ghi sổ. Phần mềm làm lần lượt theo ngày; chứng từ nào không qua kiểm tra được liệt kê, các chứng từ khác vẫn tiếp tục.
 
 Nếu công ty đặt **hạn mức duyệt** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt), chứng từ vượt hạn mức chỉ Kế toán trưởng / Giám đốc duyệt được.
@@ -45,7 +47,11 @@ Màn hình **Chứng từ → Thêm chứng từ**:
 
 - **Thu / Chi tiền**: lập phiếu thu, phiếu chi, báo Có, báo Nợ theo nghiệp vụ; chọn hóa đơn được thanh toán ngay trên phiếu. In phiếu thu / phiếu chi bằng nút "In chứng từ" ở màn hình Chứng từ.
 - **Ngân hàng → Lệnh thanh toán**: lập ủy nhiệm chi → duyệt → ghi nhận gửi ngân hàng → ngân hàng thực hiện (sinh báo Nợ nháp). Nút "In UNC" in ủy nhiệm chi để ký.
-- **Ngân hàng → Đối chiếu → Nhập sao kê**: bấm "Chọn tệp" và chọn tệp sao kê tải từ ngân hàng trực tuyến (Excel `.xls` / `.xlsx` hoặc `.csv`). Phần mềm tự nhận cột ngày, số tham chiếu, Nợ, Có, nội dung, điền kỳ sao kê và số dư đầu / cuối; xem lại rồi bấm "Nhập & tự khớp". Sao kê dạng PDF chưa đọc được — tải dạng Excel từ ngân hàng.
+- **Ngân hàng → Sao kê & đối chiếu → Nhập sao kê**: bấm "Chọn tệp" và chọn tệp sao kê / sổ phụ của ngân hàng. Phần mềm tự nhận cột ngày, số tham chiếu, Nợ, Có, nội dung, điền kỳ sao kê và số dư đầu / cuối vào các ô bên dưới; **xem lại rồi mới bấm "Nhập & tự khớp"**. Các dạng tệp đọc được:
+  - Excel `.xls` / `.xlsx`, `.csv` tải từ ngân hàng trực tuyến: chính xác nhất, nên ưu tiên.
+  - PDF do ngân hàng xuất (có chữ chọn được): phần mềm dựng lại bảng theo vị trí chữ. Diễn giải dài nhiều dòng có thể ghép chưa chuẩn; số tiền được kiểm bằng số dư.
+  - Ảnh chụp, bản quét `.jpg` / `.png`, PDF quét: phần mềm **nhận dạng chữ (OCR)** ngay trên máy, không gửi đi đâu, mất khoảng vài giây đến nửa phút mỗi trang. OCR có thể đọc sai ký tự (nhất là dấu tiếng Việt, đôi khi cả chữ số), nên phải so từng dòng với sổ phụ gốc. Ảnh nên chụp thẳng, đủ sáng, rõ nét.
+  - Dấu hiệu đọc đúng số tiền: số dư đầu + phát sinh = số dư cuối. Nếu phần mềm báo lệch, sửa dòng sai ngay trong ô văn bản trước khi nhập.
 - Dòng sao kê không có trên sổ (phí, lãi): bấm tạo chứng từ từ dòng đó, phần mềm gợi ý tài khoản.
 
 ## 5. Hóa đơn điện tử và thuế GTGT
@@ -67,7 +73,7 @@ Khai mã số thuế công ty trước khi nhập (tab Hồ sơ), nếu không p
 - **Sổ Nhật ký chung**, **Báo cáo theo mẫu** (báo cáo tài chính theo mẫu đã khai báo), **Phân tích theo mã**.
 - Mọi báo cáo có nút **Xuất Excel** và **In**.
 
-**Mã phân tích** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt): khai báo nhóm và mã (ví dụ nhóm "Chuyến tàu", mã `T2026-03`). Khi có mã, form chứng từ có thêm cột "Mã phân tích". Báo cáo "Phân tích theo mã" cộng phát sinh theo từng mã; cột "Có − Nợ" là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Hiện mã chỉ gắn được trên chứng từ nhập tay (Chứng từ khác, Điều chỉnh, Phân bổ…).
+**Mã phân tích** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt): khai báo nhóm và mã (ví dụ nhóm "Chuyến tàu", mã `T2026-03`). Khi có mã, form chứng từ có thêm cột "Mã phân tích". Báo cáo "Phân tích theo mã" cộng phát sinh theo từng mã; cột "Có − Nợ" là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Mã gắn được trên chứng từ nhập tay (Chứng từ khác, Điều chỉnh, Phân bổ…) và trên từng dòng phiếu thu / chi, báo Nợ / Có (mã đi vào dòng đối ứng, không vào tài khoản tiền). Chứng từ do phân hệ kho và hóa đơn sinh ra chưa mang mã phân tích.
 
 ## 8. Khóa sổ cuối tháng
 
