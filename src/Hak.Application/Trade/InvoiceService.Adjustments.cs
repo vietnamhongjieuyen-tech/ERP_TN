@@ -119,7 +119,7 @@ public sealed partial class InvoiceService
                 var line = new CommercialInvoiceLine
                 {
                     Id = Ids.New(), InvoiceId = inv.Id, CompanyId = ctx.CompanyId, LineNo = ++n, AdjustsLineNo = ol.LineNo, ItemId = ol.ItemId,
-                    AccountId = ol.AccountId, VatRate = ol.VatRate, Description = l.Description,
+                    AccountId = ol.AccountId, VatRate = ol.VatRate, Description = l.Description, AnalysisCodeId = ol.AnalysisCodeId,   // follows the original line
                 };
                 if (input.Purpose == InvoicePurpose.Return)
                 {
@@ -201,12 +201,12 @@ public sealed partial class InvoiceService
                 if (l.Basis == PricingBasis.Bdmt && await ActiveBdmtAsync(receipt.Id, receipt.Number, l.StockLineNo!.Value) != l.BasisQuantity)
                     throw new DomainException(ErrorCodes.MeasurementPending, $"Dòng {l.LineNo}: BDMT của phiếu {receipt.Number} đã thay đổi; hủy và lập lại hóa đơn điều chỉnh.");
                 if (receipt.Status == StockDocumentStatus.Draft) await stock.PostDocumentAsync(ctx, receipt.Id);
-                gl.Add(new VoucherLineInput(Role("SALES_RETURNS"), Side.Debit, l.FunctionalAmount, Description: l.Description ?? "Hàng bán bị trả lại"));
+                gl.Add(new VoucherLineInput(Role("SALES_RETURNS"), Side.Debit, l.FunctionalAmount, Description: l.Description ?? "Hàng bán bị trả lại", AnalysisCodeId: l.AnalysisCodeId));
             }
             else if (inv.Purpose == InvoicePurpose.Discount)
-                gl.Add(new VoucherLineInput(Role("SALES_DISCOUNT"), Side.Debit, l.FunctionalAmount, Description: l.Description ?? "Giảm giá hàng bán"));
+                gl.Add(new VoucherLineInput(Role("SALES_DISCOUNT"), Side.Debit, l.FunctionalAmount, Description: l.Description ?? "Giảm giá hàng bán", AnalysisCodeId: l.AnalysisCodeId));
             else
-                gl.Add(new VoucherLineInput(l.AccountId ?? Role("SALES_REVENUE"), Side.Credit, l.FunctionalAmount, Description: l.Description ?? "Điều chỉnh tăng"));
+                gl.Add(new VoucherLineInput(l.AccountId ?? Role("SALES_REVENUE"), Side.Credit, l.FunctionalAmount, Description: l.Description ?? "Điều chỉnh tăng", AnalysisCodeId: l.AnalysisCodeId));
         }
         if (inv.Kind == InvoiceKind.Sales && inv.Purpose == InvoicePurpose.Increase)
         {

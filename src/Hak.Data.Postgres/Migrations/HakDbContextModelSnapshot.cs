@@ -1340,6 +1340,10 @@ namespace Hak.Data.Postgres.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("AnalysisCodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("analysis_code_id");
+
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid")
                         .HasColumnName("company_id");
@@ -4310,6 +4314,10 @@ namespace Hak.Data.Postgres.Migrations
                         .HasPrecision(19, 4)
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("amount");
+
+                    b.Property<Guid?>("AnalysisCodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("analysis_code_id");
 
                     b.Property<int>("Basis")
                         .HasColumnType("integer")

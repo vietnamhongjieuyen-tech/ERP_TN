@@ -3,12 +3,14 @@ import { askConfirm, askDate, askText } from './dialogs'
 import { get, post } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, today } from './money'
+import { useAnalysisOptions } from './Analysis'
+import { SearchSelect } from './combo'
 
 interface Uninvoiced { stockDocumentId: string; stockDocumentNumber: string; postingDate: string; lineNo: number; itemCode: string; quantity: string; invoicedQuantity: string; bdmt: string | null }
 interface StockDoc { id: string; number: string; type: string; status: string; postingDate: string; lines: { lineNo: number; itemId: string; quantity: string }[] }
 interface Invoice { id: string; number: string; kind: string; purpose: string; invoiceSeries: string; invoiceNo: string; invoiceDate: string; postingDate: string; partnerId: string; currency: string | null; status: string; total: string; vat: string }
 interface Candidate { key: string; docId: string; lineNo: number; label: string; bdmt: string | null; remaining: string }
-interface LineDraft { candidate: string; basis: 'Quantity' | 'Bdmt'; price: string; vat: string; qty: string; accountId: string; description: string }
+interface LineDraft { candidate: string; basis: 'Quantity' | 'Bdmt'; price: string; vat: string; qty: string; accountId: string; description: string; analysisCodeId?: string }
 
 const STATUS_VI: Record<string, string> = { Draft: 'Nháp', Posted: 'Đã ghi sổ', Reversed: 'Đã đảo', Cancelled: 'Đã hủy' }
 const PURPOSE_VI: Record<string, string> = { Return: 'trả hàng', Discount: 'giảm giá', Increase: 'điều chỉnh tăng' }
@@ -22,6 +24,7 @@ export function TradeView() {
   const [list, setList] = useState<Invoice[]>([])
   const [head, setHead] = useState({ partnerId: '', series: '', no: '', invoiceDate: today(), postingDate: today(), dueDate: '', currency: '', rate: '', description: '' })
   const [lines, setLines] = useState<LineDraft[]>([empty()])
+  const codeOptions = useAnalysisOptions()
   const [info, setInfo] = useState('')
   const [adjusting, setAdjusting] = useState<Invoice | null>(null)
   const { busy, error, setError, run } = useAction()
@@ -53,8 +56,10 @@ export function TradeView() {
         if (!price) throw new Error(`Dòng ${i + 1}: đơn giá không hợp lệ.`)
         const c = candidates.find(x => x.key === l.candidate)
         return c
-          ? { unitPrice: price, stockDocumentId: c.docId, stockLineNo: c.lineNo, basis: l.basis, vatRate: l.vat === '' ? null : parseMoney(l.vat), description: l.description || null }
-          : { unitPrice: price, basis: 'Quantity', quantity: parseMoney(l.qty), accountId: l.accountId || null, vatRate: l.vat === '' ? null : parseMoney(l.vat), description: l.description || null }
+          ? { unitPrice: price, stockDocumentId: c.docId, stockLineNo: c.lineNo, basis: l.basis, vatRate: l.vat === '' ? null : parseMoney(l.vat), description: l.description || null,
+              analysisCodeId: kind === 'Sales' ? l.analysisCodeId || null : null }
+          : { unitPrice: price, basis: 'Quantity', quantity: parseMoney(l.qty), accountId: l.accountId || null, vatRate: l.vat === '' ? null : parseMoney(l.vat), description: l.description || null,
+              analysisCodeId: l.analysisCodeId || null }
       }),
     }
     try {
@@ -88,7 +93,7 @@ export function TradeView() {
           <label style={{ flex: 1, minWidth: 200 }}>Diễn giải<input value={head.description} onChange={e => setHead(h => ({ ...h, description: e.target.value }))} /></label>
         </div>
         <table className="grid">
-          <thead><tr><th>#</th><th>Dòng phiếu kho ({kind === 'Sales' ? 'xuất chưa lập HĐ' : 'nhập chưa có HĐ'}) / dịch vụ</th><th>Tính giá theo</th><th className="num">SL (dịch vụ)</th><th>TK (dịch vụ)</th><th className="num">Đơn giá</th><th className="num">Thuế suất %</th><th>Diễn giải</th><th /></tr></thead>
+          <thead><tr><th>#</th><th>Dòng phiếu kho ({kind === 'Sales' ? 'xuất chưa lập HĐ' : 'nhập chưa có HĐ'}) / dịch vụ</th><th>Tính giá theo</th><th className="num">SL (dịch vụ)</th><th>TK (dịch vụ)</th><th className="num">Đơn giá</th><th className="num">Thuế suất %</th><th>Diễn giải</th>{codeOptions.length > 0 && <th title="Gắn vào dòng doanh thu (bán) hoặc dòng chi phí dịch vụ (mua); hàng mua nhập kho mang mã ở phiếu xuất">Mã phân tích</th>}<th /></tr></thead>
           <tbody>{lines.map((l, i) => (
             <tr key={i}><td>{i + 1}</td>
               <td><select aria-label="Dòng phiếu kho" value={l.candidate} onChange={e => upd(i, { candidate: e.target.value })} style={{ maxWidth: 420 }}>
@@ -100,6 +105,7 @@ export function TradeView() {
               <td><input className="num" aria-label="Đơn giá" size={10} value={l.price} onChange={e => upd(i, { price: e.target.value })} /></td>
               <td><input className="num" aria-label="Thuế suất" size={4} value={l.vat} placeholder="KCT" onChange={e => upd(i, { vat: e.target.value })} /></td>
               <td><input aria-label="Diễn giải dòng" value={l.description} onChange={e => upd(i, { description: e.target.value })} /></td>
+              {codeOptions.length > 0 && <td>{(kind === 'Sales' || !l.candidate) && <SearchSelect options={codeOptions} value={l.analysisCodeId ?? ''} onChange={id => upd(i, { analysisCodeId: id })} ariaLabel="Mã phân tích" placeholder="—" width={150} />}</td>}
               <td><button aria-label="Xóa dòng" onClick={() => setLines(ls => ls.filter((_, j) => j !== i))}>✕</button></td></tr>))}
           </tbody>
         </table>

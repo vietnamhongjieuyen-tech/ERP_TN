@@ -96,6 +96,8 @@ public sealed class StockDocumentLine
     /// <summary>Purchase/sales order line this stock line fulfils.</summary>
     public Guid? OrderId { get; set; }
     public int? OrderLineNo { get; set; }
+    /// <summary>Mã phân tích put on the counter-account line (cost of goods sold, expense) of the entry this line generates.</summary>
+    public Guid? AnalysisCodeId { get; set; }
 }
 
 /// <summary>Immutable quantity ledger row. Quantity is signed: + in, − out. Value lives in <see cref="StockValuation"/>.</summary>

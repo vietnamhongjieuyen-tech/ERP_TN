@@ -16,7 +16,7 @@ namespace Hak.Application.Trade;
 
 public sealed record InvoiceLineInput(decimal UnitPrice, Guid? StockDocumentId = null, int? StockLineNo = null, decimal? StockQuantity = null,
     PricingBasis Basis = PricingBasis.Quantity, decimal? Quantity = null, Guid? AccountId = null, decimal? VatRate = null, string? Description = null,
-    Guid? OrderId = null, int? OrderLineNo = null);
+    Guid? OrderId = null, int? OrderLineNo = null, Guid? AnalysisCodeId = null);
 
 public sealed record InvoiceInput(InvoiceKind Kind, Guid PartnerId, string InvoiceSeries, string InvoiceNo, DateOnly InvoiceDate, DateOnly PostingDate,
     string Description, IReadOnlyList<InvoiceLineInput> Lines, DateOnly? DueDate = null, string? Currency = null, decimal? ExchangeRate = null);
@@ -171,12 +171,14 @@ public sealed partial class InvoiceService(HakDbContext db, AccountingEngine eng
                         }
                     }
                     // GRNI is followed per supplier (company decision 16/10/2026: a 331 detail account), as the receipt posted it.
-                    gl.Add(new VoucherLineInput(debit, Side.Debit, l.FunctionalAmount, l.StockDocumentId is null ? null : inv.PartnerId, Description: l.Description));
+                    // Mã phân tích: on an expense / service line; a goods line clears "goods received not invoiced", the code sits on the stock issue instead.
+                    gl.Add(new VoucherLineInput(debit, Side.Debit, l.FunctionalAmount, l.StockDocumentId is null ? null : inv.PartnerId, Description: l.Description,
+                        AnalysisCodeId: l.StockDocumentId is null ? l.AnalysisCodeId : null));
                 }
                 else
                 {
                     var revenue = l.AccountId ?? Role("SALES_REVENUE");
-                    gl.Add(new VoucherLineInput(revenue, Side.Credit, l.FunctionalAmount, Description: l.Description));
+                    gl.Add(new VoucherLineInput(revenue, Side.Credit, l.FunctionalAmount, Description: l.Description, AnalysisCodeId: l.AnalysisCodeId));
                 }
             }
             var vat = inv.Lines.Sum(x => x.VatAmount);
@@ -286,7 +288,7 @@ public sealed partial class InvoiceService(HakDbContext db, AccountingEngine eng
         var line = new CommercialInvoiceLine
         {
             Id = Ids.New(), InvoiceId = inv.Id, CompanyId = ctx.CompanyId, LineNo = lineNo, Basis = l.Basis, UnitPrice = l.UnitPrice,
-            VatRate = l.VatRate, AccountId = l.AccountId, Description = l.Description,
+            VatRate = l.VatRate, AccountId = l.AccountId, Description = l.Description, AnalysisCodeId = l.AnalysisCodeId,
         };
 
         if (l.StockDocumentId is { } sd)

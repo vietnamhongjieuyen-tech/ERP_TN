@@ -75,6 +75,26 @@ public class TradeTests
     }
 
     [Fact]
+    public async Task AnalysisCode_OnStockIssueGoesToCostLine_OnServiceInvoiceLineToRevenue()
+    {
+        using var fx = await SetupAsync();
+        var code = await new Hak.Application.Setup.WorkflowSetupService(fx.S.Db, fx.S.Audit, fx.H.Clock).CreateAnalysisCodeAsync(fx.H.Preparer, "Chuyến tàu", "T01", "Tàu 01");
+        await PostedReceiptAsync(fx, 100, 5_000_000, D(3, 2), fx.Add);
+        var issue = await fx.S.Stock.CreateDocumentAsync(fx.H.Preparer, new StockDocumentInput(StockDocumentType.Issue, fx.Wh, D(3, 5), D(3, 5), "Xuất bán",
+            [new StockLineInput(fx.Add, 40, CounterAccountId: fx.A("COGS"), AnalysisCodeId: code.Id)]));
+        issue = await fx.S.Stock.PostDocumentAsync(fx.H.Approver, issue.Id);
+        var cost = await fx.S.Db.JournalLines.AsNoTracking().Where(l => l.AnalysisCodeId == code.Id).ToListAsync();
+        Assert.Equal((fx.A("COGS"), 2_000_000m), (Assert.Single(cost).AccountId, cost[0].Amount));      // never on the inventory account
+
+        var inv = await fx.Inv.CreateAsync(fx.H.Preparer, new InvoiceInput(InvoiceKind.Sales, fx.H.Partner["KH01"], "1C26TBB", "0000007", D(3, 6), D(3, 6), "Phí dịch vụ",
+            [new InvoiceLineInput(3_000_000, Quantity: 1, AccountId: fx.A("SALESREV"), VatRate: 10, AnalysisCodeId: code.Id)]));
+        await fx.Inv.PostAsync(fx.H.Approver, inv.Id);
+        var tagged = await fx.S.Db.JournalLines.AsNoTracking().Where(l => l.AnalysisCodeId == code.Id).Select(l => new { l.AccountId, l.Amount }).ToListAsync();
+        Assert.Contains(tagged, l => l.AccountId == fx.A("SALESREV") && l.Amount == 3_000_000m);
+        Assert.Equal(2, tagged.Count);                                                                 // not on receivable or VAT lines
+    }
+
+    [Fact]
     public async Task PurchaseReturn_IssuedAtCost_CreditNoteClearsGrni_GapToCogs_AndSettlesAp()
     {
         using var fx = await SetupAsync();

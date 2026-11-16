@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { get, post, put } from './api'
 import { askConfirm } from './dialogs'
 import { ErrorBox, ExportButton, useAction } from './common'
@@ -79,6 +79,13 @@ export function AnalysisSetup() {
   )
 }
 
+/** Active analysis codes as picker options (empty when the company uses none: screens then hide the column). */
+export function useAnalysisOptions() {
+  const [codes, setCodes] = useState<AnalysisCode[]>([])
+  useEffect(() => { get<AnalysisCode[]>('/analysis-codes').then(setCodes).catch(() => setCodes([])) }, [])
+  return useMemo(() => codes.filter(c => c.isActive).map(c => ({ id: c.id, code: c.code, name: `${c.name} (${c.kind})` })), [codes])
+}
+
 const firstOfYear = () => today().slice(0, 4) + '-01-01'
 const net = (r: { debit: string; credit: string }) => addMoney([r.credit, '-' + r.debit])
 
@@ -115,7 +122,7 @@ export function AnalysisReportView() {
           {rows.length === 0 && <tr><td colSpan={5} className="muted">Không có dòng chứng từ nào gắn mã phân tích trong khoảng ngày. Khai báo mã ở Thiết lập → Mã phân tích, rồi chọn mã trên dòng chứng từ.</td></tr>}
         </tbody>
       </table></div>}
-      <p className="muted">Không tính bút toán kết chuyển. "Có − Nợ" dương là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Mã gắn được trên chứng từ nhập tay và phiếu thu / chi, báo Nợ / Có; chứng từ do phân hệ kho và hóa đơn sinh ra chưa mang mã phân tích.</p>
+      <p className="muted">Không tính bút toán kết chuyển. "Có − Nợ" dương là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Mã gắn được trên chứng từ nhập tay, phiếu thu / chi, báo Nợ / Có, phiếu xuất kho (vào dòng giá vốn) và hóa đơn (dòng doanh thu, dòng chi phí dịch vụ).</p>
     </>
   )
 }

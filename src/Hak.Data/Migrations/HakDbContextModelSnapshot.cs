@@ -1325,6 +1325,10 @@ namespace Hak.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("AnalysisCodeId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("analysis_code_id");
+
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("TEXT")
                         .HasColumnName("company_id");
@@ -4248,6 +4252,10 @@ namespace Hak.Data.Migrations
                     b.Property<long>("Amount")
                         .HasColumnType("INTEGER")
                         .HasColumnName("amount");
+
+                    b.Property<Guid?>("AnalysisCodeId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("analysis_code_id");
 
                     b.Property<int>("Basis")
                         .HasColumnType("INTEGER")

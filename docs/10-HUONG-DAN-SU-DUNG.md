@@ -73,7 +73,7 @@ Khai mã số thuế công ty trước khi nhập (tab Hồ sơ), nếu không p
 - **Sổ Nhật ký chung**, **Báo cáo theo mẫu** (báo cáo tài chính theo mẫu đã khai báo), **Phân tích theo mã**.
 - Mọi báo cáo có nút **Xuất Excel** và **In**.
 
-**Mã phân tích** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt): khai báo nhóm và mã (ví dụ nhóm "Chuyến tàu", mã `T2026-03`). Khi có mã, form chứng từ có thêm cột "Mã phân tích". Báo cáo "Phân tích theo mã" cộng phát sinh theo từng mã; cột "Có − Nợ" là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Mã gắn được trên chứng từ nhập tay (Chứng từ khác, Điều chỉnh, Phân bổ…) và trên từng dòng phiếu thu / chi, báo Nợ / Có (mã đi vào dòng đối ứng, không vào tài khoản tiền). Chứng từ do phân hệ kho và hóa đơn sinh ra chưa mang mã phân tích.
+**Mã phân tích** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt): khai báo nhóm và mã (ví dụ nhóm "Chuyến tàu", mã `T2026-03`). Khi có mã, form chứng từ có thêm cột "Mã phân tích". Báo cáo "Phân tích theo mã" cộng phát sinh theo từng mã; cột "Có − Nợ" là lãi của mã đó khi cả dòng doanh thu và dòng chi phí đều gắn mã. Mã gắn được trên chứng từ nhập tay (Chứng từ khác, Điều chỉnh, Phân bổ…) và trên từng dòng phiếu thu / chi, báo Nợ / Có (mã đi vào dòng đối ứng, không vào tài khoản tiền). Trên **phiếu xuất kho** mã đi vào dòng giá vốn / chi phí (kể cả khi giá xuất được tính cuối tháng); trên **hóa đơn bán** mã đi vào dòng doanh thu; trên hóa đơn mua mã chỉ áp dụng cho dòng dịch vụ / chi phí (hàng mua nhập kho mang mã khi xuất). Hóa đơn điều chỉnh, trả lại lấy mã của dòng hóa đơn gốc. Nhờ vậy gắn cùng một mã chuyến tàu trên hóa đơn bán và phiếu xuất là xem được lãi gộp của chuyến đó.
 
 ## 8. Khóa sổ cuối tháng
 

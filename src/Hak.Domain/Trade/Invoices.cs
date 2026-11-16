@@ -71,6 +71,8 @@ public sealed class CommercialInvoiceLine
     public decimal? StockQuantity { get; set; }
     /// <summary>Expense/revenue account for lines without stock (services) or to override the default.</summary>
     public Guid? AccountId { get; set; }
+    /// <summary>Mã phân tích put on the revenue / expense line this invoice line generates.</summary>
+    public Guid? AnalysisCodeId { get; set; }
     public PricingBasis Basis { get; set; } = PricingBasis.Quantity;
     /// <summary>Quantity × price base: stock quantity, or BDMT from the active measurement of the linked line.</summary>
     public decimal BasisQuantity { get; set; }

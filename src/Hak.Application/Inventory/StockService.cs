@@ -15,7 +15,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Hak.Application.Inventory;
 
 public sealed record StockLineInput(Guid ItemId, decimal Quantity, decimal? Amount = null, Guid? CounterAccountId = null, string? Description = null,
-    Guid? OrderId = null, int? OrderLineNo = null);
+    Guid? OrderId = null, int? OrderLineNo = null, Guid? AnalysisCodeId = null);
 
 public sealed record StockDocumentInput(StockDocumentType Type, Guid WarehouseId, DateOnly DocumentDate, DateOnly PostingDate, string Description,
     IReadOnlyList<StockLineInput> Lines, Guid? ToWarehouseId = null, Guid? PartnerId = null);
@@ -165,7 +165,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
             doc.Lines = input.Lines.Select((l, i) => new StockDocumentLine
             {
                 Id = Ids.New(), DocumentId = doc.Id, CompanyId = ctx.CompanyId, LineNo = i + 1, ItemId = l.ItemId, Quantity = l.Quantity,
-                Amount = l.Amount, CounterAccountId = l.CounterAccountId, Description = l.Description, OrderId = l.OrderId, OrderLineNo = l.OrderLineNo,
+                Amount = l.Amount, CounterAccountId = l.CounterAccountId, Description = l.Description, OrderId = l.OrderId, OrderLineNo = l.OrderLineNo, AnalysisCodeId = l.AnalysisCodeId,
             }).ToList();
             db.StockDocuments.Add(doc);
             await audit.AppendAsync(ctx.CompanyId, ctx, "stock.create", "stock_document", doc.Id.ToString(), new { doc.Number, doc.Type, lines = doc.Lines.Count });
@@ -210,7 +210,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
                     case StockDocumentType.Receipt:
                         await GuardOrderAsync(ctx.CompanyId, doc.WarehouseId, item.Id, doc.PostingDate);
                         await AddMovementAsync(doc, line, doc.WarehouseId, line.Quantity, line.Amount!.Value, ++seq, line.CounterAccountId, doc.PartnerId);
-                        AddGl(glLines, item.InventoryAccountId, line.CounterAccountId!.Value, doc.PartnerId, line.Amount.Value, line.Description);
+                        AddGl(glLines, item.InventoryAccountId, line.CounterAccountId!.Value, doc.PartnerId, line.Amount.Value, line.Description, counterCode: line.AnalysisCodeId);
                         break;
 
                     case StockDocumentType.Issue:
@@ -218,7 +218,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
                         var method = await GuardOrderAsync(ctx.CompanyId, doc.WarehouseId, item.Id, doc.PostingDate);
                         var value = await IssueValueAsync(ctx.CompanyId, doc.WarehouseId, item.Id, line.Quantity, method, dp);
                         await AddMovementAsync(doc, line, doc.WarehouseId, -line.Quantity, value is null ? null : -value.Value, ++seq, line.CounterAccountId, doc.PartnerId);
-                        if (value is { } v) AddGl(glLines, line.CounterAccountId!.Value, item.InventoryAccountId, doc.PartnerId, v, line.Description, debitPartner: true);
+                        if (value is { } v) AddGl(glLines, line.CounterAccountId!.Value, item.InventoryAccountId, doc.PartnerId, v, line.Description, debitPartner: true, counterCode: line.AnalysisCodeId);
                         break;
                     }
 
@@ -485,6 +485,10 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
             };
             var glLines = new List<VoucherLineInput>();
             var result = new List<object>();
+            // Mã phân tích of the stock lines whose issues are valued by this run (the movement itself does not carry it).
+            var periodDocs = inPeriod.Select(m => m.DocumentId).Distinct().ToList();
+            var lineCodes = (await db.StockDocumentLines.AsNoTracking().Where(l => periodDocs.Contains(l.DocumentId) && l.AnalysisCodeId != null)
+                .Select(l => new { l.DocumentId, l.LineNo, l.AnalysisCodeId }).ToListAsync()).ToDictionary(l => (l.DocumentId, l.LineNo), l => l.AnalysisCodeId);
             foreach (var g in all.GroupBy(m => m.ItemId))
             {
                 var opening = g.Where(m => m.MovementDate < period.StartDate).ToList();
@@ -504,7 +508,8 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
                 {
                     db.StockValuations.Add(new StockValuation { Id = Ids.New(), CompanyId = ctx.CompanyId, MovementId = pending[i].Id, Value = -issueValues[i], CostingRunId = run.Id, CreatedAt = clock.UtcNow });
                     if (issueValues[i] > 0)
-                        AddGl(glLines, pending[i].CounterAccountId!.Value, item.InventoryAccountId, pending[i].PartnerId, issueValues[i], $"Giá vốn xuất {item.Code}", debitPartner: true);
+                        AddGl(glLines, pending[i].CounterAccountId!.Value, item.InventoryAccountId, pending[i].PartnerId, issueValues[i], $"Giá vốn xuất {item.Code}", debitPartner: true,
+                            counterCode: lineCodes.GetValueOrDefault((pending[i].DocumentId, pending[i].LineNo)));
                 }
                 var totalQty = opening.Sum(m => m.Quantity) + valued.Sum(m => m.Quantity);
                 var totalValue = opening.Sum(m => values[m.Id]) + valued.Sum(m => values[m.Id]) + adjBefore + adjInside;
@@ -716,11 +721,13 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
     }
 
     /// <summary>Adds one Dr/Cr pair; the partner goes on whichever side's account requires it.</summary>
-    private static void AddGl(List<VoucherLineInput> lines, Guid debitAccount, Guid creditAccount, Guid? partner, decimal amount, string? description, bool debitPartner = false)
+    /// <remarks>counterCode (mã phân tích) goes on the counter-account line — the side that carries the partner — never on the inventory account.</remarks>
+    private static void AddGl(List<VoucherLineInput> lines, Guid debitAccount, Guid creditAccount, Guid? partner, decimal amount, string? description, bool debitPartner = false,
+        Guid? counterCode = null)
     {
         if (amount == 0) return;
-        lines.Add(new VoucherLineInput(debitAccount, Side.Debit, amount, debitPartner ? partner : null, Description: description));
-        lines.Add(new VoucherLineInput(creditAccount, Side.Credit, amount, debitPartner ? null : partner, Description: description));
+        lines.Add(new VoucherLineInput(debitAccount, Side.Debit, amount, debitPartner ? partner : null, Description: description, AnalysisCodeId: debitPartner ? counterCode : null));
+        lines.Add(new VoucherLineInput(creditAccount, Side.Credit, amount, debitPartner ? null : partner, Description: description, AnalysisCodeId: debitPartner ? null : counterCode));
     }
 
     private async Task<int> DecimalsAsync(Company company)
