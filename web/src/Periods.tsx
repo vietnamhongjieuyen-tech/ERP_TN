@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askConfirm, askText } from './dialogs'
 import { get, post, type Period, type Voucher } from './api'
 import { ErrorBox, useAction } from './common'
 
@@ -28,10 +29,10 @@ export function PeriodsView() {
                   const v = await post<Voucher>('/closing/generate', { periodId: p.id })
                   setInfo(`Đã tạo chứng từ kết chuyển ${v.number} (Nháp) — duyệt và ghi sổ ở màn hình Chứng từ.`)
                 }, 'Đã tạo chứng từ kết chuyển (Nháp).')}>Tạo bút toán kết chuyển</button>
-                <button disabled={busy} onClick={() => confirm(`Khóa sổ kỳ ${p.periodNo}?`) && act(() => post(`/periods/${p.id}/lock`), `Đã khóa kỳ ${p.periodNo}.`)}>Khóa sổ</button>
+                <button disabled={busy} onClick={async () => { if (await askConfirm(`Khóa sổ kỳ ${p.periodNo}?`)) act(() => post(`/periods/${p.id}/lock`), `Đã khóa kỳ ${p.periodNo}.`) }}>Khóa sổ</button>
               </>}
-              {p.status === 'Locked' && <button disabled={busy} onClick={() => {
-                const reason = prompt('Lý do mở lại kỳ (bắt buộc, được ghi nhật ký):')
+              {p.status === 'Locked' && <button disabled={busy} onClick={async () => {
+                const reason = await askText('Lý do mở lại kỳ (bắt buộc, được ghi nhật ký):')
                 if (reason) act(() => post(`/periods/${p.id}/reopen`, { reason }), `Đã mở lại kỳ ${p.periodNo}.`)
               }}>Mở lại</button>}
             </td>

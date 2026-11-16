@@ -55,6 +55,13 @@ public class UserAdminTests
         await s.Auth.AuthenticateAsync(again.Token);                                                                   // current session kept
         Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Auth.AuthenticateAsync(other.Token)));            // others ended
         Assert.DoesNotContain("Mat-khau-rieng-2026", string.Join("|", await s.Db.AuditLogs.Select(a => a.DataJson ?? "").ToListAsync()));
+
+        // Guessing the current password through an open session: locked after MaxFailedLogins and every session ended.
+        for (var i = 0; i < 5; i++)
+            Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Setup.ChangeOwnPasswordAsync(h.PreparerId, again.SessionId, "doan-" + i, "Mat-khau-khac-2026")));
+        Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Auth.AuthenticateAsync(again.Token)));
+        Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Auth.LoginAsync("lap", "Mat-khau-rieng-2026", "PC1")));   // locked
+        Assert.True(await s.Db.AuditLogs.AnyAsync(a => a.Action == "auth.lockout"));
     }
 
     [Fact]

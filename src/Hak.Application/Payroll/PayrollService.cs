@@ -64,7 +64,7 @@ public sealed class PayrollService(HakDbContext db, AccountingEngine engine, Aud
         var key = await db.ExchangePartnerKeys.AsNoTracking().FirstOrDefaultAsync(k =>
                       k.CompanyId == ctx.CompanyId && k.SourceSystem == sourceSystem && k.KeyId == keyId && k.IsActive)
                   ?? throw new DomainException(ErrorCodes.UnknownSource, $"Không có khóa xác thực cho nguồn {sourceSystem}/{keyId}.");
-        var expected = Convert.FromBase64String(PackageCrypto.Signature(package, Convert.FromBase64String(key.SecretBase64)));
+        var expected = Convert.FromBase64String(PackageCrypto.Signature(package, Exchange.SecretProtector.Unprotect(key.SecretBase64)));
         if (!CryptographicOperations.FixedTimeEquals(expected, Convert.FromBase64String((string)package["auth"]!["signature"]!)))
             throw new DomainException(ErrorCodes.PackageSignatureInvalid, "Chữ ký gói dữ liệu không hợp lệ.");
         if (PackageCrypto.PayloadChecksum(package["payload"]!) != (string?)package["checksum"]!["value"])

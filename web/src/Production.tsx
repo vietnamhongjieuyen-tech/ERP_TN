@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney } from './money'
@@ -100,8 +101,8 @@ export function ProductionView() {
           <tbody>{runs.map(r => <tr key={r.id}><td>{objName(r.costObjectId)}</td><td>{r.periodStart.slice(0, 7)}</td><td className="num">{formatMoney(r.outputQuantity)}</td>
             <td className="num">{formatMoney(r.actualCost)}</td><td className="num">{formatMoney(r.unitCost)}</td><td className="num">{formatMoney(r.closingWip)}</td>
             <td>{r.status === 'Active' ? 'Hiệu lực' : 'Đã hủy'}</td>
-            <td>{r.status === 'Active' && latest(r) && <button disabled={busy} onClick={() => {
-              const reason = prompt('Lý do hủy tính giá thành:')
+            <td>{r.status === 'Active' && latest(r) && <button disabled={busy} onClick={async () => {
+              const reason = await askText('Lý do hủy tính giá thành:')
               if (reason) run(async () => { await post(`/production/cost-runs/${r.id}/reverse`, { reason }); setInfo('Đã hủy lần tính giá thành.'); await load() })
             }}>Hủy</button>}</td></tr>)}</tbody></table>
       </section>

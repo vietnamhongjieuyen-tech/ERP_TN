@@ -111,6 +111,9 @@ public class SecurityAndIsolationTests
         Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Auth.AuthenticateAsync(login.Token)));
         Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Auth.AuthenticateAsync("forged")));
         Assert.True(await s.Db.AuditLogs.AnyAsync(a => a.Action == "auth.login" && a.Result == "DENIED"));
+        // Text typed as an unknown user name (it may be a password) never reaches the audit log.
+        Assert.Equal(ErrorCodes.Unauthenticated, await CodeOf(() => s.Auth.LoginAsync("Go-nham-mat-khau-2026", "x", "PC1")));
+        Assert.DoesNotContain("go-nham-mat-khau-2026", string.Join("|", await s.Db.AuditLogs.Select(a => a.EntityId + "|" + (a.DataJson ?? "")).ToListAsync()), StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(TestHost.Password, string.Join("|", await s.Db.Users.Select(u => u.PasswordHash).ToListAsync()));
     }
 

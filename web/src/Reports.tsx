@@ -77,7 +77,7 @@ export function AccountLedgerView() {
         <label>Đối tượng<PartnerSelect partners={partners} value={partnerId} onChange={setPartnerId} /></label>
         <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
         <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
-        <button className="primary" onClick={load} disabled={busy || !accountId}>Xem</button>
+        <button className="primary" onClick={() => load()} disabled={busy || !accountId}>Xem</button>
         <ExportButton fileName={`So_chi_tiet_${data?.accountCode ?? ''}_${from}_${to}`} sheet={`Sổ TK ${data?.accountCode ?? ''}`} disabled={!data}
           columns={[{ header: 'Ngày' }, { header: 'Số CT' }, { header: 'Loại' }, { header: 'Diễn giải', width: 40 }, { header: 'TK đối ứng' },
             { header: 'Nợ', numeric: true }, { header: 'Có', numeric: true }, { header: 'Số dư (+Nợ / −Có)', numeric: true }]}
@@ -127,11 +127,12 @@ export function ReceivablesView() {
   const debitItem = items.find(o => o.journalLineId === pickD)
   const creditItem = items.find(o => o.journalLineId === pickC)
 
-  const load = () => run(async () => {
+  // pid: the partner to show (a click on an aging row passes it before the state has updated).
+  const load = (pid: string = partnerId) => run(async () => {
     setAging(await get(`/reports/aging?accountId=${accountId}&asOf=${asOf}`))
     setRecon(await get(`/reports/subledger-reconciliation?asOf=${asOf}`))
-    setItems(partnerId ? await get(`/settlement/open-items?accountId=${accountId}&partnerId=${partnerId}&asOf=${asOf}`) : [])
-    setAllocs(partnerId ? await get(`/settlement/allocations?accountId=${accountId}&partnerId=${partnerId}`) : [])
+    setItems(pid ? await get(`/settlement/open-items?accountId=${accountId}&partnerId=${pid}&asOf=${asOf}`) : [])
+    setAllocs(pid ? await get(`/settlement/allocations?accountId=${accountId}&partnerId=${pid}`) : [])
     setPickD(''); setPickC('')
   })
   const auto = () => run(async () => { await post('/settlement/auto', { accountId, partnerId, date: asOf }); await load() })
@@ -143,7 +144,7 @@ export function ReceivablesView() {
         <label>Tài khoản công nợ<AccountSelect accounts={openAccounts} value={accountId} onChange={setAccountId} /></label>
         <label>Đối tượng (chi tiết)<PartnerSelect partners={partners} value={partnerId} onChange={setPartnerId} /></label>
         <label>Đến ngày<input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
-        <button className="primary" onClick={load} disabled={busy || !accountId}>Xem</button>
+        <button className="primary" onClick={() => load()} disabled={busy || !accountId}>Xem</button>
         <button onClick={auto} disabled={busy || !accountId || !partnerId}>Tự động bù trừ (FIFO)</button>
         <button onClick={() => setConfirming(true)} disabled={!accountId || !partnerId} title="In biên bản đối chiếu công nợ với đối tượng đang chọn">Biên bản đối chiếu…</button>
         <ExportButton fileName={`Tuoi_no_${asOf}`} sheet="Tuổi nợ" disabled={!aging}
@@ -160,7 +161,7 @@ export function ReceivablesView() {
           <table className="grid">
             <thead><tr><th>Đối tượng</th><th className="num">Chưa đến hạn</th>{aging.bucketLabels.map(b => <th key={b} className="num">Quá hạn {b} ngày</th>)}<th className="num">Tổng còn nợ</th><th className="num">Trả trước chưa phân bổ</th><th className="num">Thuần</th></tr></thead>
             <tbody>{aging.rows.map(r => (
-              <tr key={r.partnerId} onClick={() => setPartnerId(r.partnerId)} style={{ cursor: 'pointer' }}>
+              <tr key={r.partnerId} onClick={() => { setPartnerId(r.partnerId); load(r.partnerId) }} style={{ cursor: 'pointer' }} title="Bấm để xem chứng từ còn mở của đối tượng này">
                 <td>{r.partnerCode} – {r.partnerName}</td><td className="num">{formatMoney(r.notDue)}</td>
                 {r.buckets.map((b, i) => <td key={i} className="num">{formatMoney(b)}</td>)}
                 <td className="num">{formatMoney(r.openObligations)}</td><td className="num">{formatMoney(r.unappliedCredits)}</td><td className="num">{formatMoney(r.net)}</td></tr>))}

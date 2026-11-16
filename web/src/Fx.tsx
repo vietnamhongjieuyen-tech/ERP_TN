@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { get, post, type OpenItem } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, parseRate, today } from './money'
@@ -81,8 +82,8 @@ export function FxView() {
         <table className="grid"><thead><tr><th>Ngày</th><th>Nguồn tỷ giá</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
           <tbody>{runs.map(r => <tr key={r.id}><td>{r.revaluationDate}</td><td>{r.rateSource}</td>
             <td>{r.status === 'Active' ? (r.voucherId ? 'Hiệu lực' : 'Hiệu lực (không phát sinh)') : 'Đã hủy'}</td>
-            <td>{r.id === lastActive?.id && <button disabled={busy} onClick={() => {
-              const reason = prompt('Lý do hủy lần đánh giá lại:')
+            <td>{r.id === lastActive?.id && <button disabled={busy} onClick={async () => {
+              const reason = await askText('Lý do hủy lần đánh giá lại:')
               if (reason) act(() => post(`/fx/revaluations/${r.id}/reverse`, { reason }), 'Đã hủy lần đánh giá lại.')
             }}>Hủy</button>}</td></tr>)}</tbody></table>
       </section>

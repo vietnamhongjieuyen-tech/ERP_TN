@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { get, post } from './api'
 import { ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, today } from './money'
@@ -99,8 +100,8 @@ export function OrdersView() {
               <td style={{ display: 'flex', gap: 4 }}>
                 <button onClick={() => run(async () => setDetail(await get<Fulfil>(`/orders/${o.id}/fulfilment`)))}>Tiến độ</button>
                 {o.status === 'Draft' && <button className="primary" onClick={() => act(() => post(`/orders/${o.id}/confirm`), `Đã xác nhận ${o.number}.`)}>Xác nhận</button>}
-                {o.status === 'Confirmed' && <button onClick={() => { const r = prompt('Lý do đóng đơn:'); if (r) act(() => post(`/orders/${o.id}/close`, { reason: r }), `Đã đóng ${o.number}.`) }}>Đóng đơn</button>}
-                {(o.status === 'Draft' || o.status === 'Confirmed') && <button className="danger" onClick={() => { const r = prompt('Lý do hủy đơn:'); if (r) act(() => post(`/orders/${o.id}/cancel`, { reason: r }), `Đã hủy ${o.number}.`) }}>Hủy</button>}
+                {o.status === 'Confirmed' && <button onClick={async () => { const r = await askText('Lý do đóng đơn:'); if (r) act(() => post(`/orders/${o.id}/close`, { reason: r }), `Đã đóng ${o.number}.`) }}>Đóng đơn</button>}
+                {(o.status === 'Draft' || o.status === 'Confirmed') && <button className="danger" onClick={async () => { const r = await askText('Lý do hủy đơn:'); if (r) act(() => post(`/orders/${o.id}/cancel`, { reason: r }), `Đã hủy ${o.number}.`) }}>Hủy</button>}
               </td></tr>))}
             {list.length === 0 && <tr><td colSpan={7} className="muted">Chưa có đơn hàng.</td></tr>}
           </tbody>

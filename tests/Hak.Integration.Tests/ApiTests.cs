@@ -131,6 +131,10 @@ public class ApiTests
         Assert.Single(second["items"]!.AsArray());
         var found = await Json(await ktt.GetAsync("/api/vouchers?text=" + Uri.EscapeDataString("văn phòng 2")));
         Assert.Equal(1, (int)found["total"]!);
+        // Case and accents are ignored, also for upper-case Vietnamese letters (SQLite lower() only folds A–Z).
+        foreach (var typed in new[] { "CHI PHÍ VĂN PHÒNG", "chi phi van phong", "Văn Phòng" })
+            Assert.Equal(2, (int)(await Json(await ktt.GetAsync("/api/vouchers?text=" + Uri.EscapeDataString(typed))))["total"]!);
+        Assert.Equal(0, (int)(await Json(await ktt.GetAsync("/api/vouchers?text=" + Uri.EscapeDataString("không có"))))["total"]!);
         Assert.Equal(1, (int)(await Json(await ktt.GetAsync("/api/vouchers?status=Posted")))["total"]!);
     }
 }

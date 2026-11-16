@@ -76,5 +76,12 @@ public class BackupTests
         Assert.Contains(await s.Db.AuditLogs.Where(a => a.CompanyId == Guid.Empty).Select(a => a.Action).ToListAsync(), a => a == "backup.restore");
         Assert.Null(await s.Audit.VerifyChainAsync(Guid.Empty));
         Assert.DoesNotContain(Pass, string.Join("|", await s.Db.AuditLogs.Select(a => a.DataJson ?? "").ToListAsync()));
+
+        // An interrupted backup leaves an unencrypted work copy; start-up removes those and nothing else.
+        File.WriteAllText(Path.Combine(dir, ".snapshot-abc.db"), "x");
+        File.WriteAllText(Path.Combine(dir, ".verify-abc.db"), "x");
+        Assert.Equal(2, BackupService.DeleteStaleWorkFiles(dir));
+        Assert.Equal(0, BackupService.DeleteStaleWorkFiles(dir));
+        Assert.True(File.Exists(Path.Combine(dir, backup.FileName)) && File.Exists(restored.RestoredPath!));
     }
 }

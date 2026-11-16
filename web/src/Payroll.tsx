@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { get, post, postRaw } from './api'
 import { ErrorBox, ExportButton, STATUS_VI, useAction } from './common'
 import { formatMoney, today } from './money'
@@ -120,7 +121,7 @@ function ExchangeKeys() {
       </div>
       <table className="grid"><thead><tr><th>Hệ thống</th><th>Mã khóa</th><th>Trạng thái</th><th /></tr></thead>
         <tbody>{keys.map(k => <tr key={k.id}><td>{k.sourceSystem}</td><td>{k.keyId}</td><td>{k.isActive ? 'Đang dùng' : 'Ngừng dùng'}</td>
-          <td>{k.isActive && <button disabled={busy} onClick={() => { const reason = prompt('Lý do ngừng dùng khóa:'); if (reason) run(async () => { await post(`/exchange/keys/${k.id}/deactivate`, { reason }); await load() }) }}>Ngừng dùng</button>}</td></tr>)}</tbody></table>
+          <td>{k.isActive && <button disabled={busy} onClick={async () => { const reason = await askText('Lý do ngừng dùng khóa:'); if (reason) run(async () => { await post(`/exchange/keys/${k.id}/deactivate`, { reason }); await load() }) }}>Ngừng dùng</button>}</td></tr>)}</tbody></table>
     </section>
   )
 }

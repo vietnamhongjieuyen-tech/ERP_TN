@@ -18,6 +18,32 @@ jobs:
         with:
           name: test-results
           path: TestResults
+  # LAN mode: the same integration tests against PostgreSQL (each test creates and drops its own hak_test_<guid> database).
+  backend-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: hak_ci
+          POSTGRES_PASSWORD: hak_ci_throwaway   # container exists only for this job
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hak_ci" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      HAK_TEST_PG: Host=127.0.0.1;Port=5432;Username=hak_ci;Password=hak_ci_throwaway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet test tests/Hak.Integration.Tests -c Release --logger trx --results-directory TestResults
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-postgres
+          path: TestResults
   frontend:
     runs-on: windows-latest
     defaults:
@@ -29,5 +55,6 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
+      - run: npm run lint
       - run: npm test
       - run: npm run build

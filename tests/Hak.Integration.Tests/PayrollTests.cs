@@ -162,6 +162,16 @@ public class PayrollTests
         var issued = await keys.IssueAsync(h.Admin, "hrm", "2026-01");
         Assert.Equal("HRM", issued.SourceSystem);
         Assert.Equal(32, Convert.FromBase64String(issued.SecretBase64).Length);
+        // At rest the secret is wrapped (Windows DPAPI), never the Base64 handed to the sending system; legacy plain rows are upgraded.
+        var stored = await s.Db.ExchangePartnerKeys.AsNoTracking().SingleAsync(k => k.Id == issued.Id);
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.StartsWith("dpapi:", stored.SecretBase64);
+            Assert.DoesNotContain(issued.SecretBase64, stored.SecretBase64);
+            Assert.True(await keys.ProtectStoredSecretsAsync() >= 1);    // the plain test-host key
+            Assert.Equal(0, await keys.ProtectStoredSecretsAsync());
+            Assert.All(await s.Db.ExchangePartnerKeys.AsNoTracking().ToListAsync(), k => Assert.StartsWith("dpapi:", k.SecretBase64));
+        }
         Assert.Equal(ErrorCodes.DuplicateCode, await CodeOf(() => keys.IssueAsync(h.Admin, "HRM", "2026-01")));
 
         string Signed(string packageId)

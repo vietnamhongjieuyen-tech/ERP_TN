@@ -242,17 +242,38 @@ public sealed partial class SetupService
     {
         RequirePasswordPolicy(newPassword);
         if (newPassword == currentPassword) throw new DomainException(ErrorCodes.ValidationFailed, "Mật khẩu mới phải khác mật khẩu hiện tại.");
-        await db.InTransactionAsync(async () =>
+        // A wrong current password counts like a failed login (committed, then reported): after MaxFailedLogins the account is
+        // locked and every session ends, so a borrowed session cannot be used to guess the password.
+        var failure = await db.InTransactionAsync(async () =>
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive) ?? throw new DomainException(ErrorCodes.Unauthenticated, "Tài khoản không hợp lệ.");
             if (!PasswordHasher.Verify(currentPassword, user.PasswordHash))
-                throw new DomainException(ErrorCodes.Unauthenticated, "Mật khẩu hiện tại không đúng.");
+            {
+                user.FailedLoginCount++;
+                var locked = user.FailedLoginCount >= options.MaxFailedLogins;
+                if (locked)
+                {
+                    user.LockedUntil = clock.UtcNow.Add(options.LockoutDuration);
+                    user.FailedLoginCount = 0;
+                    var ended = await RevokeSessionsAsync(userId, null);
+                    await audit.AppendAsync(Guid.Empty, null, "auth.lockout", "user", userId.ToString(), new { until = user.LockedUntil, via = "password_change", revokedSessions = ended }, result: "LOCKED");
+                }
+                user.RowVersion++;
+                await audit.AppendAsync(Guid.Empty, null, "user.password_change", "user", userId.ToString(), null, result: "DENIED", userIdOverride: userId);
+                await db.SaveChangesAsync();
+                return locked
+                    ? "Nhập sai mật khẩu hiện tại quá nhiều lần: tài khoản tạm khóa và mọi phiên làm việc đã kết thúc."
+                    : "Mật khẩu hiện tại không đúng.";
+            }
             user.PasswordHash = PasswordHasher.Hash(newPassword, options.PasswordIterations);
+            user.FailedLoginCount = 0;
             user.RowVersion++;
             var revoked = await RevokeSessionsAsync(userId, currentSessionId);
             await audit.AppendAsync(Guid.Empty, null, "user.password_change", "user", userId.ToString(), new { revokedSessions = revoked }, userIdOverride: userId);
             await db.SaveChangesAsync();
+            return (string?)null;
         });
+        if (failure is not null) throw new DomainException(ErrorCodes.Unauthenticated, failure);
     }
 
     private static void RequirePasswordPolicy(string password)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { askDate, askText } from './dialogs'
 import { get, post, put, session, type Voucher } from './api'
 import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog } from './common'
 import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
@@ -105,16 +106,16 @@ export function VouchersView() {
             })}>Kiểm tra</button>
             {v.status === 'Draft' && <button onClick={() => act('Đã gửi duyệt', () => post(`/vouchers/${v.id}/submit?rowVersion=${v.rowVersion}`))}>Gửi duyệt</button>}
             {v.status === 'Submitted' && <button onClick={() => act('Đã duyệt', () => post(`/vouchers/${v.id}/approve?rowVersion=${v.rowVersion}`))}>Duyệt</button>}
-            {(v.status === 'Submitted' || v.status === 'Approved') && <button onClick={() => {
-              const reason = prompt('Lý do trả lại:'); if (reason) act('Đã trả lại', () => post(`/vouchers/${v.id}/reject?rowVersion=${v.rowVersion}`, { reason }))
+            {(v.status === 'Submitted' || v.status === 'Approved') && <button onClick={async () => {
+              const reason = await askText('Lý do trả lại:'); if (reason) act('Đã trả lại', () => post(`/vouchers/${v.id}/reject?rowVersion=${v.rowVersion}`, { reason }))
             }}>Trả lại</button>}
             {v.status === 'Approved' && <button className="primary" onClick={() => act('Đã ghi sổ', () => post(`/vouchers/${v.id}/post?rowVersion=${v.rowVersion}`))}>Ghi sổ</button>}
-            {v.status === 'Posted' && <button className="danger" onClick={() => {
-              const reason = prompt('Lý do đảo bút toán:'); if (!reason) return
-              const date = prompt('Ngày đảo (yyyy-mm-dd):', v.postingDate); if (date) act('Đã đảo bút toán', () => post(`/vouchers/${v.id}/reverse`, { reversalDate: date, reason }))
+            {v.status === 'Posted' && <button className="danger" onClick={async () => {
+              const reason = await askText('Lý do đảo bút toán:'); if (!reason) return
+              const date = await askDate('Ngày đảo', v.postingDate); if (date) act('Đã đảo bút toán', () => post(`/vouchers/${v.id}/reverse`, { reversalDate: date, reason }))
             }}>Đảo</button>}
-            {(v.status === 'Draft' || v.status === 'Submitted') && <button className="danger" onClick={() => {
-              const reason = prompt('Lý do hủy:'); if (reason) act('Đã hủy', () => post(`/vouchers/${v.id}/cancel?rowVersion=${v.rowVersion}`, { reason }))
+            {(v.status === 'Draft' || v.status === 'Submitted') && <button className="danger" onClick={async () => {
+              const reason = await askText('Lý do hủy:'); if (reason) act('Đã hủy', () => post(`/vouchers/${v.id}/cancel?rowVersion=${v.rowVersion}`, { reason }))
             }}>Hủy</button>}
             <button onClick={printSheet}>In chứng từ</button>
           </div>

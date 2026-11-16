@@ -3,8 +3,10 @@ import { get, session, type Account, type Partner } from './api'
 import { ErrorBox, Modal, PrintSheet, printSheet, useAction } from './common'
 import { amountInWords, balanceText, formatMoney } from './money'
 
-interface LedgerRow { postingDate: string; voucherNumber: string; description: string | null; debit: string; credit: string; runningBalance: string }
-interface Ledger { accountCode: string; accountName: string; openingBalance: string; rows: LedgerRow[]; totalDebit: string; totalCredit: string; closingBalance: string }
+interface LedgerRow { postingDate: string; voucherNumber: string; description: string | null; debit: string; credit: string; runningBalance: string
+  foreignCurrency?: string | null; foreignAmount?: string | null }
+interface Ledger { accountCode: string; accountName: string; openingBalance: string; rows: LedgerRow[]; totalDebit: string; totalCredit: string; closingBalance: string
+  foreignClosing?: { currency: string; closing: string }[] }
 interface CompanyInfo { id: string; name: string; taxCode?: string | null }
 
 const d = (s: string) => s.split('-').reverse().join('/')
@@ -33,7 +35,8 @@ export function ConfirmationDialog({ account, partner, to, onClose }: { account:
         <p>TK {ledger.accountCode} – {ledger.accountName}, từ {d(from)} đến {d(to)}: {ledger.rows.length} chứng từ.</p>
         <p>Số dư đầu kỳ: {balanceText(ledger.openingBalance, partner.name)}<br />
           Phát sinh Nợ {formatMoney(ledger.totalDebit)} · Phát sinh Có {formatMoney(ledger.totalCredit)}<br />
-          <b>Số dư cuối kỳ: {balanceText(ledger.closingBalance, partner.name)}</b></p>
+          <b>Số dư cuối kỳ: {balanceText(ledger.closingBalance, partner.name)}</b>
+          {(ledger.foreignClosing ?? []).filter(f => f.closing !== '0').map(f => <span key={f.currency}><br />Nguyên tệ còn lại: {formatMoney(abs(f.closing))} {f.currency}</span>)}</p>
         <p className="muted">Bấm "In biên bản" để in (hoặc lưu PDF) kèm bảng chi tiết chứng từ và ô ký hai bên. Địa chỉ, người đại diện để trống cho hai bên ghi tay.</p>
         <ConfirmationPrint ledger={ledger} company={company} partner={partner} from={from} to={to} />
       </>}
@@ -43,6 +46,9 @@ export function ConfirmationDialog({ account, partner, to, onClose }: { account:
 
 function ConfirmationPrint({ ledger: l, company, partner, from, to }: { ledger: Ledger; company: CompanyInfo | null; partner: Partner; from: string; to: string }) {
   const closing = l.closingBalance
+  // Foreign-currency items: an extra column with the foreign amount of each voucher, and the foreign balance in the conclusion.
+  const hasForeign = l.rows.some(r => r.foreignAmount) || (l.foreignClosing ?? []).length > 0
+  const span = hasForeign ? 4 : 3
   return (
     <PrintSheet>
       <div className="center"><b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br /><b>Độc lập – Tự do – Hạnh phúc</b></div>
@@ -57,21 +63,24 @@ function ConfirmationPrint({ ledger: l, company, partner, from, to }: { ledger: 
         Đại diện: ......................................... Chức vụ: ...............................</p>
       <p>Cùng đối chiếu công nợ theo sổ sách của Bên A như sau:</p>
       <table>
-        <thead><tr><th>Ngày</th><th>Số chứng từ</th><th>Diễn giải</th><th>Phát sinh Nợ</th><th>Phát sinh Có</th></tr></thead>
+        <thead><tr><th>Ngày</th><th>Số chứng từ</th><th>Diễn giải</th>{hasForeign && <th>Nguyên tệ</th>}<th>Phát sinh Nợ</th><th>Phát sinh Có</th></tr></thead>
         <tbody>
-          <tr><td colSpan={3}><b>Số dư đầu kỳ</b></td>
+          <tr><td colSpan={span}><b>Số dư đầu kỳ</b></td>
             <td className="num">{l.openingBalance.startsWith('-') || l.openingBalance === '0' ? '' : formatMoney(l.openingBalance)}</td>
             <td className="num">{l.openingBalance.startsWith('-') ? formatMoney(abs(l.openingBalance)) : ''}</td></tr>
           {l.rows.map((r, i) => <tr key={i}><td>{d(r.postingDate)}</td><td>{r.voucherNumber}</td><td>{r.description}</td>
+            {hasForeign && <td className="num">{r.foreignAmount ? `${formatMoney(r.foreignAmount)} ${r.foreignCurrency ?? ''}` : ''}</td>}
             <td className="num">{r.debit === '0' ? '' : formatMoney(r.debit)}</td><td className="num">{r.credit === '0' ? '' : formatMoney(r.credit)}</td></tr>)}
-          <tr><td colSpan={3}><b>Cộng phát sinh</b></td><td className="num"><b>{formatMoney(l.totalDebit)}</b></td><td className="num"><b>{formatMoney(l.totalCredit)}</b></td></tr>
-          <tr><td colSpan={3}><b>Số dư cuối kỳ</b></td>
+          <tr><td colSpan={span}><b>Cộng phát sinh</b></td><td className="num"><b>{formatMoney(l.totalDebit)}</b></td><td className="num"><b>{formatMoney(l.totalCredit)}</b></td></tr>
+          <tr><td colSpan={span}><b>Số dư cuối kỳ</b></td>
             <td className="num"><b>{closing.startsWith('-') || closing === '0' ? '' : formatMoney(closing)}</b></td>
             <td className="num"><b>{closing.startsWith('-') ? formatMoney(abs(closing)) : ''}</b></td></tr>
         </tbody>
       </table>
       <p><b>Kết luận:</b> Đến ngày {d(to)}, {balanceText(closing, partner.name)}
-        {closing !== '0' && <><br />Bằng chữ: <i>{amountInWords(abs(closing))}</i></>}</p>
+        {closing !== '0' && <><br />Bằng chữ: <i>{amountInWords(abs(closing))}</i></>}
+        {(l.foreignClosing ?? []).filter(f => f.closing !== '0').map(f => <span key={f.currency}><br />
+          Số dư nguyên tệ: {formatMoney(abs(f.closing))} {f.currency} ({f.closing.startsWith('-') ? 'Bên A phải trả Bên B' : 'Bên B phải trả Bên A'}); số tiền đồng Việt Nam ở trên là giá trị ghi sổ.</span>)}</p>
       <p>Nếu Bên B có số liệu khác, đề nghị ghi rõ chênh lệch và chứng từ liên quan: ...........................................................</p>
       <p>Biên bản lập thành 02 bản, mỗi bên giữ 01 bản có giá trị như nhau.</p>
       <div className="signs" style={{ gridTemplateColumns: '1fr 1fr' }}>

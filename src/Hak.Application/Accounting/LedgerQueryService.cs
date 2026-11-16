@@ -35,10 +35,17 @@ public sealed record JournalBookRow(DateOnly PostingDate, string VoucherType, st
     string AccountCode, string? PartnerCode, decimal Debit, decimal Credit, string? Description);
 
 public sealed record AccountLedgerRow(DateOnly PostingDate, string VoucherType, string VoucherNumber, Guid VoucherId, string? Description,
-    string CounterAccounts, decimal Debit, decimal Credit, decimal RunningBalance);
+    string CounterAccounts, decimal Debit, decimal Credit, decimal RunningBalance, string? ForeignCurrency = null, decimal? ForeignAmount = null);
+
+/// <summary>Signed foreign-currency balance (debit positive) of the account at the end of the range.</summary>
+public sealed record ForeignBalance(string Currency, decimal Closing);
 
 public sealed record AccountLedger(Guid AccountId, string AccountCode, string AccountName, DateOnly From, DateOnly To,
-    decimal OpeningBalance, IReadOnlyList<AccountLedgerRow> Rows, decimal TotalDebit, decimal TotalCredit, decimal ClosingBalance);
+    decimal OpeningBalance, IReadOnlyList<AccountLedgerRow> Rows, decimal TotalDebit, decimal TotalCredit, decimal ClosingBalance)
+{
+    /// <summary>One row per foreign currency used on the account (empty for functional-currency accounts).</summary>
+    public IReadOnlyList<ForeignBalance> ForeignClosing { get; init; } = [];
+}
 
 /// <summary>CalculateTrialBalance / CalculateAccountBalance / general journal (docs/03 §3).</summary>
 public sealed class LedgerQueryService(HakDbContext db)
@@ -89,19 +96,22 @@ public sealed class LedgerQueryService(HakDbContext db)
         var opening = await SumBySideAsync(baseQ.Where(l => l.PostingDate < from || db.JournalEntries.Any(e => e.Id == l.JournalEntryId && e.VoucherType == VoucherTypes.OpeningBalance)));
         var period = await SumBySideAsync(baseQ.Where(l => l.PostingDate >= from && !db.JournalEntries.Any(e => e.Id == l.JournalEntryId && e.VoucherType == VoucherTypes.OpeningBalance)));
 
+        // Indexed once by (account, partner, side): looking each total up in the lists is quadratic with thousands of partners.
+        var openingBy = opening.ToDictionary(s => (s.AccountId, s.PartnerId, s.Side), s => s.Total);
+        var periodBy = period.ToDictionary(s => (s.AccountId, s.PartnerId, s.Side), s => s.Total);
+        var partnersOf = opening.Concat(period).GroupBy(s => s.AccountId).ToDictionary(g => g.Key, g => g.Select(s => s.PartnerId).Distinct().ToList());
+
         var rows = new List<TrialBalanceRow>();
-        foreach (var accId in opening.Select(s => s.AccountId).Concat(period.Select(s => s.AccountId)).Distinct())
+        foreach (var (accId, partnerKeys) in partnersOf)
         {
             var acc = accounts[accId];
-            var partnerKeys = opening.Where(s => s.AccountId == accId).Select(s => s.PartnerId)
-                .Concat(period.Where(s => s.AccountId == accId).Select(s => s.PartnerId)).Distinct().ToList();
 
             decimal od = 0, oc = 0, pd = 0, pc = 0, cd = 0, cc = 0, netOpening = 0, netClosing = 0;
             foreach (var pk in partnerKeys)
             {
-                var o = Signed(opening, accId, pk);
-                var d = Sum(period, accId, pk, Side.Debit);
-                var c = Sum(period, accId, pk, Side.Credit);
+                var o = openingBy.GetValueOrDefault((accId, pk, Side.Debit)) - openingBy.GetValueOrDefault((accId, pk, Side.Credit));
+                var d = periodBy.GetValueOrDefault((accId, pk, Side.Debit));
+                var c = periodBy.GetValueOrDefault((accId, pk, Side.Credit));
                 var close = BalanceMath.Closing(o, d, c);
                 pd += d; pc += c;
                 netOpening += o; netClosing += close;
@@ -176,10 +186,18 @@ public sealed class LedgerQueryService(HakDbContext db)
             running += (int)x.l.Side * x.l.Amount;
             var counters = counterCodes.GetValueOrDefault((x.l.JournalEntryId, x.l.Side == Side.Debit ? Side.Credit : Side.Debit), "");
             rows.Add(new AccountLedgerRow(x.l.PostingDate, x.VoucherType, x.VoucherNumber, x.VoucherId, x.l.Description, counters,
-                x.l.Side == Side.Debit ? x.l.Amount : 0, x.l.Side == Side.Credit ? x.l.Amount : 0, running));
+                x.l.Side == Side.Debit ? x.l.Amount : 0, x.l.Side == Side.Credit ? x.l.Amount : 0, running, x.l.ForeignCurrency, x.l.ForeignAmount));
         }
+
+        // Foreign balance at the end of the range: revaluation lines carry the currency code without a foreign amount, so the
+        // sum of foreign amounts is the foreign balance itself.
+        var fq = db.JournalLines.Where(l => l.CompanyId == ctx.CompanyId && l.AccountId == accountId && l.PostingDate <= toDate && l.ForeignCurrency != null && l.ForeignAmount != null);
+        if (partnerId is not null) fq = fq.Where(l => l.PartnerId == partnerId);
+        var foreign = (await fq.Select(l => new { l.ForeignCurrency, l.Side, l.ForeignAmount }).ToListAsync())
+            .GroupBy(x => x.ForeignCurrency!).OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => new ForeignBalance(g.Key, g.Sum(x => (int)x.Side * x.ForeignAmount!.Value))).ToList();
         return new AccountLedger(account.Id, account.Code, account.Name, fromDate, toDate, opening, rows,
-            rows.Sum(r => r.Debit), rows.Sum(r => r.Credit), running);
+            rows.Sum(r => r.Debit), rows.Sum(r => r.Credit), running) { ForeignClosing = foreign };
     }
 
     private sealed record SideSum(Guid AccountId, Guid? PartnerId, Side Side, decimal Total);
@@ -193,9 +211,4 @@ public sealed class LedgerQueryService(HakDbContext db)
             .Select(g => new SideSum(g.Key.AccountId, g.Key.PartnerId, g.Key.Side, g.Sum(x => x.Amount)))
             .ToListAsync();
 
-    private static decimal Sum(List<SideSum> sums, Guid acc, Guid? partner, Side side)
-        => sums.Where(s => s.AccountId == acc && s.PartnerId == partner && s.Side == side).Sum(s => s.Total);
-
-    private static decimal Signed(List<SideSum> sums, Guid acc, Guid? partner)
-        => Sum(sums, acc, partner, Side.Debit) - Sum(sums, acc, partner, Side.Credit);
 }

@@ -171,8 +171,26 @@ public sealed class BackupService(HakDbContext db, AuditService audit, IClock cl
             await db.SaveChangesAsync();
         });
 
+    /// <summary>
+    /// Start-up clean-up: a snapshot or verification copy is an unencrypted database; one left behind by a crash or power cut
+    /// must not stay beside the backups. Nothing else is running at start-up, so every such file is stale. Returns the count removed.
+    /// </summary>
+    public static int DeleteStaleWorkFiles(string directory)
+    {
+        if (!Directory.Exists(directory)) return 0;
+        var removed = 0;
+        foreach (var pattern in new[] { ".snapshot-*.db*", ".verify-*.db*" })
+            foreach (var path in Directory.GetFiles(directory, pattern))
+            {
+                TryDelete(path);
+                if (!File.Exists(path)) removed++;
+            }
+        return removed;
+    }
+
     private static void TryDelete(string path)
     {
-        try { if (File.Exists(path)) File.Delete(path); } catch (IOException) { /* best effort; temp file left for the operator */ }
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* best effort; removed at the next start-up */ }
     }
 }

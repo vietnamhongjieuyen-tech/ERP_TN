@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askConfirm, askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, parseRate, today } from './money'
@@ -83,12 +84,12 @@ export function LoansView() {
             <td style={{ display: 'flex', gap: 6 }}>
               {r.status === 'Draft' && <>
                 <button disabled={busy} onClick={() => act(() => post(`/loans/${r.id}/activate`), `Đã duyệt khế ước ${r.code}.`)}>Duyệt</button>
-                <button disabled={busy} onClick={() => { const reason = prompt('Lý do hủy khế ước:'); if (reason) act(() => post(`/loans/${r.id}/cancel`, { reason }), `Đã hủy ${r.code}.`) }}>Hủy</button>
+                <button disabled={busy} onClick={async () => { const reason = await askText('Lý do hủy khế ước:'); if (reason) act(() => post(`/loans/${r.id}/cancel`, { reason }), `Đã hủy ${r.code}.`) }}>Hủy</button>
               </>}
               {r.status === 'Active' && <>
                 <button disabled={busy} onClick={() => run(async () => setLinking({ loan: r, items: await get<Candidate[]>(`/loans/${r.id}/candidates`), picked: [] }))}>Gắn giải ngân / trả nợ</button>
                 <button disabled={busy} onClick={() => setRateFor(r)}>Đổi lãi suất</button>
-                <button disabled={busy} onClick={() => confirm(`Tất toán khế ước ${r.code}?`) && act(() => post(`/loans/${r.id}/close`), `Đã tất toán ${r.code}.`)}>Tất toán</button>
+                <button disabled={busy} onClick={async () => { if (await askConfirm(`Tất toán khế ước ${r.code}?`)) act(() => post(`/loans/${r.id}/close`), `Đã tất toán ${r.code}.`) }}>Tất toán</button>
               </>}
             </td>
           </tr>))}
@@ -129,8 +130,8 @@ export function LoansView() {
         <table className="grid"><thead><tr><th>Kỳ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
           <tbody>{runs.map(r => <tr key={r.id}><td>{r.periodStart.slice(0, 7)}</td>
             <td>{r.status === 'Active' ? (r.voucherId ? 'Hiệu lực' : 'Hiệu lực (không phát sinh)') : 'Đã hủy'}</td>
-            <td>{r.id === lastActive?.id && <button disabled={busy} onClick={() => {
-              const reason = prompt('Lý do hủy lần trích lãi:')
+            <td>{r.id === lastActive?.id && <button disabled={busy} onClick={async () => {
+              const reason = await askText('Lý do hủy lần trích lãi:')
               if (reason) act(() => post(`/loans/interest-runs/${r.id}/reverse`, { reason }), 'Đã hủy lần trích lãi.')
             }}>Hủy</button>}</td></tr>)}</tbody></table>
       </section>

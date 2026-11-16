@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, useAction, useCatalog } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
@@ -81,11 +82,11 @@ export function AssetsView() {
               <button onClick={() => run(async () => setDetail(await get<Detail>(`/assets/${r.id}`)))}>Chi tiết</button>
               {r.status === 'Draft' && <>
                 <button disabled={busy} onClick={() => act(() => post(`/assets/${r.id}/activate`), `Đã ghi tăng ${r.code}.`)}>Ghi tăng</button>
-                <button disabled={busy} onClick={() => { const reason = prompt('Lý do hủy thẻ:'); if (reason) act(() => post(`/assets/${r.id}/cancel`, { reason }), `Đã hủy thẻ ${r.code}.`) }}>Hủy</button>
+                <button disabled={busy} onClick={async () => { const reason = await askText('Lý do hủy thẻ:'); if (reason) act(() => post(`/assets/${r.id}/cancel`, { reason }), `Đã hủy thẻ ${r.code}.`) }}>Hủy</button>
               </>}
               {r.status === 'Active' && <button disabled={busy} onClick={() => setDisposing(r)}>Ghi giảm</button>}
-              {r.status === 'Disposed' && <button disabled={busy} onClick={() => {
-                const reason = prompt('Lý do hủy ghi giảm:')
+              {r.status === 'Disposed' && <button disabled={busy} onClick={async () => {
+                const reason = await askText('Lý do hủy ghi giảm:')
                 if (reason) act(() => post(`/assets/${r.id}/dispose/reverse`, { reason }), `Đã hủy ghi giảm ${r.code}.`)
               }}>Hủy ghi giảm</button>}
             </td>
@@ -123,7 +124,7 @@ export function AssetsView() {
             <option value="">— chọn kỳ —</option>
             {periods.filter(p => p.status === 'Open').map(p => <option key={p.id} value={p.id}>{p.startDate.slice(0, 7)}</option>)}
           </select>
-          <button className="primary" disabled={busy || !(periodId || nextPeriod)} onClick={() => {
+          <button className="primary" disabled={busy || !(periodId || nextPeriod)} onClick={async () => {
             const id = periodId || nextPeriod!.id
             setPeriodId('')
             act(() => post(`/assets/depreciation-runs?periodId=${id}`), 'Đã chạy khấu hao và ghi sổ bút toán.')
@@ -131,8 +132,8 @@ export function AssetsView() {
         </div>
         <table className="grid"><thead><tr><th>Kỳ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
           <tbody>{runs.map(r => <tr key={r.id}><td>{r.periodStart.slice(0, 7)}</td><td>{r.status === 'Active' ? 'Hiệu lực' : 'Đã hủy'}{r.status === 'Active' && !r.voucherId ? ' (không phát sinh)' : ''}</td>
-            <td>{r.id === lastActive?.id && <button disabled={busy} onClick={() => {
-              const reason = prompt('Lý do hủy lần chạy khấu hao:')
+            <td>{r.id === lastActive?.id && <button disabled={busy} onClick={async () => {
+              const reason = await askText('Lý do hủy lần chạy khấu hao:')
               if (reason) act(() => post(`/assets/depreciation-runs/${r.id}/reverse`, { reason }), 'Đã hủy lần chạy khấu hao.')
             }}>Hủy</button>}</td></tr>)}</tbody></table>
       </section>

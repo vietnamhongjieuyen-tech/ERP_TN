@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askConfirm, askDate, askText } from './dialogs'
 import { get, post } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, today } from './money'
@@ -122,15 +123,15 @@ export function TradeView() {
                   const diffs = await get<{ lineNo: number; receiptNumber: string; difference: string; inventoryPart: string; cogsPart: string; quantityInStock: string; receiptQuantity: string }[]>(`/invoices/${i.id}/price-differences`)
                   if (diffs.length > 0) {
                     const text = diffs.map(d => `Dòng ${d.lineNo} – phiếu ${d.receiptNumber}: chênh ${formatMoney(d.difference)} → tồn kho ${formatMoney(d.inventoryPart)} (còn ${formatMoney(d.quantityInStock)}/${formatMoney(d.receiptQuantity)}), giá vốn ${formatMoney(d.cogsPart)}`).join('\n')
-                    if (!confirm(`CẢNH BÁO: giá hóa đơn khác giá trị đã nhập kho.\n\n${text}\n\nGhi sổ và điều chỉnh như trên?`)) throw new Error('Đã hủy ghi sổ: chưa xác nhận chênh lệch giá.')
+                    if (!await askConfirm(`CẢNH BÁO: giá hóa đơn khác giá trị đã nhập kho.\n\n${text}\n\nGhi sổ và điều chỉnh như trên?`)) throw new Error('Đã hủy ghi sổ: chưa xác nhận chênh lệch giá.')
                   }
                   await post(`/invoices/${i.id}/post?acknowledgePriceDifferences=${diffs.length > 0}`)
                 }, `Đã ghi sổ ${i.number}.`)}>Ghi sổ</button>}
-                {i.status === 'Draft' && <button className="danger" onClick={() => { const reason = prompt('Lý do hủy:'); if (reason) act(() => post(`/invoices/${i.id}/cancel`, { reason }), `Đã hủy ${i.number}.`) }}>Hủy</button>}
+                {i.status === 'Draft' && <button className="danger" onClick={async () => { const reason = await askText('Lý do hủy:'); if (reason) act(() => post(`/invoices/${i.id}/cancel`, { reason }), `Đã hủy ${i.number}.`) }}>Hủy</button>}
                 {i.status === 'Posted' && i.purpose === 'Normal' && <button onClick={() => setAdjusting(i)}>Điều chỉnh</button>}
-                {i.status === 'Posted' && <button className="danger" onClick={() => {
-                  const reason = prompt('Lý do đảo hóa đơn:'); if (!reason) return
-                  const d = prompt('Ngày đảo (yyyy-mm-dd):', i.postingDate); if (d) act(() => post(`/invoices/${i.id}/reverse`, { reversalDate: d, reason }), `Đã đảo ${i.number}.`)
+                {i.status === 'Posted' && <button className="danger" onClick={async () => {
+                  const reason = await askText('Lý do đảo hóa đơn:'); if (!reason) return
+                  const d = await askDate('Ngày đảo', i.postingDate); if (d) act(() => post(`/invoices/${i.id}/reverse`, { reversalDate: d, reason }), `Đã đảo ${i.number}.`)
                 }}>Đảo</button>}
               </td></tr>))}
             {list.length === 0 && <tr><td colSpan={9} className="muted">Chưa có hóa đơn.</td></tr>}

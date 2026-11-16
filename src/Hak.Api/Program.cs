@@ -89,6 +89,10 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<HakDbContext>();
     HakDb.Migrate(db);
     await scope.ServiceProvider.GetRequiredService<SetupService>().EnsureReferenceDataAsync();
+    var wrapped = await scope.ServiceProvider.GetRequiredService<ExchangeKeyService>().ProtectStoredSecretsAsync();
+    if (wrapped > 0) app.Logger.LogInformation("Protected {Count} exchange key secret(s) at rest.", wrapped);
+    var stale = Hak.Application.Backup.BackupService.DeleteStaleWorkFiles(scope.ServiceProvider.GetRequiredService<Hak.Application.Backup.BackupOptions>().Directory);
+    if (stale > 0) app.Logger.LogWarning("Removed {Count} unencrypted work file(s) left in the backup folder by an interrupted backup.", stale);
 
     // Local administrator recovery (docs/08 §8): Hak.Api.exe --reset-admin-password <user>; the password is typed twice, never echoed.
     var at = Array.IndexOf(args, "--reset-admin-password");

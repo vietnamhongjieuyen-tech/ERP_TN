@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { get, post } from './api'
 import { ErrorBox, useAction } from './common'
 import { formatMoney } from './money'
@@ -101,7 +102,7 @@ function Regimes({ onChange }: { onChange: () => void }) {
         {sources.length > 1 && <button onClick={() => setSources(x => x.filter((_, j) => j !== i))}>Bỏ</button>}
       </div>)}
       <div className="toolbar">
-        <button title="Chỉ điền form theo legal/TT99-2025/README.md — xem lại rồi tự bấm Khai báo; xác minh là bước riêng" onClick={() => {
+        <button title="Chỉ điền form theo legal/TT99-2025/README.md — xem lại rồi tự bấm Khai báo; xác minh là bước riêng" onClick={async () => {
           setF({ regimeCode: 'TT99', regimeName: 'Chế độ kế toán doanh nghiệp (Thông tư 99/2025/TT-BTC)', versionCode: '2025', effectiveFrom: '2026-01-01', effectiveTo: '' })
           setSources([['Hệ thống tài khoản', 'Điều 11, Phụ lục II'], ['Báo cáo tài chính', 'Điều 14–27, Phụ lục IV'], ['Chứng từ kế toán', 'Điều 8–10, Phụ lục I'],
             ['Sổ kế toán', 'Điều 12–13, Phụ lục III']].map(([ruleGroup, article]) => ({ ruleGroup, documentNo: '99/2025/TT-BTC', issuedDate: '2025-10-27', article, url: '' })))
@@ -177,12 +178,12 @@ function Users({ me, reload }: { me: Me; reload: number }) {
           <td>{u.userName}{u.isSystemAdmin && <span className="muted"> · quản trị hệ thống</span>}</td><td>{u.fullName}</td>
           <td>{u.isActive ? (u.lockedUntil ? `Tạm khóa đến ${new Date(u.lockedUntil).toLocaleTimeString()}` : 'Hoạt động') : 'Đã khóa'}</td>
           <td>{u.grants.map(g => <div key={g.companyId + g.roleCode}>{g.companyCode}: {g.roleName}
-            <button disabled={busy} style={{ marginLeft: 6 }} onClick={() => { const reason = prompt(`Lý do thu hồi ${g.roleName} của ${u.userName} tại ${g.companyCode}:`)
+            <button disabled={busy} style={{ marginLeft: 6 }} onClick={async () => { const reason = await askText(`Lý do thu hồi ${g.roleName} của ${u.userName} tại ${g.companyCode}:`)
               if (reason) act(() => post(`/admin/users/${u.id}/revoke`, { companyId: g.companyId, roleCode: g.roleCode, reason }), 'Đã thu hồi quyền.') }}>Thu hồi</button></div>)}</td>
           <td style={{ display: 'flex', gap: 6 }}>
-            {u.id !== me.id && <button disabled={busy} onClick={() => { const reason = prompt(u.isActive ? 'Lý do khóa tài khoản:' : 'Lý do mở khóa:')
+            {u.id !== me.id && <button disabled={busy} onClick={async () => { const reason = await askText(u.isActive ? 'Lý do khóa tài khoản:' : 'Lý do mở khóa:')
               if (reason) act(() => post(`/admin/users/${u.id}/active`, { active: !u.isActive, reason }), u.isActive ? 'Đã khóa tài khoản và đóng mọi phiên.' : 'Đã mở khóa.') }}>{u.isActive ? 'Khóa' : 'Mở khóa'}</button>}
-            <button disabled={busy} onClick={() => { const p = prompt(`Mật khẩu tạm cho ${u.userName} (giao trực tiếp, người dùng đổi lại):`)
+            <button disabled={busy} onClick={async () => { const p = await askText(`Mật khẩu tạm cho ${u.userName} (giao trực tiếp, người dùng đổi lại):`)
               if (p) act(() => post(`/admin/users/${u.id}/reset-password`, { newPassword: p }), 'Đã đặt lại mật khẩu và đóng các phiên.') }}>Đặt lại mật khẩu</button>
           </td></tr>)}</tbody></table></div>
 
@@ -217,8 +218,8 @@ function Backups() {
   const { busy, error, run } = useAction()
   const load = useCallback(() => run(async () => setList(await get<BackupInfo[]>('/admin/backups'))), [run])
   useEffect(() => { load() }, [load])
-  const check = (fileName: string, restore: boolean) => {
-    const p = prompt(`Mật khẩu của bản sao lưu ${fileName}:`)
+  const check = async (fileName: string, restore: boolean) => {
+    const p = await askText(`Mật khẩu của bản sao lưu ${fileName}:`, '', 'password')
     if (p) run(async () => { setInfo(''); setResult(await post<Verification>(`/admin/backups/${restore ? 'restore' : 'verify'}`, { fileName, passphrase: p })) })
   }
   return (

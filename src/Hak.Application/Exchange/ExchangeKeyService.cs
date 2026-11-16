@@ -36,15 +36,29 @@ public sealed partial class ExchangeKeyService(HakDbContext db, AuditService aud
         {
             if (await db.ExchangePartnerKeys.AnyAsync(k => k.CompanyId == ctx.CompanyId && k.SourceSystem == sourceSystem && k.KeyId == keyId))
                 throw new DomainException(ErrorCodes.DuplicateCode, $"Khóa {sourceSystem}/{keyId} đã tồn tại; dùng mã khóa mới khi đổi khóa.");
+            var secret = RandomNumberGenerator.GetBytes(32);
             var key = new ExchangePartnerKey
             {
                 Id = Ids.New(), CompanyId = ctx.CompanyId, SourceSystem = sourceSystem, KeyId = keyId,
-                SecretBase64 = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+                SecretBase64 = SecretProtector.Protect(secret),
             };
             db.ExchangePartnerKeys.Add(key);
             await audit.AppendAsync(ctx.CompanyId, ctx, "exchange_key.issue", "exchange_key", key.Id.ToString(), new { sourceSystem, keyId });  // never the secret
             await db.SaveChangesAsync();
-            return new IssuedExchangeKey(key.Id, sourceSystem, keyId, key.SecretBase64);
+            return new IssuedExchangeKey(key.Id, sourceSystem, keyId, Convert.ToBase64String(secret));
+        });
+    }
+
+    /// <summary>Start-up upgrade: wraps secrets stored as plain Base64 by earlier versions. Returns how many were wrapped.</summary>
+    public async Task<int> ProtectStoredSecretsAsync()
+    {
+        if (!OperatingSystem.IsWindows()) return 0;
+        return await db.InTransactionAsync(async () =>
+        {
+            var plain = (await db.ExchangePartnerKeys.ToListAsync()).Where(k => !SecretProtector.IsProtected(k.SecretBase64)).ToList();
+            foreach (var k in plain) k.SecretBase64 = SecretProtector.Protect(Convert.FromBase64String(k.SecretBase64));
+            if (plain.Count > 0) await db.SaveChangesAsync();
+            return plain.Count;
         });
     }
 

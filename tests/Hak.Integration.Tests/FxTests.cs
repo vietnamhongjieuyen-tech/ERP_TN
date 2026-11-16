@@ -134,6 +134,10 @@ public class FxTests
         Assert.Equal(-80_000m, await BalanceAsync(s, h.Acc["FXGAIN"]));
         var partly = await InvoiceItemAsync(h, s, new(2026, 3, 31));
         Assert.Equal((600m, 15_000_000m), (partly.OpenForeign!.Value, partly.Open));
+        // The partner ledger (used by the balance confirmation) carries the foreign amounts and the foreign closing balance.
+        var book = await s.Ledger.AccountLedgerAsync(h.Auditor, h.Acc["AR"], new(2026, 3, 1), new(2026, 3, 25), h.Partner["KH01"]);
+        Assert.Equal(("USD", 600m), (Assert.Single(book.ForeignClosing).Currency, book.ForeignClosing[0].Closing));
+        Assert.Equal([1_000m, 400m], book.Rows.Select(r => r.ForeignAmount!.Value).ToArray());
 
         // Period end at 25,500: the invoice is closed at book and re-opened at the closing rate (+300,000), the USD cash +120,000.
         await s.Fx.RevalueAsync(h.Approver, new(2026, 3, 31), [UsdRate(25_500, 25_500)], "NH 31/03");
@@ -148,6 +152,7 @@ public class FxTests
         await PostDraftAsync(h, s, await s.FxPayments.CreateDraftAsync(h.Preparer, last));
         Assert.Equal(240_000m, await BalanceAsync(s, h.Acc["FXLOSS"]));
         Assert.Equal(0m, await BalanceAsync(s, h.Acc["AR"]));
+        Assert.Equal(0m, Assert.Single((await s.Ledger.AccountLedgerAsync(h.Auditor, h.Acc["AR"], new(2026, 3, 1), new(2026, 4, 30), h.Partner["KH01"])).ForeignClosing).Closing);
         Assert.Empty(await s.Settlement.OpenItemsAsync(h.Auditor, h.Acc["AR"], null, new(2026, 4, 30)));
         Assert.True((await s.Settlement.ReconcileAsync(h.Auditor, new(2026, 4, 30))).IsReconciled);
 

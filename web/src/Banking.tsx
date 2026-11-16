@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askDate, askText } from './dialogs'
 import { get, post } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
@@ -66,15 +67,15 @@ function PaymentOrders() {
               <td style={{ display: 'flex', gap: 4 }}>
                 {p.status === 'Created' && <button onClick={() => act(() => post(`/payment-orders/${p.id}/approve`), `Đã duyệt ${p.number}.`)}>Duyệt</button>}
                 {p.status === 'Approved' && <button onClick={() => act(() => post(`/payment-orders/${p.id}/send`), `Đã ghi nhận gửi ngân hàng ${p.number}.`)}>Đã gửi NH</button>}
-                {p.status === 'SentToBank' && <button onClick={() => {
-                  const ref = prompt('Mã giao dịch ngân hàng:'); if (!ref) return
-                  const date = prompt('Ngày ngân hàng thực hiện (yyyy-mm-dd):', today()); if (!date) return
+                {p.status === 'SentToBank' && <button onClick={async () => {
+                  const ref = await askText('Mã giao dịch ngân hàng:'); if (!ref) return
+                  const date = await askDate('Ngày ngân hàng thực hiện', today()); if (!date) return
                   act(() => post(`/payment-orders/${p.id}/execute`, { executedDate: date, bankReference: ref }),
                     `Đã ghi nhận ngân hàng thực hiện ${p.number}; đã tạo báo Nợ (Nháp) — duyệt và ghi sổ ở màn hình Chứng từ.`)
                 }}>NH đã thực hiện</button>}
                 {p.status === 'ExecutedByBank' && <button onClick={() => act(() => post(`/payment-orders/${p.id}/recreate-voucher`), 'Đã lập lại chứng từ hạch toán.')}>Lập lại chứng từ</button>}
-                {['Created', 'Approved', 'SentToBank'].includes(p.status) && <button className="danger" onClick={() => {
-                  const reason = prompt('Lý do hủy lệnh:'); if (reason) act(() => post(`/payment-orders/${p.id}/cancel`, { reason }), `Đã hủy ${p.number}.`)
+                {['Created', 'Approved', 'SentToBank'].includes(p.status) && <button className="danger" onClick={async () => {
+                  const reason = await askText('Lý do hủy lệnh:'); if (reason) act(() => post(`/payment-orders/${p.id}/cancel`, { reason }), `Đã hủy ${p.number}.`)
                 }}>Hủy</button>}
               </td>
             </tr>))}
@@ -201,7 +202,7 @@ function Reconciliation() {
               <tbody>{matches.map(m => (
                 <tr key={m.id}><td>{m.transactionDate}</td><td>{m.bankReference}</td><td>{m.voucherNumber}</td><td className="num">{formatMoney(m.amount)}</td>
                   <td>{m.origin === 'Auto' ? `Tự động (điểm ${m.score})` : 'Thủ công'}</td>
-                  <td><button className="danger" onClick={() => { const reason = prompt('Lý do hủy đối chiếu:'); if (reason) run(async () => { await post(`/bank-reconciliation/${m.id}/unmatch`, { reason }); await load() }) }}>Hủy khớp</button></td></tr>))}
+                  <td><button className="danger" onClick={async () => { const reason = await askText('Lý do hủy đối chiếu:'); if (reason) run(async () => { await post(`/bank-reconciliation/${m.id}/unmatch`, { reason }); await load() }) }}>Hủy khớp</button></td></tr>))}
               </tbody>
             </table>
           </div>

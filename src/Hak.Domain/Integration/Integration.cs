@@ -29,7 +29,7 @@ public sealed class ExchangePartnerKey
     public Guid CompanyId { get; set; }
     public string SourceSystem { get; set; } = "";
     public string KeyId { get; set; } = "";
-    /// <summary>Base64 secret. TODO(GĐ5): protect with Windows DPAPI at rest.</summary>
+    /// <summary>The secret as stored: DPAPI-wrapped ("dpapi:…") on Windows, plain Base64 for legacy rows (Application SecretProtector).</summary>
     public string SecretBase64 { get; set; } = "";
     public bool IsActive { get; set; } = true;
 }

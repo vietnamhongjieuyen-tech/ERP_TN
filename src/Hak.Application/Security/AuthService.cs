@@ -42,7 +42,8 @@ public sealed class AuthService(HakDbContext db, AuditService audit, IClock cloc
                     }
                     tracked.RowVersion++;
                 }
-                await audit.AppendAsync(Guid.Empty, null, "auth.login", "user", norm, new { device }, result: "DENIED");
+                // An unknown name is not stored: people sometimes type their password into the user-name box.
+                await audit.AppendAsync(Guid.Empty, null, "auth.login", "user", user?.Id.ToString() ?? "(tên không tồn tại)", new { device }, result: "DENIED");
                 await db.SaveChangesAsync();
             });
             throw new DomainException(ErrorCodes.Unauthenticated, "Tên đăng nhập hoặc mật khẩu không đúng.");

@@ -98,6 +98,8 @@ API trên máy trạm chỉ nghe `127.0.0.1`. Không mở cổng API ra mạng.
 - Nguyên tắc 3-2-1: 3 bản, 2 loại thiết bị, 1 bản ngoài văn phòng. Tối thiểu sao lưu cuối mỗi ngày làm việc và trước khi khóa sổ / nâng cấp.
 - **Kiểm tra** định kỳ (hằng tháng): giải mã, kiểm SHA-256, `integrity_check`, chuỗi nhật ký kiểm toán của mọi công ty.
 - **Khôi phục**: tạo tệp `restored-*.db` bên cạnh bản sao lưu (không ghi đè CSDL đang chạy). Sau đó: dừng phần mềm → đặt `Hak:DatabasePath` tới tệp khôi phục → khởi động → kiểm tra số liệu → giữ tệp cũ ít nhất đến khi xác nhận.
+- **Chuyển CSDL sang máy khác** (khôi phục trên máy mới, đổi máy chủ): khóa trao đổi dữ liệu (lương, chứng từ JSON) được bảo vệ bằng Windows DPAPI của máy cũ nên máy mới không đọc được. Vào **Lương → Khóa trao đổi**: ngừng dùng khóa cũ, cấp khóa mới và cấu hình lại ở hệ thống gửi. Số liệu kế toán không bị ảnh hưởng.
+- Khi khởi động, phần mềm tự xóa bản chụp tạm chưa mã hóa (`.snapshot-*.db`, `.verify-*.db`) còn sót trong thư mục sao lưu do lần sao lưu trước bị ngắt giữa chừng (mất điện, tắt máy).
 
 ### PostgreSQL (LAN)
 Chức năng sao lưu trong phần mềm trả `NOT_SUPPORTED`; dùng công cụ của PostgreSQL trên máy chủ (Task Scheduler):
@@ -118,7 +120,9 @@ pg_dump -h 127.0.0.1 -U hak_app -Fc -f D:\hak-backup\hak-%DATE%.dump hak
 
 ## 7. Bảo mật vận hành
 
-- Sai mật khẩu 5 lần liên tiếp → khóa 15 phút (quản trị có thể đặt lại mật khẩu). Phiên đăng nhập tối đa 10 giờ.
+- Sai mật khẩu 5 lần liên tiếp → khóa 15 phút (quản trị có thể đặt lại mật khẩu). Phiên đăng nhập tối đa 10 giờ. Nhập sai **mật khẩu hiện tại** khi đổi mật khẩu cũng tính như đăng nhập sai; đủ 5 lần thì tài khoản tạm khóa và mọi phiên đang mở kết thúc.
+- Nhật ký không lưu nội dung gõ vào ô tên đăng nhập khi tên đó không tồn tại (phòng trường hợp gõ nhầm mật khẩu vào ô tên).
+- Khóa bí mật của hệ thống gửi dữ liệu (khóa trao đổi) được mã hóa trong CSDL bằng Windows DPAPI; chỉ hiện một lần lúc cấp.
 - Ngừng dùng người dùng → mọi phiên của người đó bị đóng ngay.
 - Sổ cái, sổ kho, phân bổ, khấu hao… **không sửa/xóa được** (trigger CSDL). Sai sót xử lý bằng chứng từ đảo/điều chỉnh. Tuyệt đối không sửa trực tiếp trong CSDL.
 - Nhật ký kiểm toán là chuỗi băm; xem tại **Quản trị → Nhật ký**; bản sao lưu kiểm tra lại toàn chuỗi.

@@ -6,6 +6,7 @@ import { BankingView } from './Banking'
 import { CashDocsView } from './CashDocs'
 import { CatalogView } from './Catalog'
 import { ErrorBox, useAction } from './common'
+import { DialogHost } from './dialogs'
 import { FxView } from './Fx'
 import { InventoryView } from './Inventory'
 import { LoansView } from './Loans'
@@ -73,6 +74,7 @@ export default function App() {
       <main className="main">
         <div className="toolbar"><button onClick={() => setSystemAdmin(false)}>← Chọn công ty</button><button onClick={logout}>Đăng xuất</button></div>
         <AdminView />
+        <DialogHost />
       </main>
     )
   }
@@ -113,6 +115,7 @@ export default function App() {
         <button onClick={logout}>Đăng xuất</button>
       </nav>
       <main className="main" key={company.id}>{current.el()}</main>
+      <DialogHost />
     </div>
   )
 }

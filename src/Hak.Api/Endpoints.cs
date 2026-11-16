@@ -146,8 +146,14 @@ public static class Endpoints
             if (accountId is not null) q = q.Where(v => v.Lines.Any(l => l.AccountId == accountId));
             if (!string.IsNullOrWhiteSpace(text))
             {
-                var t = text.Trim().ToLower();
-                q = q.Where(v => v.Number.ToLower().Contains(t) || v.Description.ToLower().Contains(t));
+                // Matched in memory: SQLite lower() only folds A–Z, so "HÓA ĐƠN" would not match "hóa đơn". Case and Vietnamese
+                // accents are ignored ("hoa don" finds "Hóa đơn"); the other filters have already narrowed the candidates.
+                var t = Hak.Application.Common.SearchText.Fold(text);
+                var hits = (await q.Select(v => new { v.Id, v.Number, v.Description }).ToListAsync())
+                    .Where(v => Hak.Application.Common.SearchText.Fold(v.Number).Contains(t, StringComparison.Ordinal)
+                             || Hak.Application.Common.SearchText.Fold(v.Description).Contains(t, StringComparison.Ordinal))
+                    .Select(v => v.Id).ToList();
+                q = q.Where(v => hits.Contains(v.Id));
             }
             var size = Math.Clamp(take ?? 200, 1, 1000);
             var offset = Math.Max(skip ?? 0, 0);

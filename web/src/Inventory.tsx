@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askDate, askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, today } from './money'
@@ -117,10 +118,10 @@ function StockDocs() {
               <td><span className="badge">{STATUS_VI[d.status] ?? d.status}</span></td>
               <td style={{ display: 'flex', gap: 4 }}>
                 {d.status === 'Draft' && <button className="primary" onClick={() => act(() => post(`/stock-documents/${d.id}/post`), `Đã ghi sổ ${d.number}.`)}>Ghi sổ</button>}
-                {d.status === 'Draft' && <button className="danger" onClick={() => { const r = prompt('Lý do hủy phiếu nháp:'); if (r) act(() => post(`/stock-documents/${d.id}/cancel`, { reason: r }), `Đã hủy ${d.number}.`) }}>Hủy</button>}
-                {d.status === 'Posted' && !d.number.startsWith('DP') && <button className="danger" onClick={() => {
-                  const reason = prompt('Lý do đảo phiếu:'); if (!reason) return
-                  const dt = prompt('Ngày đảo (yyyy-mm-dd):', d.postingDate); if (dt) act(() => post(`/stock-documents/${d.id}/reverse`, { reversalDate: dt, reason }), `Đã đảo ${d.number}.`)
+                {d.status === 'Draft' && <button className="danger" onClick={async () => { const r = await askText('Lý do hủy phiếu nháp:'); if (r) act(() => post(`/stock-documents/${d.id}/cancel`, { reason: r }), `Đã hủy ${d.number}.`) }}>Hủy</button>}
+                {d.status === 'Posted' && !d.number.startsWith('DP') && <button className="danger" onClick={async () => {
+                  const reason = await askText('Lý do đảo phiếu:'); if (!reason) return
+                  const dt = await askDate('Ngày đảo', d.postingDate); if (dt) act(() => post(`/stock-documents/${d.id}/reverse`, { reversalDate: dt, reason }), `Đã đảo ${d.number}.`)
                 }}>Đảo</button>}
               </td></tr>))}
             {list.length === 0 && <tr><td colSpan={7} className="muted">Chưa có phiếu kho.</td></tr>}
@@ -226,7 +227,7 @@ function Costing() {
           <tr key={r.id}><td>{r.periodStart.slice(0, 7)}</td><td>{warehouses.find(w => w.id === r.warehouseId)?.code}</td><td>{r.status === 'Active' ? 'Hiệu lực' : 'Đã hủy'}</td>
             <td style={{ whiteSpace: 'normal' }}>{(JSON.parse(r.resultJson || '[]') as { item: string; issuedQty: number | string; issuedValue: number | string }[])
               .map(x => `${x.item}: xuất ${formatMoney(String(x.issuedQty))} = ${formatMoney(String(x.issuedValue))}`).join('; ')}</td>
-            <td>{r.status === 'Active' && <button className="danger" onClick={() => { const reason = prompt('Lý do hủy lần tính giá:'); if (reason) run(async () => { await post(`/costing-runs/${r.id}/reverse`, { reason }); await load() }) }}>Hủy</button>}</td></tr>))}
+            <td>{r.status === 'Active' && <button className="danger" onClick={async () => { const reason = await askText('Lý do hủy lần tính giá:'); if (reason) run(async () => { await post(`/costing-runs/${r.id}/reverse`, { reason }); await load() }) }}>Hủy</button>}</td></tr>))}
           {runs.length === 0 && <tr><td colSpan={5} className="muted">Chưa có lần tính giá nào.</td></tr>}
         </tbody>
       </table>
@@ -273,10 +274,10 @@ function Bdmt() {
     await load()
   })
 
-  const supersede = (m: Measurement) => {
-    const dryness = parseMoney(prompt('Độ khô (%) mới:', m.drynessPercent.replace('.', ',')) ?? ''); if (!dryness) return
-    const evidenceNo = prompt('Số chứng thư / phiếu đo mới:', m.evidenceNo); if (!evidenceNo) return
-    const reason = prompt('Lý do thay thế (bắt buộc):'); if (!reason) return
+  const supersede = async (m: Measurement) => {
+    const dryness = parseMoney(await askText('Độ khô (%) mới:', m.drynessPercent.replace('.', ',')) ?? ''); if (!dryness) return
+    const evidenceNo = await askText('Số chứng thư / phiếu đo mới:', m.evidenceNo); if (!evidenceNo) return
+    const reason = await askText('Lý do thay thế (bắt buộc):'); if (!reason) return
     const doc = pending.find(p => p.documentNumber === m.documentNumber)
     run(async () => {
       const docs = await get<{ id: string; number: string }[]>('/stock-documents')

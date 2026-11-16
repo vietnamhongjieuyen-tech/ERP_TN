@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { askText } from './dialogs'
 import { ApiError, get, post, session } from './api'
 import { ErrorBox, useAction } from './common'
 import { formatMoney, parseMoney, today } from './money'
@@ -157,7 +158,7 @@ function Declarations() {
         <thead><tr><th>Kỳ</th><th>Trạng thái</th><th>Chỉ tiêu</th><th /></tr></thead>
         <tbody>{list.map(d => <tr key={d.id}><td>{d.periodFrom} → {d.periodTo}</td><td>{d.status === 'Filed' ? `Đã nộp (${d.filingReference})` : 'Nháp'}</td>
           <td style={{ whiteSpace: 'normal' }}>{d.lines.map(l => `${l.indicatorCode}: ${formatMoney(l.declaredAmount)}`).join('; ')}</td>
-          <td>{d.status !== 'Filed' && <button onClick={() => { const ref = prompt('Mã giao dịch / số tham chiếu nộp tờ khai:'); if (ref) run(async () => { await post(`/vat/declarations/${d.id}/filed`, { filingReference: ref, filedDate: today() }); await load() }) }}>Đánh dấu đã nộp</button>}</td></tr>)}</tbody>
+          <td>{d.status !== 'Filed' && <button onClick={async () => { const ref = await askText('Mã giao dịch / số tham chiếu nộp tờ khai:'); if (ref) run(async () => { await post(`/vat/declarations/${d.id}/filed`, { filingReference: ref, filedDate: today() }); await load() }) }}>Đánh dấu đã nộp</button>}</td></tr>)}</tbody>
       </table>
     </>
   )
