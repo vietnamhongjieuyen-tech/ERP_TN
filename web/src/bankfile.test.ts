@@ -8,7 +8,7 @@ test('bankNumber reads the separators banks use', () => {
   assert.equal(bankNumber('1.234.567'), '1234567')
   assert.equal(bankNumber('1,234.50'), '1234.5')
   assert.equal(bankNumber('1.234,50'), '1234.5')
-  assert.equal(bankNumber('971'), '971')
+  assert.equal(bankNumber('850'), '850')
   assert.equal(bankNumber('1,500'), '1500')
   assert.equal(bankNumber('12.5'), '12.5')
   assert.equal(bankNumber('(2,000)'), '-2000')
@@ -33,20 +33,20 @@ const html = `<html><body><table>
 <tr><td rowspan="2">Ngày giao dịch</td><td rowspan="2">Số tham chiếu</td><td>Phát sinh</td><td>Phát sinh</td><td rowspan="2">Chi tiết giao dịch</td></tr>
 <tr><td>Nợ</td><td>Có</td></tr>
 <tr><td>03/10/2026</td><td>5001 - 11111</td><td>11,000</td><td></td><td>THU PHI DICH VU &amp; VAT</td></tr>
-<tr><td>25/10/2026</td><td>5002 - 22222</td><td></td><td>971</td><td>INTEREST PAYMENT</td></tr>
+<tr><td>25/10/2026</td><td>5002 - 22222</td><td></td><td>850</td><td>INTEREST PAYMENT</td></tr>
 <tr><td>26/10/2026</td><td>5003 - 33333</td><td>400,000</td><td></td><td>NOP THUE</td></tr>
 <tr><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>Tổng</td><td></td><td>411,000</td><td>971</td><td></td></tr>
-<tr><td colspan="5"><b>Số dư cuối kỳ: 589,971 VND</b></td></tr>
+<tr><td>Tổng</td><td></td><td>411,000</td><td>850</td><td></td></tr>
+<tr><td colspan="5"><b>Số dư cuối kỳ: 589,850 VND</b></td></tr>
 <tr><td>Từ ngày 22/12/2014 ngân hàng triển khai dịch vụ nộp thuế đến 31/12/2030.</td></tr>
 </table></body></html>`
 
 test('parseStatementRows reads the HTML statement with a two-row header', () => {
   const s = parseStatementRows(htmlTableRows(html))
-  assert.deepEqual([s.fromDate, s.toDate, s.opening, s.closing], ['2026-10-01', '2026-10-31', '1000000', '589971'])
+  assert.deepEqual([s.fromDate, s.toDate, s.opening, s.closing], ['2026-10-01', '2026-10-31', '1000000', '589850'])
   assert.deepEqual(s.lines, [
     { transactionDate: '2026-10-03', amount: '-11000', bankReference: '5001 - 11111', description: 'THU PHI DICH VU & VAT' },
-    { transactionDate: '2026-10-25', amount: '971', bankReference: '5002 - 22222', description: 'INTEREST PAYMENT' },
+    { transactionDate: '2026-10-25', amount: '850', bankReference: '5002 - 22222', description: 'INTEREST PAYMENT' },
     { transactionDate: '2026-10-26', amount: '-400000', bankReference: '5003 - 33333', description: 'NOP THUE' },
   ])
   assert.deepEqual(s.warnings, [])
