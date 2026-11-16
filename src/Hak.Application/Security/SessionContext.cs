@@ -37,7 +37,7 @@ public static class RoleCatalog
         {
             ["ADMIN"] = ("Administrator", [Permissions.ConfigManage, Permissions.CatalogManage, Permissions.AuditView, Permissions.DataExport, Permissions.DataImport]),
             ["CHIEF_ACCOUNTANT"] = ("Kế toán trưởng", [.. Viewer, Permissions.VoucherCreate, Permissions.VoucherEditDraft, Permissions.VoucherSubmit,
-                Permissions.VoucherApprove, Permissions.VoucherPost, Permissions.VoucherReverse, Permissions.PeriodLock, Permissions.PeriodReopen,
+                Permissions.VoucherApprove, Permissions.VoucherApproveHigh, Permissions.VoucherPost, Permissions.VoucherReverse, Permissions.PeriodLock, Permissions.PeriodReopen,
                 Permissions.CatalogManage, Permissions.DataExport, Permissions.DataImport, Permissions.SensitiveView, Permissions.AuditView,
                 Permissions.SettlementManage, Permissions.CashDocument, Permissions.BankDocument, Permissions.PaymentOrderApprove, Permissions.BankReconcile, Permissions.StockDocument, Permissions.InvoiceDocument, Permissions.AssetManage, Permissions.LoanManage]),
             ["GL_ACCOUNTANT"] = ("Kế toán tổng hợp", [.. Viewer, Permissions.VoucherCreate, Permissions.VoucherEditDraft, Permissions.VoucherSubmit,
@@ -49,7 +49,7 @@ public static class RoleCatalog
             ["INVENTORY_ACCOUNTANT"] = ("Kế toán kho", [.. Viewer, Permissions.VoucherCreate, Permissions.VoucherEditDraft, Permissions.VoucherSubmit, Permissions.StockDocument, Permissions.InvoiceDocument, Permissions.AssetManage, Permissions.LoanManage]),
             ["CASHIER"] = ("Thủ quỹ", [Permissions.VoucherView, Permissions.CashDocument, Permissions.VoucherCreate, Permissions.VoucherEditDraft, Permissions.VoucherSubmit]),
             ["APPROVER"] = ("Người duyệt", [.. Viewer, Permissions.VoucherApprove, Permissions.PaymentOrderApprove]),
-            ["DIRECTOR"] = ("Giám đốc", [.. Viewer, Permissions.VoucherApprove, Permissions.SensitiveView, Permissions.PaymentOrderApprove]),
+            ["DIRECTOR"] = ("Giám đốc", [.. Viewer, Permissions.VoucherApprove, Permissions.VoucherApproveHigh, Permissions.SensitiveView, Permissions.PaymentOrderApprove]),
             ["INTERNAL_AUDITOR"] = ("Kiểm toán nội bộ", [.. Viewer, Permissions.AuditView]),
         };
 }

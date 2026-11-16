@@ -38,6 +38,8 @@ public sealed class JournalLine
     public DateOnly? DueDate { get; set; }
     /// <summary>Cash-flow statement code copied from the voucher line (null = derived at report time).</summary>
     public string? CashFlowCode { get; set; }
+    /// <summary>Mã phân tích of the voucher line (optional).</summary>
+    public Guid? AnalysisCodeId { get; set; }
 }
 
 /// <summary>Signed-balance arithmetic (docs/01 §1, master prompt §36).</summary>

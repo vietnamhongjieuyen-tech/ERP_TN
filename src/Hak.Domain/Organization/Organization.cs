@@ -11,6 +11,8 @@ public sealed class Company
     public Guid RegimeVersionId { get; set; }
     /// <summary>Segregation of duties: approver must differ from creator.</summary>
     public bool RequireDistinctApprover { get; set; } = true;
+    /// <summary>Hạn mức duyệt: a voucher whose total exceeds it needs an approver holding voucher.approve_high. Null = no limit.</summary>
+    public decimal? ApprovalLimit { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public Guid CreatedBy { get; set; }

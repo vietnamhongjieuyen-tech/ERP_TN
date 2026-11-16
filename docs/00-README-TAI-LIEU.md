@@ -11,6 +11,7 @@
 | 07 | [Sổ đăng ký xác minh pháp lý](07-LEGAL-REGISTER.md) | Mục 5, 49.4 | Đang mở |
 | 08 | [Hướng dẫn vận hành](08-VAN-HANH.md) | Mục 50 (GĐ8) | v0.1 — cài đặt từ bản build, lần chạy đầu, LAN, sao lưu, nâng cấp, sự cố |
 | 09 | [Đo hiệu năng](09-HIEU-NANG.md) + `tools/Hak.Bench` | Mục 49 | v0.1 — 20.000 chứng từ, SQLite và PostgreSQL |
+| 10 | [Hướng dẫn sử dụng cho kế toán](10-HUONG-DAN-SU-DUNG.md) | — | v0.1 — nhập liệu, duyệt, ngân hàng, hóa đơn điện tử, công nợ, khóa sổ |
 | — | [STATUS.md](../STATUS.md) | Mục 48 | Ma trận trạng thái theo Definition of Done |
 
 Nguyên tắc chung: tài liệu nào chứa thông tin pháp lý chưa đối chiếu văn bản gốc đều gắn nhãn **[CẦN XÁC MINH]**.

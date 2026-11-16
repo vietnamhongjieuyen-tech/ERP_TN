@@ -1,16 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { takeParams } from './nav'
+import { SearchSelect } from './combo'
+import type { AnalysisCode } from './Analysis'
 import { askDate, askText } from './dialogs'
 import { get, post, put, session, type Voucher } from './api'
 import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog } from './common'
 import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
 
-interface LineDraft { accountId: string; side: 'D' | 'C'; amount: string; partnerId: string; description: string; cashFlowCode: string }
-const emptyLine = (side: 'D' | 'C'): LineDraft => ({ accountId: '', side, amount: '', partnerId: '', description: '', cashFlowCode: '' })
+interface LineDraft { accountId: string; side: 'D' | 'C'; amount: string; partnerId: string; description: string; cashFlowCode: string; analysisCodeId?: string }
+const emptyLine = (side: 'D' | 'C'): LineDraft => ({ accountId: '', side, amount: '', partnerId: '', description: '', cashFlowCode: '', analysisCodeId: '' })
+interface Template { id: string; name: string; voucherType: string; description: string
+  lines: { accountId: string; side: 'D' | 'C'; amount: string | null; partnerId: string | null; description: string | null; cashFlowCode: string | null; analysisCodeId: string | null }[] }
 
 export function VouchersView() {
-  const [from, setFrom] = useState(today().slice(0, 8) + '01')
-  const [to, setTo] = useState(today())
-  const [status, setStatus] = useState('')
+  // Opened from a report row (drill-down): show that voucher, with the list narrowed to its posting date.
+  const [boot] = useState(() => takeParams('vouchers'))
+  const [openId, setOpenId] = useState(boot?.voucherId ?? '')
+  const [from, setFrom] = useState(boot?.date ?? boot?.from ?? today().slice(0, 8) + '01')
+  const [to, setTo] = useState(boot?.date ?? today())
+  const [status, setStatus] = useState(boot?.status ?? '')
   const [type, setType] = useState('')
   const [text, setText] = useState('')
   const [search, setSearch] = useState('')
@@ -18,7 +26,7 @@ export function VouchersView() {
   const [total, setTotal] = useState(0)
   const [list, setList] = useState<Voucher[]>([])
   const [selected, setSelected] = useState<Voucher | null>(null)
-  const [editing, setEditing] = useState<Voucher | 'new' | null>(null)
+  const [editing, setEditing] = useState<Voucher | 'new' | { copy: FormState } | null>(null)
   const [checked, setChecked] = useState<Set<string>>(new Set())
   const { busy, error, run } = useAction()
   const [info, setInfo] = useState('')
@@ -28,9 +36,10 @@ export function VouchersView() {
     const data = await get<{ items: Voucher[]; total: number }>(`/vouchers?${q}`)
     setList(data.items)
     setTotal(data.total)
-    setSelected(s => (s ? data.items.find(v => v.id === s.id) ?? null : null))
+    setSelected(s => data.items.find(v => v.id === (openId || s?.id)) ?? null)
+    setOpenId('')
     setChecked(c => new Set([...c].filter(id => data.items.some(v => v.id === id))))
-  }), [from, to, status, type, search, page, run])
+  }), [from, to, status, type, search, page, run, openId])
   useEffect(() => { load() }, [load])
 
   const act = (label: string, fn: () => Promise<unknown>) => run(async () => { await fn(); setInfo(label); await load() })
@@ -55,7 +64,24 @@ export function VouchersView() {
   })
   const count = (...s: string[]) => list.filter(x => checked.has(x.id) && s.includes(x.status)).length
 
-  if (editing) return <VoucherForm voucher={editing === 'new' ? null : editing} onDone={() => { setEditing(null); load() }} />
+  if (editing) return <VoucherForm voucher={editing === 'new' || 'copy' in editing ? null : editing} seed={editing !== 'new' && 'copy' in editing ? editing.copy : undefined}
+    onDone={(saved, submit) => {
+      setEditing(null)
+      if (!saved) { load(); return }
+      // Show the saved voucher with the result of the full server-side check; "Lưu và gửi duyệt" submits it when nothing blocks.
+      run(async () => {
+        if (saved.postingDate < from) setFrom(saved.postingDate)
+        if (saved.postingDate > to) setTo(saved.postingDate)
+        setOpenId(saved.id)
+        const errs = await post<{ code: string; message: string; lineNo: number | null }[]>(`/vouchers/${saved.id}/validate`)
+        const text = errs.map(e => `${e.message}`).join(' | ')
+        if (submit) {
+          await post(`/vouchers/${saved.id}/submit?rowVersion=${saved.rowVersion}`)
+          setInfo(`Đã lưu và gửi duyệt ${saved.number}.${text ? ' Lưu ý: ' + text : ''}`)
+        } else setInfo(errs.length ? `Đã lưu nháp ${saved.number}. Cần xem lại: ${text}` : `Đã lưu nháp ${saved.number} — hợp lệ, có thể gửi duyệt.`)
+        await load()
+      })
+    }} />
 
   const v = selected
   return (
@@ -117,6 +143,7 @@ export function VouchersView() {
             {(v.status === 'Draft' || v.status === 'Submitted') && <button className="danger" onClick={async () => {
               const reason = await askText('Lý do hủy:'); if (reason) act('Đã hủy', () => post(`/vouchers/${v.id}/cancel?rowVersion=${v.rowVersion}`, { reason }))
             }}>Hủy</button>}
+            {MANUAL_TYPES.includes(v.voucherType) && <button onClick={() => setEditing({ copy: copyOf(v) })} title="Lập chứng từ mới với cùng định khoản, ngày hôm nay">Sao chép</button>}
             <button onClick={printSheet}>In chứng từ</button>
           </div>
           <LinesTable voucher={v} />
@@ -160,6 +187,40 @@ function VoucherPrint({ voucher: v }: { voucher: Voucher }) {
   const acc = (id: string) => accounts.find(a => a.id === id)?.code ?? ''
   const par = (id: string | null) => (id ? partners.find(p => p.id === id) : undefined)
   const d = (s: string) => s.split('-').reverse().join('/')
+  // Phiếu thu / phiếu chi: the cash slip layout (payer or payee, reason, amount in words, five signatures).
+  if (v.voucherType === 'CR' || v.voucherType === 'CP') {
+    const receipt = v.voucherType === 'CR'
+    const cashSide = receipt ? 'D' : 'C'
+    const isCashAcc = (id: string) => accounts.find(a => a.id === id)?.cashKind === 'Cash'
+    const cashLines = v.lines.filter(l => l.side === cashSide && isCashAcc(l.accountId))
+    const amount = cashLines.length ? addMoney(cashLines.map(l => l.amount)) : v.totalDebit
+    const codes = (side: 'D' | 'C') => [...new Set(v.lines.filter(l => l.side === side).map(l => acc(l.accountId)))].join(', ')
+    const person = par(v.lines.find(l => l.partnerId)?.partnerId ?? null)
+    const [, m, day] = v.voucherDate.split('-'), y = v.voucherDate.slice(0, 4)
+    return (
+      <PrintSheet>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div><b>{company}</b><br />Địa chỉ: ..............................................</div>
+          <div style={{ textAlign: 'right' }}>Số: <b>{v.number}</b><br />Nợ: {codes('D')}<br />Có: {codes('C')}</div>
+        </div>
+        <h1>{receipt ? 'PHIẾU THU' : 'PHIẾU CHI'}</h1>
+        <div className="center"><i>Ngày {day} tháng {m} năm {y}</i></div>
+        {v.status !== 'Posted' && <div className="center" style={{ marginTop: 6 }}><span className="stamp">{STATUS_VI[v.status]?.toUpperCase()} — CHƯA GHI SỔ</span></div>}
+        <p>Họ và tên người {receipt ? 'nộp' : 'nhận'} tiền: <b>{person?.name ?? '..............................................................'}</b><br />
+          Địa chỉ: ..........................................................................................<br />
+          Lý do {receipt ? 'nộp' : 'chi'}: {v.description}<br />
+          Số tiền: <b>{formatMoney(amount)} đồng</b><br />
+          Viết bằng chữ: <i>{amountInWords(amount)}</i><br />
+          Kèm theo: ............ chứng từ gốc.</p>
+        <div className="signs" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+          <div><b>Giám đốc</b><br /><i>(Ký, họ tên, đóng dấu)</i></div><div><b>Kế toán trưởng</b><br /><i>(Ký, họ tên)</i></div>
+          <div><b>Người {receipt ? 'nộp' : 'nhận'} tiền</b><br /><i>(Ký, họ tên)</i></div><div><b>Người lập phiếu</b><br /><i>(Ký, họ tên)</i></div><div><b>Thủ quỹ</b><br /><i>(Ký, họ tên)</i></div>
+        </div>
+        <p>Đã nhận đủ số tiền (viết bằng chữ): ............................................................................................</p>
+        <div className="foot">Mẫu in của HAK Accounting, doanh nghiệp tự thiết kế — kế toán trưởng xem lại nội dung trước khi dùng chính thức [CẦN XÁC MINH]. In lúc {new Date().toLocaleString('vi-VN')}.</div>
+      </PrintSheet>
+    )
+  }
   return (
     <PrintSheet>
       <div><b>{company}</b></div>
@@ -202,16 +263,85 @@ function LinesTable({ voucher }: { voucher: Voucher }) {
   )
 }
 
-function VoucherForm({ voucher, onDone }: { voucher: Voucher | null; onDone: () => void }) {
+interface FormState { type: string; voucherDate: string; postingDate: string; description: string; lines: LineDraft[] }
+interface StoredDraft { state: FormState; rowVersion: number | null; savedAt: string }
+const MANUAL_TYPES = ['GJ', 'ADJ', 'ALC', 'OPB', 'CLS', 'FXR']
+
+const fromVoucher = (v: Voucher): FormState => ({
+  type: v.voucherType, voucherDate: v.voucherDate, postingDate: v.postingDate, description: v.description,
+  lines: v.lines.map(l => ({ accountId: l.accountId, side: l.side, amount: formatMoney(l.amount), partnerId: l.partnerId ?? '', description: l.description ?? '', cashFlowCode: l.cashFlowCode ?? '', analysisCodeId: l.analysisCodeId ?? '' })),
+})
+/** A new voucher with the lines of an existing one, dated today ("Sao chép"). */
+const copyOf = (v: Voucher): FormState => ({ ...fromVoucher(v), type: MANUAL_TYPES.includes(v.voucherType) ? v.voucherType : 'GJ', voucherDate: today(), postingDate: today() })
+
+// What is being typed is kept in this browser until it is saved, so Esc, a closed tab or a power cut does not lose it.
+const draftKey = (voucherId?: string) => `hak.draft.${session.companyId}.${voucherId ?? 'new'}`
+function readDraft(key: string, rowVersion: number | null): StoredDraft | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(key) ?? 'null') as StoredDraft | null
+    return d && d.rowVersion === rowVersion && Array.isArray(d.state?.lines) ? d : null   // a voucher changed since then: the draft is stale
+  } catch { return null }
+}
+function writeDraft(key: string, d: StoredDraft | null) {
+  try { if (d) localStorage.setItem(key, JSON.stringify(d)); else localStorage.removeItem(key) } catch { /* storage unavailable: nothing kept */ }
+}
+
+interface PeriodInfo { startDate: string; endDate: string; status: 'Open' | 'Locked' }
+
+function VoucherForm({ voucher, seed, onDone }: { voucher: Voucher | null; seed?: FormState; onDone: (saved?: Voucher, submit?: boolean) => void }) {
   const { accounts, partners } = useCatalog()
-  const [type, setType] = useState(voucher?.voucherType ?? 'GJ')
-  const [voucherDate, setVoucherDate] = useState(voucher?.voucherDate ?? today())
-  const [postingDate, setPostingDate] = useState(voucher?.postingDate ?? today())
-  const [description, setDescription] = useState(voucher?.description ?? '')
-  const [lines, setLines] = useState<LineDraft[]>(voucher
-    ? voucher.lines.map(l => ({ accountId: l.accountId, side: l.side, amount: formatMoney(l.amount), partnerId: l.partnerId ?? '', description: l.description ?? '', cashFlowCode: l.cashFlowCode ?? '' }))
-    : [emptyLine('D'), emptyLine('C')])
+  const key = draftKey(voucher?.id)
+  const [initial] = useState<FormState>(() => (voucher ? fromVoucher(voucher)
+    : seed ?? { type: 'GJ', voucherDate: today(), postingDate: today(), description: '', lines: [emptyLine('D'), emptyLine('C')] }))
+  const [kept] = useState(() => (seed ? null : readDraft(key, voucher?.rowVersion ?? null)))
+  const [restoredAt, setRestoredAt] = useState(kept?.savedAt ?? null)
+  const start = kept?.state ?? initial
+  const [type, setType] = useState(start.type)
+  const [voucherDate, setVoucherDate] = useState(start.voucherDate)
+  const [postingDate, setPostingDate] = useState(start.postingDate)
+  const [description, setDescription] = useState(start.description)
+  const [lines, setLines] = useState<LineDraft[]>(start.lines)
+  const [periods, setPeriods] = useState<PeriodInfo[]>([])
+  const [codes, setCodes] = useState<AnalysisCode[]>([])
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [note, setNote] = useState('')
+  const loadTemplates = () => get<Template[]>('/voucher-templates').then(setTemplates).catch(() => setTemplates([]))
+  useEffect(() => { loadTemplates(); get<AnalysisCode[]>('/analysis-codes').then(setCodes).catch(() => setCodes([])) }, [])
+  const codeOptions = useMemo(() => codes.filter(c => c.isActive).map(c => ({ id: c.id, code: c.code, name: `${c.name} (${c.kind})` })), [codes])
+  const showCodes = codeOptions.length > 0 || lines.some(l => l.analysisCodeId)
+  // Định khoản mẫu: the lines of a saved template replace what is on the form; amounts left empty in the template are typed now.
+  const applyTemplate = (t: Template) => {
+    setType(t.voucherType)
+    if (t.description) setDescription(t.description)
+    setLines(t.lines.map(l => ({ accountId: l.accountId, side: l.side, amount: l.amount ? formatMoney(l.amount) : '', partnerId: l.partnerId ?? '',
+      description: l.description ?? '', cashFlowCode: l.cashFlowCode ?? '', analysisCodeId: l.analysisCodeId ?? '' })))
+    setNote(`Đã áp dụng mẫu "${t.name}". Kiểm tra số tiền, ngày rồi lưu.`)
+  }
+  const saveTemplate = async () => {
+    const name = await askText('Tên định khoản mẫu (trùng tên sẽ thay mẫu cũ):', description)
+    if (!name) return
+    run(async () => {
+      if (lines.some(l => !l.accountId)) throw new Error('Mỗi dòng của mẫu phải có tài khoản.')
+      await post('/voucher-templates', { name, voucherType: type, description, lines: lines.map(l => ({ accountId: l.accountId, side: l.side, amount: parseMoney(l.amount),
+        partnerId: l.partnerId || null, description: l.description || null, cashFlowCode: l.cashFlowCode || null, analysisCodeId: l.analysisCodeId || null })) })
+      await loadTemplates()
+      setNote(`Đã lưu mẫu "${name}".`)
+    })
+  }
   const { busy, error, setError, run } = useAction()
+  const panel = useRef<HTMLDivElement>(null)
+  const focusNewLine = useRef(false)
+
+  useEffect(() => { get<PeriodInfo[]>('/periods').then(setPeriods).catch(() => setPeriods([])) }, [])
+  useEffect(() => {
+    const state: FormState = { type, voucherDate, postingDate, description, lines }
+    const dirty = JSON.stringify(state) !== JSON.stringify(initial)
+    writeDraft(key, dirty ? { state, rowVersion: voucher?.rowVersion ?? null, savedAt: new Date().toISOString() } : null)
+  }, [type, voucherDate, postingDate, description, lines, initial, key, voucher])
+  const discard = () => {
+    writeDraft(key, null); setRestoredAt(null)
+    setType(initial.type); setVoucherDate(initial.voucherDate); setPostingDate(initial.postingDate); setDescription(initial.description); setLines(initial.lines)
+  }
 
   const parsed = lines.map(l => parseMoney(l.amount))
   const totalD = useMemo(() => addMoney(lines.map((l, i) => (l.side === 'D' ? parsed[i] ?? '0' : '0'))), [lines, parsed])
@@ -220,52 +350,98 @@ function VoucherForm({ voucher, onDone }: { voucher: Voucher | null; onDone: () 
 
   const update = (i: number, patch: Partial<LineDraft>) => setLines(ls => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)))
   const isCash = (id: string) => { const a = accounts.find(x => x.id === id); return !!a && (a.cashKind !== 'None' || (a.reportTags ?? '').split(',').includes('TDT')) }
+  // The next line balances the voucher: opposite side, the amount still missing, the description of the line above.
+  const nextLine = (ls: LineDraft[]): LineDraft => {
+    const last = ls.at(-1)
+    const d = addMoney(ls.map(l => { const p = parseMoney(l.amount) ?? '0'; return l.side === 'D' ? p : '-' + p }))
+    const side: 'D' | 'C' = d === '0' ? (last?.side === 'D' ? 'C' : 'D') : d.startsWith('-') ? 'D' : 'C'
+    return { ...emptyLine(side), amount: d === '0' ? '' : formatMoney(d.replace('-', '')), description: last?.description ?? '' }
+  }
+  const addLine = () => { focusNewLine.current = true; setLines(ls => [...ls, nextLine(ls)]) }
+  useEffect(() => {
+    if (!focusNewLine.current) return
+    focusNewLine.current = false
+    panel.current?.querySelector<HTMLInputElement>('tbody tr:last-child input[role=combobox]')?.focus()
+  }, [lines.length])
 
-  const save = () => run(async () => {
+  // Checked while typing (the server checks again when the voucher is saved, submitted and posted).
+  const warnings: string[] = []
+  const period = periods.find(p => p.startDate <= postingDate && postingDate <= p.endDate)
+  if (periods.length > 0 && !period) warnings.push(`Chưa có kỳ kế toán chứa ngày hạch toán ${postingDate}.`)
+  else if (period?.status === 'Locked') warnings.push(`Kỳ kế toán chứa ngày ${postingDate} đã khóa sổ — không ghi sổ được chứng từ này.`)
+  lines.forEach((l, i) => {
+    const a = accounts.find(x => x.id === l.accountId)
+    if (a?.requiresPartner && !l.partnerId) warnings.push(`Dòng ${i + 1}: TK ${a.code} bắt buộc chọn đối tượng.`)
+    if (l.amount !== '' && parsed[i] == null) warnings.push(`Dòng ${i + 1}: số tiền không hợp lệ.`)
+  })
+
+  const save = (submit = false) => run(async () => {
     const bad = parsed.findIndex(p => p == null)
     if (bad >= 0) { setError(new Error(`Dòng ${bad + 1}: số tiền không hợp lệ.`)); return }
     const body = {
       voucherType: type, voucherDate, postingDate, description,
       lines: lines.map((l, i) => ({ accountId: l.accountId, side: l.side, amount: parsed[i], partnerId: l.partnerId || null, description: l.description || null,
-        cashFlowCode: isCash(l.accountId) ? l.cashFlowCode || null : null })),
+        cashFlowCode: isCash(l.accountId) ? l.cashFlowCode || null : null, analysisCodeId: l.analysisCodeId || null })),
     }
-    if (voucher) await put(`/vouchers/${voucher.id}?rowVersion=${voucher.rowVersion}`, body)
-    else await post('/vouchers', body)
-    onDone()
+    const saved = voucher ? await put<Voucher>(`/vouchers/${voucher.id}?rowVersion=${voucher.rowVersion}`, body) : await post<Voucher>('/vouchers', body)
+    writeDraft(key, null)
+    onDone(saved, submit)
   })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector('.modal-backdrop')) return   // a dialog is open on top of the form
       if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); save() }
-      if (e.key === 'Insert') { e.preventDefault(); setLines(ls => [...ls, emptyLine(ls.at(-1)?.side === 'D' ? 'C' : 'D')]) }
+      if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); save(true) }
+      if (e.key === 'Insert') { e.preventDefault(); addLine() }
       if (e.key === 'Escape') onDone()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
+  // Enter moves to the next field; on the last field of the last line it adds the balancing line.
+  const onEnter = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter' || e.ctrlKey || e.altKey || e.shiftKey || e.defaultPrevented) return
+    const t = e.target as HTMLElement
+    if (!(t instanceof HTMLInputElement || t instanceof HTMLSelectElement)) return
+    e.preventDefault()
+    const fields = [...(panel.current?.querySelectorAll<HTMLElement>('input, select') ?? [])]
+    const next = fields[fields.indexOf(t) + 1]
+    if (next) next.focus(); else addLine()
+  }
 
   return (
     <>
       <div className="toolbar">
         <h2>{voucher ? `Sửa chứng từ ${voucher.number}` : 'Chứng từ mới'}</h2>
-        <span className="muted"><kbd>Ctrl+S</kbd> lưu · <kbd>Insert</kbd> thêm dòng · <kbd>Esc</kbd> đóng</span>
-        <button onClick={onDone}>Đóng</button>
-        <button className="primary" onClick={save} disabled={busy}>Lưu nháp</button>
+        <span className="muted"><kbd>Enter</kbd> ô kế · <kbd>Insert</kbd> thêm dòng · <kbd>Ctrl+S</kbd> lưu · <kbd>Ctrl+Enter</kbd> lưu và gửi duyệt · <kbd>Esc</kbd> đóng</span>
+        <button onClick={() => onDone()}>Đóng</button>
+        <button onClick={() => save()} disabled={busy}>Lưu nháp</button>
+        <button className="primary" onClick={() => save(true)} disabled={busy}>Lưu và gửi duyệt</button>
       </div>
       <ErrorBox error={error} />
-      <div className="panel">
+      {note && !error && <div className="msg ok">{note}</div>}
+      {restoredAt && <div className="msg ok">Đã khôi phục nội dung đang nhập dở lúc {new Date(restoredAt).toLocaleString('vi-VN')} (chưa lưu vào hệ thống).
+        {' '}<button onClick={discard}>Bỏ, nhập lại từ đầu</button></div>}
+      <div className="panel" ref={panel} onKeyDown={onEnter}>
         <div className="form-row">
           <label>Loại
             <select value={type} onChange={e => setType(e.target.value)} disabled={!!voucher}>
-              {['GJ', 'ADJ', 'ALC', 'OPB', 'CLS', 'FXR'].map(t => <option key={t} value={t}>{t} – {TYPE_VI[t]}</option>)}
+              {MANUAL_TYPES.map(t => <option key={t} value={t}>{t} – {TYPE_VI[t]}</option>)}
             </select>
           </label>
-          <label>Ngày chứng từ<input type="date" value={voucherDate} onChange={e => setVoucherDate(e.target.value)} /></label>
+          <label>Ngày chứng từ<input type="date" value={voucherDate} onChange={e => { setVoucherDate(e.target.value); if (postingDate === voucherDate) setPostingDate(e.target.value) }} /></label>
           <label>Ngày hạch toán<input type="date" value={postingDate} onChange={e => setPostingDate(e.target.value)} /></label>
           <label style={{ flex: 1, minWidth: 240 }}>Diễn giải<input value={description} onChange={e => setDescription(e.target.value)} /></label>
+          {!voucher && <label>Định khoản mẫu
+            <select value="" onChange={e => { const t = templates.find(x => x.id === e.target.value); if (t) applyTemplate(t) }}>
+              <option value="">{templates.length ? '— chọn mẫu —' : '(chưa có mẫu)'}</option>
+              {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select></label>}
         </div>
         <table className="grid">
           <thead><tr><th>#</th><th>Nợ/Có</th><th>Tài khoản</th><th>Đối tượng</th><th className="num">Số tiền</th><th>Diễn giải dòng</th>
+            {showCodes && <th title="Mã quản trị: khoản mục phí, bộ phận, hợp đồng, chuyến tàu…">Mã phân tích</th>}
             <th title="Mã số trên Báo cáo lưu chuyển tiền tệ (B03-DN). Để trống: phần mềm tự xác định theo TK đối ứng">Mã LCTT</th><th /></tr></thead>
           <tbody>
             {lines.map((l, i) => (
@@ -277,19 +453,22 @@ function VoucherForm({ voucher, onDone }: { voucher: Voucher | null; onDone: () 
                 <td><input className="num" value={l.amount} aria-label="Số tiền" aria-invalid={l.amount !== '' && parsed[i] == null}
                   onChange={e => update(i, { amount: e.target.value })}
                   onBlur={() => { const p = parseMoney(l.amount); if (p) update(i, { amount: formatMoney(p) }) }} /></td>
-                <td><input value={l.description} onChange={e => update(i, { description: e.target.value })} aria-label="Diễn giải dòng" /></td>
+                <td><input value={l.description} placeholder={description} onChange={e => update(i, { description: e.target.value })} aria-label="Diễn giải dòng" /></td>
+                {showCodes && <td><SearchSelect options={codeOptions} value={l.analysisCodeId ?? ''} onChange={id => update(i, { analysisCodeId: id })} ariaLabel="Mã phân tích" placeholder="—" width={150} /></td>}
                 <td>{isCash(l.accountId) && <select value={l.cashFlowCode} onChange={e => update(i, { cashFlowCode: e.target.value })} aria-label="Mã luồng tiền">
                   <option value="">Tự động</option>{Object.entries(CASHFLOW_VI).map(([k, v]) => <option key={k} value={k}>{k} – {v}</option>)}</select>}</td>
-                <td><button onClick={() => setLines(ls => ls.filter((_, j) => j !== i))} aria-label="Xóa dòng">✕</button></td>
+                <td><button tabIndex={-1} onClick={() => setLines(ls => ls.filter((_, j) => j !== i))} aria-label="Xóa dòng">✕</button></td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr><td colSpan={4}>Tổng Nợ / Tổng Có</td><td className="num">{formatMoney(totalD)} / {formatMoney(totalC)}</td>
-              <td colSpan={3} style={{ color: diff === '0' ? 'var(--ok)' : 'var(--danger)' }}>{diff === '0' ? 'Cân bằng' : `Chênh lệch ${formatMoney(diff)}`}</td></tr>
+              <td colSpan={showCodes ? 4 : 3} style={{ color: diff === '0' ? 'var(--ok)' : 'var(--danger)' }}>{diff === '0' ? 'Cân bằng' : `Chênh lệch ${formatMoney(diff)}`}</td></tr>
           </tfoot>
         </table>
-        <button style={{ marginTop: 8 }} onClick={() => setLines(ls => [...ls, emptyLine('D')])}>+ Thêm dòng</button>
+        <button style={{ marginTop: 8 }} onClick={addLine}>+ Thêm dòng</button>
+        {' '}<button style={{ marginTop: 8 }} onClick={saveTemplate} disabled={busy} title="Lưu các dòng đang nhập thành định khoản mẫu dùng lại sau">Lưu làm mẫu…</button>
+        {warnings.length > 0 && <ul className="field-warn">{warnings.map(w => <li key={w}>{w}</li>)}</ul>}
       </div>
     </>
   )

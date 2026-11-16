@@ -80,6 +80,8 @@ public static class Permissions
     public const string VoucherEditDraft = "voucher.edit_draft";
     public const string VoucherSubmit = "voucher.submit";
     public const string VoucherApprove = "voucher.approve";
+    /// <summary>Approve vouchers above the company's approval limit (Company.ApprovalLimit).</summary>
+    public const string VoucherApproveHigh = "voucher.approve_high";
     public const string VoucherPost = "voucher.post";
     public const string VoucherReverse = "voucher.reverse";
     public const string PeriodLock = "period.lock";

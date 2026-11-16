@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { goTo, takeParams } from './nav'
 import { get, post, type OpenItem, type TrialBalanceRow } from './api'
 import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
 import { addMoney, formatMoney, parseMoney, parseRate, today } from './money'
@@ -38,7 +39,8 @@ export function TrialBalanceView() {
             <table className="grid">
               <thead><tr><th>TK</th><th>Tên tài khoản</th><th className="num">Dư đầu Nợ</th><th className="num">Dư đầu Có</th><th className="num">PS Nợ</th><th className="num">PS Có</th><th className="num">Dư cuối Nợ</th><th className="num">Dư cuối Có</th></tr></thead>
               <tbody>{lines.map(r => (
-                <tr key={r.accountCode + (r.isGroup ? 'g' : '')} style={r.isGroup ? { fontWeight: 600 } : undefined}><td>{r.accountCode}</td>
+                <tr key={r.accountCode + (r.isGroup ? 'g' : '')} style={r.isGroup ? { fontWeight: 600 } : undefined} className={r.isGroup ? undefined : 'link'}
+                  title={r.isGroup ? undefined : 'Bấm để mở sổ chi tiết tài khoản này'} onClick={r.isGroup ? undefined : () => goTo('ledger', { accountId: r.accountId, from, to })}><td>{r.accountCode}</td>
                   <td style={{ paddingLeft: 8 + 14 * (r.level ?? 0) }}>{r.accountName}</td>
                   {amounts(r).map((v, i) => <td key={i} className="num">{v === '0' ? '' : formatMoney(v)}</td>)}</tr>))}
               </tbody>
@@ -52,23 +54,25 @@ export function TrialBalanceView() {
   )
 }
 
-interface LedgerRow { postingDate: string; voucherType: string; voucherNumber: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string }
+interface LedgerRow { voucherId: string; postingDate: string; voucherType: string; voucherNumber: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string }
 interface Ledger { accountCode: string; accountName: string; openingBalance: string; rows: LedgerRow[]; totalDebit: string; totalCredit: string; closingBalance: string }
 
 const signed = (v: string) => (v.startsWith('-') ? `${formatMoney(v.slice(1))} Có` : v === '0' ? '0' : `${formatMoney(v)} Nợ`)
 
 export function AccountLedgerView() {
   const { accounts, partners } = useCatalog()
-  const [accountId, setAccountId] = useState('')
-  const [partnerId, setPartnerId] = useState('')
-  const [from, setFrom] = useState(firstOfMonth())
-  const [to, setTo] = useState(today())
+  const [boot] = useState(() => takeParams('ledger'))   // opened from a trial-balance row
+  const [accountId, setAccountId] = useState(boot?.accountId ?? '')
+  const [partnerId, setPartnerId] = useState(boot?.partnerId ?? '')
+  const [from, setFrom] = useState(boot?.from ?? firstOfMonth())
+  const [to, setTo] = useState(boot?.to ?? today())
   const [data, setData] = useState<Ledger | null>(null)
   const { busy, error, run } = useAction()
   const load = () => run(async () => {
     const q = new URLSearchParams({ accountId, from, to, ...(partnerId ? { partnerId } : {}) })
     setData(await get(`/reports/account-ledger?${q}`))
   })
+  useEffect(() => { if (boot?.accountId) load() }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- once, with the parameters handed over
   return (
     <>
       <div className="toolbar">
@@ -93,7 +97,7 @@ export function AccountLedgerView() {
             <tbody>
               <tr><td colSpan={7}><strong>Số dư đầu kỳ</strong></td><td className="num">{signed(data.openingBalance)}</td></tr>
               {data.rows.map((r, i) => (
-                <tr key={i}><td>{r.postingDate}</td><td>{r.voucherNumber}</td><td>{TYPE_VI[r.voucherType] ?? r.voucherType}</td><td>{r.description}</td><td>{r.counterAccounts}</td>
+                <tr key={i} className="link" title="Bấm để mở chứng từ" onClick={() => goTo('vouchers', { voucherId: r.voucherId, date: r.postingDate })}><td>{r.postingDate}</td><td>{r.voucherNumber}</td><td>{TYPE_VI[r.voucherType] ?? r.voucherType}</td><td>{r.description}</td><td>{r.counterAccounts}</td>
                   <td className="num">{r.debit === '0' ? '' : formatMoney(r.debit)}</td><td className="num">{r.credit === '0' ? '' : formatMoney(r.credit)}</td><td className="num">{signed(r.runningBalance)}</td></tr>))}
             </tbody>
             <tfoot><tr><td colSpan={5}>Cộng phát sinh / Số dư cuối kỳ</td><td className="num">{formatMoney(data.totalDebit)}</td><td className="num">{formatMoney(data.totalCredit)}</td><td className="num">{signed(data.closingBalance)}</td></tr></tfoot>
@@ -180,7 +184,7 @@ export function ReceivablesView() {
               <tr key={o.journalLineId} className={picked ? 'selected' : undefined}>
                 <td><input type="checkbox" aria-label={`Chọn ${o.voucherNumber}`} checked={picked} disabled={o.open.startsWith('-') || o.open === '0'}
                   onChange={e => (o.side === 'Debit' ? setPickD : setPickC)(e.target.checked ? o.journalLineId : '')} /></td>
-                <td>{o.postingDate}</td><td>{o.dueDate}</td><td>{o.voucherNumber}</td><td>{TYPE_VI[o.voucherType] ?? o.voucherType}</td>
+                <td>{o.postingDate}</td><td>{o.dueDate}</td><td><a href="#" title="Mở chứng từ" onClick={e => { e.preventDefault(); goTo('vouchers', { voucherId: o.voucherId, date: o.postingDate }) }}>{o.voucherNumber}</a></td><td>{TYPE_VI[o.voucherType] ?? o.voucherType}</td>
                 <td>{o.side === 'Debit' ? 'Nợ' : 'Có'}</td><td className="num">{formatMoney(o.amount)}</td><td className="num">{formatMoney(o.allocated)}</td><td className="num">{formatMoney(o.open)}{o.foreignCurrency ? ` (${o.openForeign} ${o.foreignCurrency})` : ''}</td></tr>)})}
             </tbody>
           </table>
@@ -270,7 +274,7 @@ function VoidAllocationDialog({ alloc, onClose, onDone }: { alloc: AllocationRow
   </Modal>
 }
 
-interface JournalRow { postingDate: string; voucherType: string; voucherNumber: string; lineNo: number; accountCode: string; partnerCode: string | null; debit: string; credit: string; description: string | null }
+interface JournalRow { voucherId: string; postingDate: string; voucherType: string; voucherNumber: string; lineNo: number; accountCode: string; partnerCode: string | null; debit: string; credit: string; description: string | null }
 
 /** Sổ Nhật ký chung: every posted line in date / voucher order. */
 export function GeneralJournalView() {
@@ -293,7 +297,7 @@ export function GeneralJournalView() {
       <ErrorBox error={error} />
       {rows && <div className="scroll"><table className="grid">
         <thead><tr><th>Ngày</th><th>Số CT</th><th>Loại</th><th>Diễn giải</th><th>TK</th><th>Đối tượng</th><th className="num">Nợ</th><th className="num">Có</th></tr></thead>
-        <tbody>{rows.map(r => <tr key={`${r.voucherNumber}-${r.lineNo}`}><td>{r.postingDate}</td><td>{r.voucherNumber}</td><td>{TYPE_VI[r.voucherType] ?? r.voucherType}</td>
+        <tbody>{rows.map(r => <tr key={`${r.voucherNumber}-${r.lineNo}`} className="link" title="Bấm để mở chứng từ" onClick={() => goTo('vouchers', { voucherId: r.voucherId, date: r.postingDate })}><td>{r.postingDate}</td><td>{r.voucherNumber}</td><td>{TYPE_VI[r.voucherType] ?? r.voucherType}</td>
           <td>{r.description}</td><td>{r.accountCode}</td><td>{r.partnerCode}</td>
           <td className="num">{r.debit === '0' ? '' : formatMoney(r.debit)}</td><td className="num">{r.credit === '0' ? '' : formatMoney(r.credit)}</td></tr>)}
           {rows.length === 0 && <tr><td colSpan={8} className="muted">Không có bút toán trong khoảng ngày.</td></tr>}</tbody>

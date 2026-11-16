@@ -79,6 +79,8 @@ builder.Services.AddSingleton(new Hak.Application.Backup.BackupOptions
 });
 builder.Services.AddScoped<Hak.Application.Backup.BackupService>();
 builder.Services.AddScoped<Hak.Application.Reports.ReportService>();
+builder.Services.AddScoped<Hak.Application.Overview.OverviewService>();
+builder.Services.AddScoped<WorkflowSetupService>();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new DecimalAsStringConverter()));
 

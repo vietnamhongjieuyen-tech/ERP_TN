@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
+import { htmlTableRows, parseStatementRows } from './bankfile'
+import { readSheetFile } from './sheetread'
 import { askDate, askText } from './dialogs'
-import { get, post } from './api'
-import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
-import { addMoney, formatMoney, parseMoney, today } from './money'
+import { get, post, session } from './api'
+import { AccountSelect, ErrorBox, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog } from './common'
+import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
 
-interface PaymentOrder { id: string; number: string; partnerId: string; amount: string; requestedDate: string; description: string; status: string; executedDate: string | null; bankReference: string | null; voucherId: string | null }
+interface PaymentOrder { id: string; number: string; partnerId: string; amount: string; requestedDate: string; description: string; status: string; executedDate: string | null; bankReference: string | null; voucherId: string | null
+  bankAccountId?: string; beneficiaryAccountNo?: string | null; beneficiaryBank?: string | null }
 
 const PO_STATUS: Record<string, string> = {
   Created: 'Đã lập', Approved: 'Đã duyệt', SentToBank: 'Đã gửi NH', ExecutedByBank: 'NH đã thực hiện', Posted: 'Đã hạch toán', Reconciled: 'Đã đối chiếu sao kê', Cancelled: 'Đã hủy',
@@ -34,6 +37,10 @@ function PaymentOrders() {
   useEffect(() => { load() }, [load])
   const act = (fn: () => Promise<unknown>, msg: string) => run(async () => { await fn(); setInfo(msg); await load() })
   const partnerName = (id: string) => partners.find(p => p.id === id)?.code ?? ''
+  const [printing, setPrinting] = useState<PaymentOrder | null>(null)
+  const [company, setCompany] = useState('')
+  useEffect(() => { get<{ id: string; name: string }[]>('/me/companies').then(cs => setCompany(cs.find(c => c.id === session.companyId)?.name ?? '')).catch(() => undefined) }, [])
+  useEffect(() => { if (printing) { printSheet(); setPrinting(null) } }, [printing])
 
   const create = () => {
     const amount = parseMoney(form.amount)
@@ -57,6 +64,28 @@ function PaymentOrders() {
           <button className="primary" onClick={create} disabled={busy} style={{ alignSelf: 'flex-end' }}>Lập lệnh</button>
         </div>
       </div>
+      {printing && (() => {
+        const p = printing, payee = partners.find(x => x.id === p.partnerId), acc = accounts.find(a => a.id === p.bankAccountId)
+        const [y, m, day] = p.requestedDate.split('-')
+        return (
+          <PrintSheet>
+            <h1>ỦY NHIỆM CHI</h1>
+            <div className="center">Số: <b>{p.number}</b> — <i>Ngày {day} tháng {m} năm {y}</i></div>
+            <table>
+              <tbody>
+                <tr><td style={{ width: '50%' }}><b>Đơn vị trả tiền:</b> {company}<br />Số tài khoản: ....................................<br />Tại ngân hàng: {acc ? acc.name : '....................................'}</td>
+                  <td><b>Đơn vị thụ hưởng:</b> {payee?.name}<br />Số tài khoản: {p.beneficiaryAccountNo || '....................................'}<br />Tại ngân hàng: {p.beneficiaryBank || '....................................'}</td></tr>
+                <tr><td colSpan={2}>Số tiền bằng số: <b>{formatMoney(p.amount)} đồng</b><br />Số tiền bằng chữ: <i>{amountInWords(p.amount)}</i><br />Nội dung thanh toán: {p.description}</td></tr>
+              </tbody>
+            </table>
+            <div className="signs" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <div><b>ĐƠN VỊ TRẢ TIỀN</b><br />Kế toán trưởng &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Chủ tài khoản<br /><i>(Ký, họ tên, đóng dấu)</i></div>
+              <div><b>NGÂN HÀNG</b><br />Giao dịch viên &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kiểm soát<br /><i>(Ký, họ tên)</i></div>
+            </div>
+            <div className="foot">Bản in từ lệnh thanh toán {p.number} của HAK Accounting. Ngân hàng có thể yêu cầu dùng mẫu ủy nhiệm chi riêng của họ.</div>
+          </PrintSheet>
+        )
+      })()}
       <div className="scroll">
         <table className="grid">
           <thead><tr><th>Số</th><th>Ngày</th><th>NCC</th><th>Nội dung</th><th className="num">Số tiền</th><th>Trạng thái</th><th>Mã GD NH</th><th>Thao tác</th></tr></thead>
@@ -65,6 +94,7 @@ function PaymentOrders() {
               <td>{p.number}</td><td>{p.requestedDate}</td><td>{partnerName(p.partnerId)}</td><td>{p.description}</td>
               <td className="num">{formatMoney(p.amount)}</td><td><span className="badge">{PO_STATUS[p.status] ?? p.status}</span></td><td>{p.bankReference}</td>
               <td style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => setPrinting(p)} title="In ủy nhiệm chi để ký và gửi ngân hàng">In UNC</button>
                 {p.status === 'Created' && <button onClick={() => act(() => post(`/payment-orders/${p.id}/approve`), `Đã duyệt ${p.number}.`)}>Duyệt</button>}
                 {p.status === 'Approved' && <button onClick={() => act(() => post(`/payment-orders/${p.id}/send`), `Đã ghi nhận gửi ngân hàng ${p.number}.`)}>Đã gửi NH</button>}
                 {p.status === 'SentToBank' && <button onClick={async () => {
@@ -118,6 +148,20 @@ function Reconciliation() {
     setMatches(await get<Match[]>(`/bank-reconciliation/matches?bankAccountId=${bankAccountId}`))
   })
 
+  // A statement file saved from internet banking: columns are recognised from their headers and the result is put into the
+  // boxes below for review before it is imported.
+  const readFile = (file: File | undefined) => run(async () => {
+    if (!file) return
+    const head = new TextDecoder().decode((await file.slice(0, 200).arrayBuffer())).replace(/^\uFEFF/, '').trimStart()
+    const rows = head.startsWith('<') ? htmlTableRows(await file.text()) : await readSheetFile(file)
+    const st = parseStatementRows(rows)
+    if (st.lines.length === 0) throw new Error(st.warnings.join(' ') || 'Không đọc được giao dịch nào từ tệp.')
+    setHdr(h => ({ fromDate: st.fromDate ?? h.fromDate, toDate: st.toDate ?? h.toDate, opening: st.opening ? formatMoney(st.opening) : h.opening,
+      closing: st.closing ? formatMoney(st.closing) : h.closing, sourceName: file.name }))
+    setCsv(st.lines.map(l => `${l.transactionDate};${l.amount};${l.bankReference.replace(/;/g, ',')};${l.description}`).join('\n'))
+    setInfo(`Đã đọc ${st.lines.length} giao dịch từ ${file.name}. Kiểm tra số dư và nội dung bên dưới rồi bấm "Nhập & tự khớp".${st.warnings.length ? ' Lưu ý: ' + st.warnings.join(' ') : ''}`)
+  })
+
   const importCsv = () => run(async () => {
     const lines = csv.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map((l, i) => {
       const [transactionDate, amount, bankReference, ...desc] = l.split(';')
@@ -146,8 +190,12 @@ function Reconciliation() {
         <button className="primary" onClick={load} disabled={busy || !bankAccountId}>Xem đối chiếu</button>
       </div>
       <details className="panel">
-        <summary>Nhập sao kê (CSV: <code>yyyy-mm-dd;số tiền (+ vào / − ra);mã GD;nội dung</code>)</summary>
+        <summary>Nhập sao kê (chọn tệp của ngân hàng, hoặc dán CSV: <code>yyyy-mm-dd;số tiền (+ vào / − ra);mã GD;nội dung</code>)</summary>
         <div className="form-row" style={{ marginTop: 8 }}>
+          <label>Tệp sao kê tải từ ngân hàng (.xls, .xlsx, .csv)<input type="file" accept=".xls,.xlsx,.csv,.txt,.htm,.html"
+            onChange={e => { readFile(e.target.files?.[0]); e.target.value = '' }} /></label>
+        </div>
+        <div className="form-row">
           <label>Từ ngày<input type="date" value={hdr.fromDate} onChange={e => setHdr(h => ({ ...h, fromDate: e.target.value }))} /></label>
           <label>Đến ngày<input type="date" value={hdr.toDate} onChange={e => setHdr(h => ({ ...h, toDate: e.target.value }))} /></label>
           <label>Số dư đầu<input className="num" value={hdr.opening} onChange={e => setHdr(h => ({ ...h, opening: e.target.value }))} /></label>

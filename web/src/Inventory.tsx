@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askDate, askText } from './dialogs'
-import { get, post, type Period } from './api'
-import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, useAction, useCatalog } from './common'
-import { formatMoney, parseMoney, today } from './money'
+import { get, post, session, type Period } from './api'
+import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog } from './common'
+import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
 import type { Order } from './Orders'
 
 interface Warehouse { id: string; code: string; name: string; policies: { method: string; effectiveFrom: string }[] }
@@ -57,6 +57,10 @@ function StockDocs() {
   const [lines, setLines] = useState<LineDraft[]>([{ itemId: '', quantity: '', amount: '', counterAccountId: '', orderLine: '' }])
   const [info, setInfo] = useState('')
   const { busy, error, setError, run } = useAction()
+  const [printing, setPrinting] = useState<StockDoc | null>(null)
+  const [company, setCompany] = useState('')
+  useEffect(() => { get<{ id: string; name: string }[]>('/me/companies').then(cs => setCompany(cs.find(c => c.id === session.companyId)?.name ?? '')).catch(() => undefined) }, [])
+  useEffect(() => { if (printing) { printSheet(); setPrinting(null) } }, [printing])   // print once the sheet of the chosen document is rendered
   const [orders, setOrders] = useState<Order[]>([])
   const load = useCallback(() => run(async () => { setList(await get<StockDoc[]>('/stock-documents')); setOrders(await get<Order[]>('/orders')) }), [run])
   useEffect(() => { load() }, [load])
@@ -117,6 +121,7 @@ function StockDocs() {
             <tr key={d.id}><td>{d.postingDate}</td><td>{d.number}</td><td>{TYPE_VI[d.type]}</td><td>{wh(d.warehouseId)}{d.toWarehouseId ? ' → ' + wh(d.toWarehouseId) : ''}</td><td>{d.description}</td>
               <td><span className="badge">{STATUS_VI[d.status] ?? d.status}</span></td>
               <td style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => setPrinting(d)} title="In phiếu nhập / xuất kho">In</button>
                 {d.status === 'Draft' && <button className="primary" onClick={() => act(() => post(`/stock-documents/${d.id}/post`), `Đã ghi sổ ${d.number}.`)}>Ghi sổ</button>}
                 {d.status === 'Draft' && <button className="danger" onClick={async () => { const r = await askText('Lý do hủy phiếu nháp:'); if (r) act(() => post(`/stock-documents/${d.id}/cancel`, { reason: r }), `Đã hủy ${d.number}.`) }}>Hủy</button>}
                 {d.status === 'Posted' && !d.number.startsWith('DP') && <button className="danger" onClick={async () => {
@@ -128,6 +133,38 @@ function StockDocs() {
           </tbody>
         </table>
       </div>
+      {printing && (() => {
+        const d = printing, receipt = d.type === 'Receipt', it = (id: string) => items.find(x => x.id === id)
+        const [y, m, day] = d.postingDate.split('-')
+        const total = addMoney(d.lines.map(l => l.amount ?? '0'))
+        const whName = (id: string | null) => { const w = warehouses.find(x => x.id === id); return w ? `${w.code} – ${w.name}` : '' }
+        return (
+          <PrintSheet>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><div><b>{company}</b><br />Địa chỉ: ..............................................</div><div>Số: <b>{d.number}</b></div></div>
+            <h1>{receipt ? 'PHIẾU NHẬP KHO' : d.type === 'Issue' ? 'PHIẾU XUẤT KHO' : 'PHIẾU ĐIỀU CHUYỂN KHO'}</h1>
+            <div className="center"><i>Ngày {day} tháng {m} năm {y}</i></div>
+            {d.status !== 'Posted' && <div className="center" style={{ marginTop: 6 }}><span className="stamp">{(STATUS_VI[d.status] ?? d.status).toUpperCase()} — CHƯA GHI SỔ</span></div>}
+            <p>Họ và tên người {receipt ? 'giao' : 'nhận'} hàng: ..............................................................<br />
+              Lý do {receipt ? 'nhập' : 'xuất'}: {d.description}<br />
+              {receipt ? 'Nhập tại kho' : 'Xuất tại kho'}: {whName(d.warehouseId)}{d.toWarehouseId ? ` — chuyển đến kho: ${whName(d.toWarehouseId)}` : ''}</p>
+            <table>
+              <thead><tr><th>STT</th><th>Tên vật tư, hàng hóa</th><th>Mã</th><th>ĐVT</th><th>Số lượng</th>{receipt && <th>Đơn giá</th>}{receipt && <th>Thành tiền</th>}</tr></thead>
+              <tbody>{d.lines.map(l => { const x = it(l.itemId); return (
+                <tr key={l.lineNo}><td className="center">{l.lineNo}</td><td>{x?.name}</td><td>{x?.code}</td><td>{x?.unit}</td><td className="num">{formatMoney(l.quantity)}</td>
+                  {receipt && <td className="num"></td>}{receipt && <td className="num">{l.amount ? formatMoney(l.amount) : ''}</td>}</tr>) })}</tbody>
+              {receipt && <tfoot><tr><td colSpan={6}><b>Cộng</b></td><td className="num"><b>{formatMoney(total)}</b></td></tr></tfoot>}
+            </table>
+            {receipt && <p>Tổng số tiền (viết bằng chữ): <i>{amountInWords(total)}</i></p>}
+            {!receipt && <p className="center"><i>Giá xuất kho được tính theo phương pháp của kho và ghi trên sổ kho.</i></p>}
+            <p>Số chứng từ gốc kèm theo: ............</p>
+            <div className="signs" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              <div><b>Người lập phiếu</b><br /><i>(Ký, họ tên)</i></div><div><b>Người {receipt ? 'giao' : 'nhận'} hàng</b><br /><i>(Ký, họ tên)</i></div>
+              <div><b>Thủ kho</b><br /><i>(Ký, họ tên)</i></div><div><b>Kế toán trưởng</b><br /><i>(Ký, họ tên)</i></div>
+            </div>
+            <div className="foot">Mẫu in của HAK Accounting, doanh nghiệp tự thiết kế — kế toán trưởng xem lại nội dung trước khi dùng chính thức [CẦN XÁC MINH].</div>
+          </PrintSheet>
+        )
+      })()}
     </>
   )
 }

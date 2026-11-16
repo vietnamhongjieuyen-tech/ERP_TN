@@ -92,6 +92,8 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
     public DbSet<PayrollSheet> PayrollSheets => Set<PayrollSheet>();
     public DbSet<PayrollSheetLine> PayrollSheetLines => Set<PayrollSheetLine>();
     public DbSet<CostObject> CostObjects => Set<CostObject>();
+    public DbSet<VoucherTemplate> VoucherTemplates => Set<VoucherTemplate>();
+    public DbSet<AnalysisCode> AnalysisCodes => Set<AnalysisCode>();
     public DbSet<ProductionCostRun> ProductionCostRuns => Set<ProductionCostRun>();
     public DbSet<Hak.Domain.Reports.ReportDefinition> ReportDefinitions => Set<Hak.Domain.Reports.ReportDefinition>();
     public DbSet<Hak.Domain.Reports.ReportSnapshot> ReportSnapshots => Set<Hak.Domain.Reports.ReportSnapshot>();
@@ -192,6 +194,24 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
                 t.HasCheckConstraint("ck_voucher_lines_amount", "amount > 0");
                 t.HasCheckConstraint("ck_voucher_lines_side", "side IN (1, -1)");
             });
+        });
+        // analysis_code_id on voucher / journal lines has no database foreign key: adding one would make SQLite rebuild the
+        // immutable ledger tables (dropping their hand-written triggers). The engine validates the code; codes are never deleted.
+        b.Entity<VoucherTemplate>(e =>
+        {
+            e.HasIndex(x => new { x.CompanyId, x.Name }).IsUnique();
+            e.Property(x => x.Name).HasMaxLength(100);
+            e.Property(x => x.VoucherType).HasMaxLength(10);
+            e.Property(x => x.Description).HasMaxLength(500);
+            e.HasOne<Company>().WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<AnalysisCode>(e =>
+        {
+            e.HasIndex(x => new { x.CompanyId, x.Code }).IsUnique();
+            e.Property(x => x.Kind).HasMaxLength(50);
+            e.Property(x => x.Code).HasMaxLength(30);
+            e.Property(x => x.Name).HasMaxLength(250);
+            e.HasOne<Company>().WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
         b.Entity<VoucherHistory>(e => e.HasIndex(x => new { x.CompanyId, x.VoucherId, x.At }));
         b.Entity<VoucherNumberSequence>(e =>
@@ -578,6 +598,7 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
             v => v.HasValue ? MoneyMath.ToStorage(v.Value) : null,
             v => v.HasValue ? MoneyMath.FromStorage(v.Value) : null);
 
+        b.Entity<Company>().Property(x => x.ApprovalLimit).HasConversion(moneyNullable);
         b.Entity<VoucherLine>().Property(x => x.Amount).HasConversion(money);
         b.Entity<VoucherLine>().Property(x => x.ForeignAmount).HasConversion(moneyNullable);
         b.Entity<JournalLine>().Property(x => x.Amount).HasConversion(money);

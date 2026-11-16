@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { get, post, session } from './api'
 import { AdminView } from './Admin'
+import { AnalysisReportView } from './Analysis'
 import { AssetsView } from './Assets'
 import { BankingView } from './Banking'
 import { CashDocsView } from './CashDocs'
 import { CatalogView } from './Catalog'
+import { DashboardView } from './Dashboard'
 import { ErrorBox, useAction } from './common'
 import { DialogHost } from './dialogs'
 import { FxView } from './Fx'
@@ -23,29 +25,34 @@ import { VouchersView } from './Vouchers'
 
 interface Company { id: string; code: string; name: string; roles?: string[]; permissions?: string[] }
 
+// Menu groups in working order; a screen with perm is hidden from users whose roles at this company lack that permission
+// (the backend still checks every request).
 const SCREENS = [
-  { key: 'vouchers', label: 'Chứng từ', el: () => <VouchersView /> },
-  { key: 'cash', label: 'Thu / Chi tiền', el: () => <CashDocsView /> },
-  { key: 'bank', label: 'Ngân hàng', el: () => <BankingView /> },
-  { key: 'arap', label: 'Công nợ', el: () => <ReceivablesView /> },
-  { key: 'orders', label: 'Đơn hàng', el: () => <OrdersView /> },
-  { key: 'trade', label: 'Mua / Bán', el: () => <TradeView /> },
-  { key: 'stock', label: 'Kho', el: () => <InventoryView /> },
-  { key: 'production', label: 'Giá thành', el: () => <ProductionView /> },
-  { key: 'assets', label: 'Tài sản / CCDC', el: () => <AssetsView /> },
-  { key: 'fx', label: 'Ngoại tệ', el: () => <FxView /> },
-  { key: 'loans', label: 'Vay', el: () => <LoansView /> },
-  { key: 'payroll', label: 'Lương', el: () => <PayrollView /> },
-  { key: 'vat', label: 'Thuế GTGT', el: () => <VatView /> },
-  { key: 'tb', label: 'Cân đối phát sinh', el: () => <TrialBalanceView /> },
-  { key: 'ledger', label: 'Sổ chi tiết / Sổ quỹ', el: () => <AccountLedgerView /> },
-  { key: 'journal', label: 'Sổ Nhật ký chung', el: () => <GeneralJournalView /> },
-  { key: 'reports', label: 'Báo cáo theo mẫu', el: () => <ReportEngineView /> },
-  { key: 'catalog', label: 'Danh mục đối tượng', el: () => <CatalogView /> },
-  { key: 'setup', label: 'Thiết lập', el: () => <SetupView /> },
-  { key: 'periods', label: 'Kỳ kế toán', el: () => <PeriodsView /> },
-  { key: 'admin', label: 'Quản trị', el: () => <AdminView /> },
+  { key: 'home', group: 'Tổng hợp', label: 'Tổng quan', el: () => <DashboardView /> },
+  { key: 'vouchers', group: 'Tổng hợp', label: 'Chứng từ', el: () => <VouchersView /> },
+  { key: 'periods', group: 'Tổng hợp', label: 'Kỳ kế toán', el: () => <PeriodsView /> },
+  { key: 'cash', group: 'Tiền', label: 'Thu / Chi tiền', el: () => <CashDocsView /> },
+  { key: 'bank', group: 'Tiền', label: 'Ngân hàng', el: () => <BankingView /> },
+  { key: 'fx', group: 'Tiền', label: 'Ngoại tệ', el: () => <FxView /> },
+  { key: 'loans', group: 'Tiền', label: 'Vay', el: () => <LoansView /> },
+  { key: 'orders', group: 'Mua – Bán – Kho', label: 'Đơn hàng', el: () => <OrdersView /> },
+  { key: 'trade', group: 'Mua – Bán – Kho', label: 'Mua / Bán', el: () => <TradeView /> },
+  { key: 'stock', group: 'Mua – Bán – Kho', label: 'Kho', el: () => <InventoryView /> },
+  { key: 'arap', group: 'Mua – Bán – Kho', label: 'Công nợ', perm: 'report.view', el: () => <ReceivablesView /> },
+  { key: 'production', group: 'Mua – Bán – Kho', label: 'Giá thành', el: () => <ProductionView /> },
+  { key: 'assets', group: 'Tài sản – Lương – Thuế', label: 'Tài sản / CCDC', el: () => <AssetsView /> },
+  { key: 'payroll', group: 'Tài sản – Lương – Thuế', label: 'Lương', el: () => <PayrollView /> },
+  { key: 'vat', group: 'Tài sản – Lương – Thuế', label: 'Thuế GTGT', el: () => <VatView /> },
+  { key: 'tb', group: 'Báo cáo', label: 'Cân đối phát sinh', perm: 'report.view', el: () => <TrialBalanceView /> },
+  { key: 'ledger', group: 'Báo cáo', label: 'Sổ chi tiết / Sổ quỹ', perm: 'report.view', el: () => <AccountLedgerView /> },
+  { key: 'journal', group: 'Báo cáo', label: 'Sổ Nhật ký chung', perm: 'report.view', el: () => <GeneralJournalView /> },
+  { key: 'reports', group: 'Báo cáo', label: 'Báo cáo theo mẫu', perm: 'report.view', el: () => <ReportEngineView /> },
+  { key: 'analysis', group: 'Báo cáo', label: 'Phân tích theo mã', perm: 'report.view', el: () => <AnalysisReportView /> },
+  { key: 'catalog', group: 'Hệ thống', label: 'Danh mục đối tượng', el: () => <CatalogView /> },
+  { key: 'setup', group: 'Hệ thống', label: 'Thiết lập', el: () => <SetupView /> },
+  { key: 'admin', group: 'Hệ thống', label: 'Quản trị', el: () => <AdminView /> },
 ] as const
+type ScreenKey = (typeof SCREENS)[number]['key']
 
 export default function App() {
   const [token, setToken] = useState(session.token)
@@ -53,7 +60,14 @@ export default function App() {
   const [companyId, setCompanyId] = useState(session.companyId)
   const [isSystemAdmin, setIsSystemAdmin] = useState(false)
   const [systemAdmin, setSystemAdmin] = useState(false)
-  const [screen, setScreen] = useState<(typeof SCREENS)[number]['key']>('vouchers')
+  const [screen, setScreen] = useState<ScreenKey>('home')
+  const [visit, setVisit] = useState(0)   // bumped by goTo so the target screen remounts and takes its parameters
+
+  useEffect(() => {
+    const onGoto = (e: Event) => { setScreen((e as CustomEvent<ScreenKey>).detail); setVisit(v => v + 1) }
+    window.addEventListener('hak:goto', onGoto)
+    return () => window.removeEventListener('hak:goto', onGoto)
+  }, [])
 
   useEffect(() => {
     if (!token) return
@@ -104,17 +118,21 @@ export default function App() {
       </div></div>
     )
   }
-  const current = SCREENS.find(s => s.key === screen)!
+  const allowed = SCREENS.filter(s => !('perm' in s) || !company.permissions || company.permissions.includes(s.perm))
+  const current = allowed.find(s => s.key === screen) ?? allowed[0]
   return (
     <div className="shell">
       <nav className="sidebar" aria-label="Phân hệ">
         <h1>HAK Accounting</h1>
         <div className="company">{company.code} – {company.name}</div>
-        {SCREENS.map(s => <button key={s.key} className={s.key === screen ? 'active' : ''} onClick={() => setScreen(s.key)}>{s.label}</button>)}
+        {allowed.map((s, i) => <Fragment key={s.key}>
+          {(i === 0 || allowed[i - 1].group !== s.group) && <div className="group">{s.group}</div>}
+          <button className={s.key === current.key ? 'active' : ''} onClick={() => setScreen(s.key)}>{s.label}</button>
+        </Fragment>)}
         <button onClick={() => { session.setCompany(null); setCompanyId(null) }}>Đổi công ty</button>
         <button onClick={logout}>Đăng xuất</button>
       </nav>
-      <main className="main" key={company.id}>{current.el()}</main>
+      <main className="main" key={`${company.id}:${current.key}:${visit}`}>{current.el()}</main>
       <DialogHost />
     </div>
   )

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ApiError, get, type Account, type Partner } from './api'
+import { ApiError, get, post, type Account, type Partner } from './api'
+import { SearchSelect } from './combo'
+import { catalogChanged } from './nav'
 import { downloadXlsx, type Cell, type Column } from './xlsx'
 
 /** "Xuất Excel" for any report table: exact decimal values, typed numeric columns. */
@@ -87,29 +89,63 @@ export function useCatalog() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [partners, setPartners] = useState<Partner[]>([])
   useEffect(() => {
-    get<Account[]>('/accounts').then(setAccounts).catch(() => setAccounts([]))
-    get<Partner[]>('/partners').then(setPartners).catch(() => setPartners([]))
+    const load = () => {
+      get<Account[]>('/accounts').then(setAccounts).catch(() => setAccounts([]))
+      get<Partner[]>('/partners').then(setPartners).catch(() => setPartners([]))
+    }
+    load()
+    window.addEventListener('hak:catalog', load)   // a partner added from inside a form (nav.catalogChanged)
+    return () => window.removeEventListener('hak:catalog', load)
   }, [])
   return { accounts, partners, postable: accounts.filter(a => a.isPostable && a.isActive) }
 }
 
+/** Account picker: type the code or part of the name (accents optional). */
 export function AccountSelect({ accounts, value, onChange, filter, ariaLabel }:
   { accounts: Account[]; value: string; onChange: (id: string) => void; filter?: (a: Account) => boolean; ariaLabel?: string }) {
-  return (
-    <select value={value} onChange={e => onChange(e.target.value)} aria-label={ariaLabel}>
-      <option value="">— chọn —</option>
-      {accounts.filter(a => a.isPostable && a.isActive && (!filter || filter(a))).map(a =>
-        <option key={a.id} value={a.id}>{a.code} – {a.name}</option>)}
-    </select>
-  )
+  const options = useMemo(() => accounts.filter(a => (a.isPostable && a.isActive && (!filter || filter(a))) || a.id === value), [accounts, filter, value])
+  return <SearchSelect options={options} value={value} onChange={onChange} ariaLabel={ariaLabel ?? 'Tài khoản'} />
 }
 
+/** Partner picker with type-to-search; the last row adds a new partner without leaving the form. */
 export function PartnerSelect({ partners, value, onChange }: { partners: Partner[]; value: string; onChange: (id: string) => void }) {
+  const options = useMemo(() => partners.filter(p => p.isActive || p.id === value), [partners, value])
+  const [adding, setAdding] = useState<string | null>(null)
+  return <>
+    <SearchSelect options={options} value={value} onChange={onChange} ariaLabel="Đối tượng" placeholder="—" onCreate={setAdding} />
+    {adding !== null && <QuickPartnerDialog typed={adding} onClose={() => setAdding(null)} onCreated={id => { setAdding(null); catalogChanged(); onChange(id) }} />}
+  </>
+}
+
+const PARTNER_ROLES: [string, string][] = [['Customer', 'Khách hàng'], ['Supplier', 'Nhà cung cấp'], ['Employee', 'Nhân viên'], ['Other', 'Khác']]
+
+function QuickPartnerDialog({ typed, onClose, onCreated }: { typed: string; onClose: () => void; onCreated: (id: string) => void }) {
+  // Text that looks like a code (no spaces, short) goes to the code box, anything else to the name.
+  const asCode = typed !== '' && !/\s/.test(typed) && typed.length <= 20
+  const [code, setCode] = useState(asCode ? typed.toUpperCase() : '')
+  const [name, setName] = useState(asCode ? '' : typed)
+  const [taxCode, setTaxCode] = useState('')
+  const [roles, setRoles] = useState<string[]>(['Customer'])
+  const { busy, error, run } = useAction()
+  const valid = code.trim() !== '' && name.trim() !== '' && roles.length > 0
+  const save = () => run(async () => {
+    const r = await post<{ id: string }>('/partners', { code: code.trim(), name: name.trim(), roles: roles.join(', '), taxCode: taxCode.trim() || null })
+    onCreated(r.id)
+  })
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} aria-label="Đối tượng">
-      <option value="">—</option>
-      {partners.filter(p => p.isActive).map(p => <option key={p.id} value={p.id}>{p.code} – {p.name}</option>)}
-    </select>
+    <Modal title="Thêm đối tượng" onClose={onClose} busy={busy} onSubmit={valid ? save : undefined}
+      footer={<><button onClick={onClose} disabled={busy}>Hủy</button><button className="primary" disabled={busy || !valid} onClick={save}>Thêm và chọn</button></>}>
+      <ErrorBox error={error} />
+      <div className="form-row">
+        <label>Mã<input value={code} onChange={e => setCode(e.target.value.toUpperCase())} /></label>
+        <label style={{ flex: 1 }}>Tên<input value={name} onChange={e => setName(e.target.value)} /></label>
+        <label>Mã số thuế<input value={taxCode} onChange={e => setTaxCode(e.target.value)} /></label>
+      </div>
+      <div className="form-row">{PARTNER_ROLES.map(([k, t]) => (
+        <label key={k} className="check"><input type="checkbox" checked={roles.includes(k)}
+          onChange={e => setRoles(rs => (e.target.checked ? [...rs, k] : rs.filter(x => x !== k)))} /> {t}</label>))}</div>
+      <p className="muted">Thông tin khác (địa chỉ, tài khoản ngân hàng…) bổ sung sau ở Danh mục đối tượng.</p>
+    </Modal>
   )
 }
 

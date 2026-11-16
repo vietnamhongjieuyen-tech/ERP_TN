@@ -2,6 +2,7 @@ using System.Text.Json;
 using Hak.Application.Accounting;
 using Hak.Application.Rules;
 using Hak.Application.Settlement;
+using Hak.Application.Setup;
 using Hak.Data;
 using Hak.Domain.Common;
 using Hak.Domain.Security;
@@ -19,6 +20,11 @@ public sealed record AllocateRequest(Guid LineA, Guid LineB, decimal Amount, Dat
 public sealed record AutoAllocateRequest(Guid AccountId, Guid PartnerId, DateOnly Date);
 public sealed record ClosingRuleSetRequest(string Code, DateOnly EffectiveFrom, DateOnly? EffectiveTo, List<ClosingStepInput> Steps, string? Description);
 public sealed record PeriodRequest(Guid PeriodId);
+
+public sealed record TemplateRequest(string Name, string VoucherType, string? Description, List<Hak.Application.Setup.TemplateLine> Lines);
+public sealed record AnalysisCodeRequest(string Kind, string Code, string Name);
+public sealed record AnalysisCodeUpdateRequest(string Name, bool IsActive);
+public sealed record ApprovalLimitRequest(decimal? Limit);
 
 public static class Phase2Endpoints
 {
@@ -91,6 +97,32 @@ public static class Phase2Endpoints
         {
             var r = await s.ReconcileAsync(await http.SessionAsync(), asOf);
             return Results.Ok(new { r.AsOf, r.IsReconciled, r.Rows });
+        });
+        // ---- voucher templates, analysis codes, approval limit ----
+        api.MapGet("/voucher-templates", async (HttpContext http, WorkflowSetupService s) => Results.Ok(await s.TemplatesAsync(await http.SessionAsync())));
+        api.MapPost("/voucher-templates", async (HttpContext http, TemplateRequest r, WorkflowSetupService s) =>
+            Results.Ok(await s.SaveTemplateAsync(await http.SessionAsync(), r.Name, r.VoucherType, r.Description, r.Lines)));
+        api.MapPost("/voucher-templates/{id:guid}/delete", async (HttpContext http, Guid id, WorkflowSetupService s) =>
+        { await s.DeleteTemplateAsync(await http.SessionAsync(), id); return Results.NoContent(); });
+        api.MapGet("/analysis-codes", async (HttpContext http, WorkflowSetupService s) => Results.Ok(await s.AnalysisCodesAsync(await http.SessionAsync())));
+        api.MapPost("/analysis-codes", async (HttpContext http, AnalysisCodeRequest r, WorkflowSetupService s) =>
+            Results.Ok(await s.CreateAnalysisCodeAsync(await http.SessionAsync(), r.Kind, r.Code, r.Name)));
+        api.MapPut("/analysis-codes/{id:guid}", async (HttpContext http, Guid id, AnalysisCodeUpdateRequest r, WorkflowSetupService s) =>
+        { await s.UpdateAnalysisCodeAsync(await http.SessionAsync(), id, r.Name, r.IsActive); return Results.NoContent(); });
+        api.MapGet("/reports/analysis", async (HttpContext http, DateOnly from, DateOnly to, WorkflowSetupService s) =>
+            Results.Ok(await s.AnalysisReportAsync(await http.SessionAsync(), from, to)));
+        api.MapGet("/company/approval-limit", async (HttpContext http, WorkflowSetupService s) =>
+            Results.Ok(new { limit = await s.ApprovalLimitAsync(await http.SessionAsync()) }));
+        api.MapPut("/company/approval-limit", async (HttpContext http, ApprovalLimitRequest r, WorkflowSetupService s) =>
+        { await s.SetApprovalLimitAsync(await http.SessionAsync(), r.Limit); return Results.NoContent(); });
+
+        // ---- overviews (read-only) ----
+        api.MapGet("/dashboard", async (HttpContext http, DateOnly? asOf, Hak.Application.Overview.OverviewService s, IClock clock) =>
+            Results.Ok(await s.DashboardAsync(await http.SessionAsync(), asOf ?? DateOnly.FromDateTime(clock.UtcNow.ToLocalTime()))));
+        api.MapGet("/closing/checklist", async (HttpContext http, Guid periodId, Hak.Application.Overview.OverviewService s) =>
+        {
+            var c = await s.ClosingChecklistAsync(await http.SessionAsync(), periodId);
+            return Results.Ok(new { c.Period, c.ReadyToLock, c.Items });
         });
         api.MapGet("/reports/account-ledger", async (HttpContext http, Guid accountId, DateOnly from, DateOnly to, Guid? partnerId, LedgerQueryService q) =>
             Results.Ok(await q.AccountLedgerAsync(await http.SessionAsync(), accountId, from, to, partnerId)));

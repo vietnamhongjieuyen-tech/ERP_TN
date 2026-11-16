@@ -1834,6 +1834,10 @@ namespace Hak.Data.Postgres.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("AnalysisCodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("analysis_code_id");
+
                     b.Property<string>("CashFlowCode")
                         .HasMaxLength(4)
                         .HasColumnType("character varying(4)")
@@ -2368,6 +2372,11 @@ namespace Hak.Data.Postgres.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<decimal?>("ApprovalLimit")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("numeric(19,4)")
+                        .HasColumnName("approval_limit");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -4548,6 +4557,57 @@ namespace Hak.Data.Postgres.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hak.Domain.Vouchers.AnalysisCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("code");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_analysis_codes");
+
+                    b.HasIndex("CompanyId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_analysis_codes_company_id_code");
+
+                    b.ToTable("analysis_codes");
+                });
+
             modelBuilder.Entity("Hak.Domain.Vouchers.Voucher", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4772,6 +4832,10 @@ namespace Hak.Data.Postgres.Migrations
                         .HasColumnType("numeric(19,4)")
                         .HasColumnName("amount");
 
+                    b.Property<Guid?>("AnalysisCodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("analysis_code_id");
+
                     b.Property<string>("CashFlowCode")
                         .HasMaxLength(4)
                         .HasColumnType("character varying(4)")
@@ -4881,6 +4945,70 @@ namespace Hak.Data.Postgres.Migrations
                         .HasDatabaseName("ix_voucher_number_sequences_company_id_fiscal_year_id_voucher_~");
 
                     b.ToTable("voucher_number_sequences");
+                });
+
+            modelBuilder.Entity("Hak.Domain.Vouchers.VoucherTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("lines_json");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("VoucherType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("voucher_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_voucher_templates");
+
+                    b.HasIndex("CompanyId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_voucher_templates_company_id_name");
+
+                    b.ToTable("voucher_templates");
                 });
 
             modelBuilder.Entity("Hak.Domain.Assets.AssetCostSource", b =>
@@ -5610,6 +5738,16 @@ namespace Hak.Data.Postgres.Migrations
                         .HasConstraintName("fk_trade_order_lines_trade_orders_order_id");
                 });
 
+            modelBuilder.Entity("Hak.Domain.Vouchers.AnalysisCode", b =>
+                {
+                    b.HasOne("Hak.Domain.Organization.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_analysis_codes_companies_company_id");
+                });
+
             modelBuilder.Entity("Hak.Domain.Vouchers.Voucher", b =>
                 {
                     b.HasOne("Hak.Domain.Vouchers.Voucher", null)
@@ -5660,6 +5798,16 @@ namespace Hak.Data.Postgres.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_voucher_lines_vouchers_voucher_id");
+                });
+
+            modelBuilder.Entity("Hak.Domain.Vouchers.VoucherTemplate", b =>
+                {
+                    b.HasOne("Hak.Domain.Organization.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_voucher_templates_companies_company_id");
                 });
 
             modelBuilder.Entity("Hak.Domain.Assets.LongTermAsset", b =>

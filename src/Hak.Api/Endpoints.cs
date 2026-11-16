@@ -24,19 +24,19 @@ public sealed record FiscalYearRequest(string Code, DateOnly StartDate, DateOnly
 public sealed record AccountRequest(string Code, string Name, string? ParentCode, bool IsPostable = true, bool RequiresPartner = false, BalanceDisplay BalanceDisplay = BalanceDisplay.Net,
     OpenItemNature OpenItemNature = OpenItemNature.None, CashKind CashKind = CashKind.None, NegativeBalancePolicy NegativeBalancePolicy = NegativeBalancePolicy.None);
 public sealed record PartnerRequest(string Code, string Name, PartnerRoles Roles, string? TaxCode);
-public sealed record LineRequest(Guid AccountId, string Side, decimal Amount, Guid? PartnerId, string? ForeignCurrency, decimal? ForeignAmount, decimal? ExchangeRate, string? Description, string? CashFlowCode = null);
+public sealed record LineRequest(Guid AccountId, string Side, decimal Amount, Guid? PartnerId, string? ForeignCurrency, decimal? ForeignAmount, decimal? ExchangeRate, string? Description, string? CashFlowCode = null, Guid? AnalysisCodeId = null);
 public sealed record VoucherRequest(string VoucherType, DateOnly VoucherDate, DateOnly PostingDate, string Description, List<LineRequest> Lines, Guid? BranchId = null);
 public sealed record ReasonRequest(string Reason);
 public sealed record ReverseRequest(DateOnly ReversalDate, string Reason);
 
-public sealed record LineDto(int LineNo, Guid AccountId, string Side, decimal Amount, Guid? PartnerId, string? ForeignCurrency, decimal? ForeignAmount, decimal? ExchangeRate, string? Description, string? CashFlowCode = null);
+public sealed record LineDto(int LineNo, Guid AccountId, string Side, decimal Amount, Guid? PartnerId, string? ForeignCurrency, decimal? ForeignAmount, decimal? ExchangeRate, string? Description, string? CashFlowCode = null, Guid? AnalysisCodeId = null);
 public sealed record VoucherDto(Guid Id, string Number, string VoucherType, string Status, DateOnly VoucherDate, DateOnly PostingDate, string Description,
     decimal TotalDebit, decimal TotalCredit, long RowVersion, Guid? ReversesVoucherId, Guid? AdjustsVoucherId, string? SourceSystem, string? SourceId, List<LineDto> Lines)
 {
     public static VoucherDto From(Voucher v) => new(v.Id, v.Number, v.VoucherType, v.Status.ToString(), v.VoucherDate, v.PostingDate, v.Description,
         v.TotalDebit, v.TotalCredit, v.RowVersion, v.ReversesVoucherId, v.AdjustsVoucherId, v.SourceSystem, v.SourceId,
         v.Lines.OrderBy(l => l.LineNo).Select(l => new LineDto(l.LineNo, l.AccountId, l.Side == Side.Debit ? "D" : "C", l.Amount, l.PartnerId,
-            l.ForeignCurrency, l.ForeignAmount, l.ExchangeRate, l.Description, l.CashFlowCode)).ToList());
+            l.ForeignCurrency, l.ForeignAmount, l.ExchangeRate, l.Description, l.CashFlowCode, l.AnalysisCodeId)).ToList());
 }
 
 public static class Endpoints
@@ -47,7 +47,7 @@ public static class Endpoints
             "D" => Side.Debit,
             "C" => Side.Credit,
             _ => throw new DomainException(ErrorCodes.ValidationFailed, $"Chiều '{l.Side}' không hợp lệ (D hoặc C)."),
-        }, l.Amount, l.PartnerId, l.ForeignCurrency, l.ForeignAmount, l.ExchangeRate, l.Description, CashFlowCode: l.CashFlowCode)).ToList(), r.BranchId);
+        }, l.Amount, l.PartnerId, l.ForeignCurrency, l.ForeignAmount, l.ExchangeRate, l.Description, CashFlowCode: l.CashFlowCode, AnalysisCodeId: l.AnalysisCodeId)).ToList(), r.BranchId);
 
     private static async Task<Guid> AdminAsync(HttpContext http)
     {

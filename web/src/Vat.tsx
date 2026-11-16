@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import { parseEInvoiceXml, type EInvoice } from './einvoicexml'
+import { readZip } from './sheetread'
 import { askText } from './dialogs'
 import { ApiError, get, post, session } from './api'
 import { ErrorBox, useAction } from './common'
@@ -88,8 +90,31 @@ function Listing() {
 
 function ImportEInvoices() {
   const [text, setText] = useState('')
+  const [read, setRead] = useState('')
   const [result, setResult] = useState<{ imported: number; duplicates: number; statusChanges: number; rejected: string[] } | null>(null)
   const { busy, error, setError, run } = useAction()
+  // invoice.xml files (or the zip downloaded from the tax portal): converted to the import format and shown below for review.
+  const readFiles = (files: FileList | null) => run(async () => {
+    if (!files || files.length === 0) return
+    const own = (await get<{ id: string; taxCode?: string | null }[]>('/me/companies')).find(c => c.id === session.companyId)?.taxCode ?? null
+    const dec = new TextDecoder()
+    const xmls: { name: string; xml: string }[] = []
+    for (const f of [...files]) {
+      const bytes = new Uint8Array(await f.arrayBuffer())
+      if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+        for (const [name, data] of await readZip(bytes)) if (/\.xml$/i.test(name)) xmls.push({ name, xml: dec.decode(data) })
+      } else xmls.push({ name: f.name, xml: dec.decode(bytes) })
+    }
+    const invoices: EInvoice[] = [], failed: string[] = []
+    for (const x of xmls) { try { invoices.push(parseEInvoiceXml(x.xml, own)) } catch (e) { failed.push(`${x.name}: ${e instanceof Error ? e.message : String(e)}`) } }
+    if (invoices.length === 0) throw new Error(failed.length ? `Không đọc được hóa đơn nào. ${failed.slice(0, 5).join(' | ')}` : 'Không có tệp XML hóa đơn trong tệp đã chọn.')
+    setText(JSON.stringify({ sourceName: files.length === 1 ? files[0].name : `${files.length} tệp XML`, invoices }, null, 1))
+    setResult(null)
+    const out = invoices.filter(i => i.direction === 'Output').length
+    setRead(`Đã đọc ${invoices.length} hóa đơn (${invoices.length - out} đầu vào, ${out} đầu ra). Bấm "Nhập" để đưa vào đối chiếu.`
+      + (own ? '' : ' Công ty chưa khai mã số thuế nên mọi hóa đơn được coi là đầu vào — khai mã số thuế ở tab Hồ sơ rồi đọc lại nếu có hóa đơn đầu ra.')
+      + (failed.length ? ` Không đọc được ${failed.length} tệp: ${failed.slice(0, 5).join(' | ')}` : ''))
+  })
   const send = () => run(async () => {
     try { JSON.parse(text) } catch { setError(new Error('Nội dung không phải JSON hợp lệ.')); return }
     // Send the raw text: the server fingerprints the exact file content to block re-import.
@@ -103,8 +128,11 @@ function ImportEInvoices() {
       <ErrorBox error={error} />
       {result && <div className={`msg ${result.rejected.length ? 'error' : 'ok'}`}>Đã nhập {result.imported}, trùng {result.duplicates}, đổi trạng thái {result.statusChanges}, từ chối {result.rejected.length}.
         {result.rejected.length > 0 && <ul>{result.rejected.map((r, i) => <li key={i}>{r}</li>)}</ul>}</div>}
+      {read && !error && !result && <div className="msg ok">{read}</div>}
       <div className="panel">
-        <p className="muted">Dán JSON theo <code>schemas/e-invoice-import.schema.json</code>: {'{ "sourceName": "...", "invoices": [ { "direction": "Input", "sellerTaxCode": "...", "series": "...", "number": "...", "issueDate": "2026-10-01", "amountBeforeVat": "...", "vatAmount": "...", "totalPayment": "...", "status": "Original", "rates": [...] } ] }'}. Số tiền dạng chuỗi.</p>
+        <label style={{ marginBottom: 8 }}>Tệp hóa đơn điện tử tải từ cổng thuế: chọn các tệp <code>invoice.xml</code> hoặc tệp <code>.zip</code> tải về
+          <input type="file" multiple accept=".xml,.zip" onChange={e => { readFiles(e.target.files); e.target.value = '' }} /></label>
+        <p className="muted">Hoặc dán JSON theo <code>schemas/e-invoice-import.schema.json</code>: {'{ "sourceName": "...", "invoices": [ { "direction": "Input", "sellerTaxCode": "...", "series": "...", "number": "...", "issueDate": "2026-10-01", "amountBeforeVat": "...", "vatAmount": "...", "totalPayment": "...", "status": "Original", "rates": [...] } ] }'}. Số tiền dạng chuỗi.</p>
         <textarea aria-label="Dữ liệu hóa đơn điện tử" rows={12} style={{ width: '100%', fontFamily: 'monospace' }} value={text} onChange={e => setText(e.target.value)} />
         <button className="primary" disabled={busy || !text.trim()} onClick={send}>Nhập</button>
       </div>

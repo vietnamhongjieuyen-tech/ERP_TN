@@ -177,6 +177,8 @@ public sealed class VoucherLine
     public Guid? SettleJournalLineId { get; set; }
     /// <summary>Cash-flow statement code (Mã số B03-DN: 01–07, 21–27, 31–36, 61) chosen for a cash line; null = derived from the counter-account.</summary>
     public string? CashFlowCode { get; set; }
+    /// <summary>Mã phân tích (optional management dimension), copied to the journal line on posting.</summary>
+    public Guid? AnalysisCodeId { get; set; }
 }
 
 public sealed class VoucherHistory
