@@ -47,6 +47,10 @@ public sealed class Account
     public string? ReportTags { get; set; }
     /// <summary>Regime version this account template line came from (null = company-specific detail).</summary>
     public Guid? RegimeVersionId { get; set; }
+    /// <summary>For a bank account (CashKind.Bank): the account number at the bank, printed on payment orders.</summary>
+    public string? BankAccountNo { get; set; }
+    /// <summary>For a bank account: bank and branch name as written on payment orders (e.g. "Vietcombank – CN …").</summary>
+    public string? BankName { get; set; }
     public DateTime CreatedAt { get; set; }
     public Guid CreatedBy { get; set; }
     public long RowVersion { get; set; }

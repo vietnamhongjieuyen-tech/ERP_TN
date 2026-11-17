@@ -176,6 +176,48 @@ public sealed class WorkflowSetupService(HakDbContext db, AuditService audit, IC
             .OrderBy(r => r.Kind, StringComparer.Ordinal).ThenBy(r => r.Code, StringComparer.Ordinal).ThenBy(r => r.AccountCode, StringComparer.Ordinal).ToList();
     }
 
+    // ---------------------------------------------------------------- print details (company address, bank account numbers)
+
+    /// <summary>Registered address of the company, printed on vouchers and payment orders.</summary>
+    public async Task SetCompanyAddressAsync(SessionContext ctx, string? address)
+    {
+        ctx.Require(Permissions.ConfigManage);
+        address = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        if (address is { Length: > 300 }) throw new DomainException(ErrorCodes.ValidationFailed, "Địa chỉ tối đa 300 ký tự.");
+        await db.InTransactionAsync(async () =>
+        {
+            var company = await db.Companies.FirstAsync(c => c.Id == ctx.CompanyId);
+            var before = company.Address;
+            company.Address = address;
+            company.RowVersion++;
+            await audit.AppendAsync(ctx.CompanyId, ctx, "company.address", "company", company.Id.ToString(), new { before, after = address }, company.RowVersion);
+            await db.SaveChangesAsync();
+        });
+    }
+
+    /// <summary>Account number and bank name of a bank account of the chart (printed on payment orders). Nothing is posted.</summary>
+    public async Task SetBankInfoAsync(SessionContext ctx, Guid accountId, string? bankAccountNo, string? bankName)
+    {
+        ctx.Require(Permissions.CatalogManage);
+        bankAccountNo = string.IsNullOrWhiteSpace(bankAccountNo) ? null : bankAccountNo.Trim();
+        bankName = string.IsNullOrWhiteSpace(bankName) ? null : bankName.Trim();
+        if (bankAccountNo is { Length: > 50 } || bankName is { Length: > 200 })
+            throw new DomainException(ErrorCodes.ValidationFailed, "Số tài khoản tối đa 50 ký tự, tên ngân hàng tối đa 200 ký tự.");
+        await db.InTransactionAsync(async () =>
+        {
+            var acc = await db.Accounts.FirstOrDefaultAsync(a => a.Id == accountId && a.CompanyId == ctx.CompanyId)
+                      ?? throw new DomainException(ErrorCodes.AccountNotFound, "Tài khoản không tồn tại.");
+            if (acc.CashKind != Domain.Catalog.CashKind.Bank)
+                throw new DomainException(ErrorCodes.ValidationFailed, $"TK {acc.Code} không phải tài khoản tiền gửi ngân hàng.");
+            var before = new { acc.BankAccountNo, acc.BankName };
+            acc.BankAccountNo = bankAccountNo;
+            acc.BankName = bankName;
+            acc.RowVersion++;
+            await audit.AppendAsync(ctx.CompanyId, ctx, "account.bank_info", "account", acc.Id.ToString(), new { acc.Code, before, after = new { bankAccountNo, bankName } }, acc.RowVersion);
+            await db.SaveChangesAsync();
+        });
+    }
+
     // ---------------------------------------------------------------- approval limit
 
     public async Task<decimal?> ApprovalLimitAsync(SessionContext ctx)

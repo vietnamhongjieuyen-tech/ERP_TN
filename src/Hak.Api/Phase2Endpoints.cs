@@ -25,6 +25,8 @@ public sealed record TemplateRequest(string Name, string VoucherType, string? De
 public sealed record AnalysisCodeRequest(string Kind, string Code, string Name);
 public sealed record AnalysisCodeUpdateRequest(string Name, bool IsActive);
 public sealed record ApprovalLimitRequest(decimal? Limit);
+public sealed record CompanyAddressRequest(string? Address);
+public sealed record BankInfoRequest(string? BankAccountNo, string? BankName);
 
 public static class Phase2Endpoints
 {
@@ -113,6 +115,10 @@ public static class Phase2Endpoints
             Results.Ok(await s.AnalysisReportAsync(await http.SessionAsync(), from, to)));
         api.MapGet("/company/approval-limit", async (HttpContext http, WorkflowSetupService s) =>
             Results.Ok(new { limit = await s.ApprovalLimitAsync(await http.SessionAsync()) }));
+        api.MapPut("/company/address", async (HttpContext http, CompanyAddressRequest r, WorkflowSetupService s) =>
+        { await s.SetCompanyAddressAsync(await http.SessionAsync(), r.Address); return Results.NoContent(); });
+        api.MapPut("/accounts/{id:guid}/bank-info", async (HttpContext http, Guid id, BankInfoRequest r, WorkflowSetupService s) =>
+        { await s.SetBankInfoAsync(await http.SessionAsync(), id, r.BankAccountNo, r.BankName); return Results.NoContent(); });
         api.MapPut("/company/approval-limit", async (HttpContext http, ApprovalLimitRequest r, WorkflowSetupService s) =>
         { await s.SetApprovalLimitAsync(await http.SessionAsync(), r.Limit); return Results.NoContent(); });
 

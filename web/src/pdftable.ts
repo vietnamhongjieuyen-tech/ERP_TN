@@ -10,10 +10,24 @@ import { headerKey } from './sheetread.ts'
 export interface TextItem { x: number; y: number; w: number; s: string }
 
 const DATE_HEADERS = ['ngay giao dich', 'ngay gd', 'ngay', 'ngay hieu luc', 'ngay hach toan', 'transaction date', 'date']
-const AMOUNT_HEADERS = ['no', 'co', 'ghi no', 'ghi co', 'phat sinh no', 'phat sinh co', 'so tien', 'debit', 'credit', 'so tien ghi no', 'so tien ghi co']
+const AMOUNT_HEADERS = ['no', 'co', 'ghi no', 'ghi co', 'phat sinh no', 'phat sinh co', 'doanh so no', 'doanh so co', 'so tien', 'debit', 'credit', 'so tien ghi no', 'so tien ghi co']
 // Lines that close the table or follow it. "CONG TY …" / "TONG CONG TY …" are company names in a wrapped description, not totals.
 const FOOTER = /^(tong(?! cong ty)|cong(?! ty)|so du cuoi|so du dau|total|ending|kiem soat|ke toan|xac nhan)\b/
 const AMOUNT = /^[-+(]?\d[\d.,]*\)?$/
+
+/**
+ * "Nội dung / Details : …" lines of the debit / credit advices some banks print after the account book (one advice per
+ * transaction, in the same order). Used to fill descriptions when the book itself has no description column.
+ */
+export function adviceDetails(rows: string[][]): string[] {
+  const out: string[] = []
+  for (const r of rows) {
+    if (r.length !== 1) continue
+    const m = /^\s*Nội dung\s*(?:\/\s*(?:Details|Remarks|Description))?\s*:\s*(\S.*)$/i.exec(r[0])
+    if (m) out.push(m[1].trim())
+  }
+  return out
+}
 
 /** Text lines of one page: items whose tops are within 4 units share a line; items are ordered left to right. */
 export function textLines(items: TextItem[]): TextItem[][] {

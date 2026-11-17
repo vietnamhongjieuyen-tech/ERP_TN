@@ -676,6 +676,14 @@ namespace Hak.Data.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("balance_display");
 
+                    b.Property<string>("BankAccountNo")
+                        .HasColumnType("text")
+                        .HasColumnName("bank_account_no");
+
+                    b.Property<string>("BankName")
+                        .HasColumnType("text")
+                        .HasColumnName("bank_name");
+
                     b.Property<int>("CashKind")
                         .HasColumnType("integer")
                         .HasColumnName("cash_kind");
@@ -2376,6 +2384,11 @@ namespace Hak.Data.Postgres.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
 
                     b.Property<decimal?>("ApprovalLimit")
                         .HasPrecision(19, 4)

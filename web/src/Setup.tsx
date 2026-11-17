@@ -173,6 +173,8 @@ function EditAccountDialog({ account: a, list, onClose, onDone }: { account: Acc
   const [tags, setTags] = useState(a.reportTags ?? '')
   const [parent, setParent] = useState(a.parentId ? byId[a.parentId]?.code ?? '' : '')
   const [attrs, setAttrs] = useState<Attrs>(attrsOf(a))
+  const [bankNo, setBankNo] = useState(a.bankAccountNo ?? '')
+  const [bankName, setBankName] = useState(a.bankName ?? '')
   const { busy, error, run } = useAction()
   // A summary account cannot sit under itself or its own descendants.
   const descendants = new Set<string>([a.id])
@@ -183,6 +185,8 @@ function EditAccountDialog({ account: a, list, onClose, onDone }: { account: Acc
     if (parent !== (a.parentId ? byId[a.parentId]?.code ?? '' : '')) await post(`/accounts/${a.id}/parent`, { parentCode: parent || null })
     const o = attrsOf(a)
     if (a.isPostable && JSON.stringify(o) !== JSON.stringify(attrs)) await post(`/accounts/${a.id}/attributes`, attrs)
+    if (attrs.cashKind === 'Bank' && (bankNo.trim() !== (a.bankAccountNo ?? '') || bankName.trim() !== (a.bankName ?? '')))
+      await put(`/accounts/${a.id}/bank-info`, { bankAccountNo: bankNo.trim() || null, bankName: bankName.trim() || null })
     onDone()
   })
   return <Modal title={`Sửa tài khoản ${a.code}`} onClose={onClose} busy={busy} onSubmit={name.trim() ? save : undefined}
@@ -198,6 +202,10 @@ function EditAccountDialog({ account: a, list, onClose, onDone }: { account: Acc
       <label>Nhãn BC <input value={tags} onChange={e => setTags(e.target.value)} placeholder="vd DH, TDT" /></label>
       <label className="check"><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} /> Đang dùng</label>
     </div>
+    {a.isPostable && attrs.cashKind === 'Bank' && <div className="form-row">
+      <label>Số tài khoản tại ngân hàng <input value={bankNo} onChange={e => setBankNo(e.target.value)} /></label>
+      <label style={{ flex: 1 }}>Tên ngân hàng, chi nhánh (in trên ủy nhiệm chi) <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Vietcombank – CN …" /></label>
+    </div>}
     {a.isPostable
       ? <><AttrFields v={attrs} set={setAttrs} /><p className="muted">Đổi cấp trên chỉ đổi cách cộng dồn báo cáo, không đổi bút toán. Đối tượng, công nợ, loại tiền chỉ đổi được khi TK chưa có chứng từ.</p></>
       : <p className="muted">TK tổng hợp: thuộc tính hạch toán đặt ở các TK chi tiết.</p>}

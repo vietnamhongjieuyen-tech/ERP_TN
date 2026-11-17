@@ -46,10 +46,10 @@ Màn hình **Chứng từ → Thêm chứng từ**:
 ## 4. Thu, chi, ngân hàng
 
 - **Thu / Chi tiền**: lập phiếu thu, phiếu chi, báo Có, báo Nợ theo nghiệp vụ; chọn hóa đơn được thanh toán ngay trên phiếu. In phiếu thu / phiếu chi bằng nút "In chứng từ" ở màn hình Chứng từ.
-- **Ngân hàng → Lệnh thanh toán**: lập ủy nhiệm chi → duyệt → ghi nhận gửi ngân hàng → ngân hàng thực hiện (sinh báo Nợ nháp). Nút "In UNC" in ủy nhiệm chi để ký.
+- **Ngân hàng → Lệnh thanh toán**: lập ủy nhiệm chi → duyệt → ghi nhận gửi ngân hàng → ngân hàng thực hiện (sinh báo Nợ nháp). Nút "In UNC" in ủy nhiệm chi để ký, theo bố cục mẫu giấy của ngân hàng của tài khoản chi (hiện có mẫu Vietcombank và Agribank, ngân hàng khác dùng mẫu chung; đổi mẫu ở ô "Mẫu in ủy nhiệm chi"). Để bản in đủ thông tin, khai một lần: **số tài khoản và tên ngân hàng** của từng tài khoản tiền gửi (Thiết lập → Hệ thống tài khoản → Sửa) và **địa chỉ công ty** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt). Bản in không có logo ngân hàng; ngân hàng vẫn có thể yêu cầu dùng mẫu in sẵn của họ.
 - **Ngân hàng → Sao kê & đối chiếu → Nhập sao kê**: bấm "Chọn tệp" và chọn tệp sao kê / sổ phụ của ngân hàng. Phần mềm tự nhận cột ngày, số tham chiếu, Nợ, Có, nội dung, điền kỳ sao kê và số dư đầu / cuối vào các ô bên dưới; **xem lại rồi mới bấm "Nhập & tự khớp"**. Các dạng tệp đọc được:
   - Excel `.xls` / `.xlsx`, `.csv` tải từ ngân hàng trực tuyến: chính xác nhất, nên ưu tiên.
-  - PDF do ngân hàng xuất (có chữ chọn được): phần mềm dựng lại bảng theo vị trí chữ. Diễn giải dài nhiều dòng có thể ghép chưa chuẩn; số tiền được kiểm bằng số dư.
+  - PDF do ngân hàng xuất (có chữ chọn được): phần mềm dựng lại bảng theo vị trí chữ. Với "Sổ hạch toán chi tiết" theo ngày kèm giấy báo Nợ / Có, diễn giải được lấy từ dòng "Nội dung" của giấy báo. Diễn giải dài nhiều dòng có thể ghép chưa chuẩn; số tiền được kiểm bằng số dư.
   - Ảnh chụp, bản quét `.jpg` / `.png`, PDF quét: phần mềm **nhận dạng chữ (OCR)** ngay trên máy, không gửi đi đâu, mất khoảng vài giây đến nửa phút mỗi trang. OCR có thể đọc sai ký tự (nhất là dấu tiếng Việt, đôi khi cả chữ số), nên phải so từng dòng với sổ phụ gốc. Ảnh nên chụp thẳng, đủ sáng, rõ nét.
   - Dấu hiệu đọc đúng số tiền: số dư đầu + phát sinh = số dư cuối. Nếu phần mềm báo lệch, sửa dòng sai ngay trong ô văn bản trước khi nhập.
 - Dòng sao kê không có trên sổ (phí, lãi): bấm tạo chứng từ từ dòng đó, phần mềm gợi ý tài khoản.

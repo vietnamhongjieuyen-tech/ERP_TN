@@ -662,6 +662,14 @@ namespace Hak.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("balance_display");
 
+                    b.Property<string>("BankAccountNo")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("bank_account_no");
+
+                    b.Property<string>("BankName")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("bank_name");
+
                     b.Property<int>("CashKind")
                         .HasColumnType("INTEGER")
                         .HasColumnName("cash_kind");
@@ -2347,6 +2355,11 @@ namespace Hak.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
                         .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("address");
 
                     b.Property<long?>("ApprovalLimit")
                         .HasColumnType("INTEGER")

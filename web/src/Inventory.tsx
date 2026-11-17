@@ -62,7 +62,8 @@ function StockDocs() {
   const codeOptions = useAnalysisOptions()
   const [printing, setPrinting] = useState<StockDoc | null>(null)
   const [company, setCompany] = useState('')
-  useEffect(() => { get<{ id: string; name: string }[]>('/me/companies').then(cs => setCompany(cs.find(c => c.id === session.companyId)?.name ?? '')).catch(() => undefined) }, [])
+  const [address, setAddress] = useState('')
+  useEffect(() => { get<{ id: string; name: string; address?: string | null }[]>('/me/companies').then(cs => { const c = cs.find(x => x.id === session.companyId); setCompany(c?.name ?? ''); setAddress(c?.address ?? '') }).catch(() => undefined) }, [])
   useEffect(() => { if (printing) { printSheet(); setPrinting(null) } }, [printing])   // print once the sheet of the chosen document is rendered
   const [orders, setOrders] = useState<Order[]>([])
   const load = useCallback(() => run(async () => { setList(await get<StockDoc[]>('/stock-documents')); setOrders(await get<Order[]>('/orders')) }), [run])
@@ -145,7 +146,7 @@ function StockDocs() {
         const whName = (id: string | null) => { const w = warehouses.find(x => x.id === id); return w ? `${w.code} – ${w.name}` : '' }
         return (
           <PrintSheet>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><div><b>{company}</b><br />Địa chỉ: ..............................................</div><div>Số: <b>{d.number}</b></div></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><div><b>{company}</b><br />Địa chỉ: {address || '..............................................'}</div><div>Số: <b>{d.number}</b></div></div>
             <h1>{receipt ? 'PHIẾU NHẬP KHO' : d.type === 'Issue' ? 'PHIẾU XUẤT KHO' : 'PHIẾU ĐIỀU CHUYỂN KHO'}</h1>
             <div className="center"><i>Ngày {day} tháng {m} năm {y}</i></div>
             {d.status !== 'Posted' && <div className="center" style={{ marginTop: 6 }}><span className="stamp">{(STATUS_VI[d.status] ?? d.status).toUpperCase()} — CHƯA GHI SỔ</span></div>}

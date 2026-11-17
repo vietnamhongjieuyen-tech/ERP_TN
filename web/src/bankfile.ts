@@ -53,10 +53,10 @@ export function bankDate(raw: string): string | null {
 
 const COLS = {
   date: ['ngay giao dich', 'ngay gd', 'ngay', 'ngay hieu luc', 'ngay hach toan', 'transaction date', 'date'],
-  debit: ['no', 'ghi no', 'phat sinh no', 'so tien ghi no', 'so tien rut', 'rut', 'chi', 'debit', 'tien ra'],
-  credit: ['co', 'ghi co', 'phat sinh co', 'so tien ghi co', 'so tien gui', 'gui', 'thu', 'credit', 'tien vao'],
+  debit: ['no', 'ghi no', 'phat sinh no', 'doanh so no', 'so tien ghi no', 'so tien rut', 'rut', 'chi', 'debit', 'tien ra'],
+  credit: ['co', 'ghi co', 'phat sinh co', 'doanh so co', 'so tien ghi co', 'so tien gui', 'gui', 'thu', 'credit', 'tien vao'],
   amount: ['so tien', 'so tien giao dich', 'amount'],
-  ref: ['so tham chieu', 'ma giao dich', 'so giao dich', 'so gd', 'so but toan', 'so chung tu', 'so ct', 'ma gd', 'reference', 'ref', 'transaction no'],
+  ref: ['so tham chieu', 'so reference', 'ma giao dich', 'so giao dich', 'so gd', 'so but toan', 'so chung tu', 'so ct', 'ma gd', 'reference', 'ref', 'transaction no'],
   desc: ['chi tiet giao dich', 'noi dung', 'noi dung giao dich', 'dien giai', 'mo ta', 'noi dung chi tiet', 'description', 'details', 'remark'],
   balance: ['so du', 'so du cuoi', 'so du sau giao dich', 'balance'],
 }

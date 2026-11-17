@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseStatementRows } from './bankfile.ts'
-import { statementRowsFromPdf, textLines, type TextItem } from './pdftable.ts'
+import { adviceDetails, statementRowsFromPdf, textLines, type TextItem } from './pdftable.ts'
 import { phrases } from './ocr.ts'
 
 test('phrases joins OCR words into cells: close words together, a column gap apart, coordinates scaled', () => {
@@ -87,4 +87,29 @@ test('statementRowsFromPdf: a table continued on the next page keeps its columns
   assert.equal(st.lines.length, 4)
   assert.deepEqual([st.closing, st.warnings], ['4040000', []])
   assert.match(parseStatementRows(statementRowsFromPdf([row(50, [10, 'Thư ngỏ của ngân hàng'])])).warnings.join(' '), /Không nhận ra dòng tiêu đề/)
+})
+
+// Layout 3: a daily "detailed account book" without a description column, followed by one advice page per transaction.
+test('statementRowsFromPdf + adviceDetails: account book with advices on the following pages', () => {
+  const book: TextItem[] = [
+    ...row(40, [417, 'SỔ HẠCH TOÁN CHI TIẾT']),
+    ...row(230, [24, 'Số dư đầu ngày'], [87, '/ Opening Balance'], [156, ':'], [516, '1.000.000,00']),
+    ...row(263, [41, 'Ngày GD/'], [110, 'CN.PH/'], [168, 'Người lập/SCT/'], [277, 'Số Reference/'], [390, 'Doanh số nợ/'], [494, 'Doanh số có/']),
+    ...row(275, [51, 'Date'], [111, 'Branch'], [170, 'Maker/Doc No.'], [291, 'Ref No.'], [390, 'Debit Amount'], [492, 'Credit Amount']),
+    ...row(296, [39, '03/10/2026'], [179, '1234.5678'], [265, 'VND0000000001'], [424, '55.000,00']),
+    ...row(310, [39, '03/10/2026'], [179, '1234.5679'], [265, 'VND0000000002'], [530, '5.000,50']),
+    ...row(340, [24, 'Số món'], [56, '/ Number of Transaction'], [142, ': 2'], [198, 'Doanh số ngày'], [343, ':'], [424, '55.000,00'], [547, '5.000,50']),
+    ...row(386, [24, 'Số dư cuối ngày'], [89, '/ Closing Balance'], [153, ':'], [516, '950.000,50']),
+  ]
+  const advice = (text: string): TextItem[] => [
+    ...row(40, [386, 'GIẤY BÁO NỢ - DEBIT ADVICE']), ...row(83, [480, 'Ngày'], [501, '/ Date'], [525, ': 03/10/2026']),
+    ...row(330, [32, 'Số tiền nợ'], [71, '/ Debit Amount'], [132, ': 55.000,00']),
+    ...row(449, [24, 'Nội dung'], [60, '/ Details'], [132, ': ' + text]), ...row(509, [24, 'Ngày in'], [54, '/ Print Date'], [132, ': 06/11/2026']),
+  ]
+  const rows = statementRowsFromPdf([book, advice('THU PHI DICH VU'), advice('LAI TIEN GUI')])
+  const st = parseStatementRows(rows)
+  assert.deepEqual(st.lines.map(l => [l.transactionDate, l.amount, l.bankReference, l.description]),
+    [['2026-10-03', '-55000', 'VND0000000001', ''], ['2026-10-03', '5000.5', 'VND0000000002', '']])
+  assert.deepEqual([st.opening, st.closing, st.warnings], ['1000000', '950000.5', []])
+  assert.deepEqual(adviceDetails(rows), ['THU PHI DICH VU', 'LAI TIEN GUI'])
 })

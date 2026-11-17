@@ -110,6 +110,7 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
             e.Property(x => x.Code).HasMaxLength(20);
             e.Property(x => x.Name).HasMaxLength(250);
             e.Property(x => x.FunctionalCurrency).HasMaxLength(3);
+            e.Property(x => x.Address).HasMaxLength(300);
             e.Property(x => x.RowVersion).IsConcurrencyToken();
             e.HasOne<AccountingRegimeVersion>().WithMany().HasForeignKey(x => x.RegimeVersionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Currency>().WithMany().HasForeignKey(x => x.FunctionalCurrency).OnDelete(DeleteBehavior.Restrict);

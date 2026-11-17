@@ -76,12 +76,12 @@ public static class Endpoints
                               join c in db.Companies on ucr.CompanyId equals c.Id
                               join r in db.Roles on ucr.RoleId equals r.Id
                               where ucr.UserId == user.Id
-                              select new { c.Id, c.Code, c.Name, c.TaxCode, RoleId = r.Id, RoleName = r.Name }).ToListAsync();
+                              select new { c.Id, c.Code, c.Name, c.TaxCode, c.Address, RoleId = r.Id, RoleName = r.Name }).ToListAsync();
             var roleIds = rows.Select(r => r.RoleId).Distinct().ToList();
             var perms = await db.RolePermissions.Where(p => roleIds.Contains(p.RoleId)).Select(p => new { p.RoleId, p.Permission }).ToListAsync();
-            return Results.Ok(rows.GroupBy(r => new { r.Id, r.Code, r.Name, r.TaxCode }).Select(g => new
+            return Results.Ok(rows.GroupBy(r => new { r.Id, r.Code, r.Name, r.TaxCode, r.Address }).Select(g => new
             {
-                g.Key.Id, g.Key.Code, g.Key.Name, g.Key.TaxCode,
+                g.Key.Id, g.Key.Code, g.Key.Name, g.Key.TaxCode, g.Key.Address,
                 roles = g.Select(r => r.RoleName).Distinct().ToList(),
                 permissions = perms.Where(p => g.Any(r => r.RoleId == p.RoleId)).Select(p => p.Permission).Distinct().ToList(),
             }).OrderBy(c => c.Code).ToList());
@@ -117,7 +117,7 @@ public static class Endpoints
         {
             var ctx = await http.SessionAsync(); ctx.Require(Permissions.VoucherView);
             return Results.Ok(await db.Accounts.Where(a => a.CompanyId == ctx.CompanyId).OrderBy(a => a.Code)
-                .Select(a => new { a.Id, a.Code, a.Name, a.ParentId, a.IsPostable, a.RequiresPartner, a.IsActive, a.ReportTags, balanceDisplay = a.BalanceDisplay.ToString(),
+                .Select(a => new { a.Id, a.Code, a.Name, a.ParentId, a.IsPostable, a.RequiresPartner, a.IsActive, a.ReportTags, a.BankAccountNo, a.BankName, balanceDisplay = a.BalanceDisplay.ToString(),
                     openItemNature = a.OpenItemNature.ToString(), cashKind = a.CashKind.ToString(), negativeBalancePolicy = a.NegativeBalancePolicy.ToString() }).ToListAsync());
         });
         api.MapPost("/accounts", async (HttpContext http, AccountRequest r, SetupService s) =>

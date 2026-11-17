@@ -95,7 +95,7 @@ export const post = <T,>(p: string, b?: unknown) => api<T>('POST', p, b ?? {})
 export const put = <T,>(p: string, b?: unknown) => api<T>('PUT', p, b)
 
 // ---- DTOs (money fields are decimal strings) ----
-export interface Account { id: string; code: string; name: string; parentId: string | null; isPostable: boolean; requiresPartner: boolean; isActive: boolean; openItemNature: string; cashKind: string; reportTags?: string | null; negativeBalancePolicy?: string }
+export interface Account { id: string; code: string; name: string; parentId: string | null; isPostable: boolean; requiresPartner: boolean; isActive: boolean; openItemNature: string; cashKind: string; reportTags?: string | null; negativeBalancePolicy?: string; bankAccountNo?: string | null; bankName?: string | null }
 export interface Partner { id: string; code: string; name: string; taxCode: string | null; isActive: boolean }
 export interface Period { id: string; fiscalYearId: string; periodNo: number; startDate: string; endDate: string; status: 'Open' | 'Locked' }
 export interface VoucherLine { lineNo: number; accountId: string; side: 'D' | 'C'; amount: string; partnerId: string | null; description: string | null; cashFlowCode?: string | null; analysisCodeId?: string | null }

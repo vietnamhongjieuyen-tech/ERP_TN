@@ -93,6 +93,32 @@ public class WorkflowSetupTests
     }
 
     [Fact]
+    public async Task PrintDetails_CompanyAddressAndBankAccountInfo_AreStoredAndAudited()
+    {
+        using var h = await TestHost.CreateAsync();
+        using var s = h.NewScope();
+        var setup = new WorkflowSetupService(s.Db, s.Audit, h.Clock);
+
+        Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => setup.SetCompanyAddressAsync(h.Preparer, "Số 1 đường thử")));     // config.manage
+        await setup.SetCompanyAddressAsync(h.Admin, "  Số 1 đường thử, phường Thử  ");
+        Assert.Equal("Số 1 đường thử, phường Thử", (await s.Db.Companies.AsNoTracking().SingleAsync(c => c.Id == h.CompanyId)).Address);
+        Assert.Equal(ErrorCodes.ValidationFailed, await CodeOf(() => setup.SetCompanyAddressAsync(h.Admin, new string('x', 301))));
+
+        Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => setup.SetBankInfoAsync(h.Auditor, h.Acc["BANK"], "001", "NH thử")));
+        Assert.Equal(ErrorCodes.ValidationFailed, await CodeOf(() => setup.SetBankInfoAsync(h.Preparer, h.Acc["CASH"], "001", "NH thử")));   // not a bank account
+        Assert.Equal(ErrorCodes.AccountNotFound, await CodeOf(() => setup.SetBankInfoAsync(h.Preparer, Guid.NewGuid(), "001", "NH thử")));
+        await setup.SetBankInfoAsync(h.Preparer, h.Acc["BANK"], " 0011223344 ", "Ngân hàng thử – CN Thử");
+        var bank = await s.Db.Accounts.AsNoTracking().SingleAsync(a => a.Id == h.Acc["BANK"]);
+        Assert.Equal(("0011223344", "Ngân hàng thử – CN Thử"), (bank.BankAccountNo, bank.BankName));
+        await setup.SetBankInfoAsync(h.Preparer, h.Acc["BANK"], "", null);                                                      // cleared
+        Assert.Null((await s.Db.Accounts.AsNoTracking().SingleAsync(a => a.Id == h.Acc["BANK"])).BankAccountNo);
+
+        var actions = await s.Db.AuditLogs.Select(a => a.Action).ToListAsync();
+        Assert.Contains("company.address", actions);
+        Assert.Contains("account.bank_info", actions);
+    }
+
+    [Fact]
     public async Task ApprovalLimit_AboveTheLimitNeedsTheHigherPermission()
     {
         using var h = await TestHost.CreateAsync();

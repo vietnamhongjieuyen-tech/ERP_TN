@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { htmlTableRows, parseStatementRows } from './bankfile'
-import { statementRowsFromPdf } from './pdftable'
+import { adviceDetails, statementRowsFromPdf } from './pdftable'
+import { UncPrint, uncLayoutOf, type UncLayout } from './UncPrint'
 import { readSheetFile } from './sheetread'
 import { askDate, askText } from './dialogs'
 import { get, post, session } from './api'
-import { AccountSelect, ErrorBox, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog } from './common'
-import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
+import { AccountSelect, ErrorBox, PartnerSelect, printSheet, useAction, useCatalog } from './common'
+import { addMoney, formatMoney, parseMoney, today } from './money'
 
 interface PaymentOrder { id: string; number: string; partnerId: string; amount: string; requestedDate: string; description: string; status: string; executedDate: string | null; bankReference: string | null; voucherId: string | null
   bankAccountId?: string; beneficiaryAccountNo?: string | null; beneficiaryBank?: string | null }
@@ -39,8 +40,9 @@ function PaymentOrders() {
   const act = (fn: () => Promise<unknown>, msg: string) => run(async () => { await fn(); setInfo(msg); await load() })
   const partnerName = (id: string) => partners.find(p => p.id === id)?.code ?? ''
   const [printing, setPrinting] = useState<PaymentOrder | null>(null)
-  const [company, setCompany] = useState('')
-  useEffect(() => { get<{ id: string; name: string }[]>('/me/companies').then(cs => setCompany(cs.find(c => c.id === session.companyId)?.name ?? '')).catch(() => undefined) }, [])
+  const [company, setCompany] = useState<{ name: string; address: string | null }>({ name: '', address: null })
+  const [layout, setLayout] = useState<'auto' | UncLayout>('auto')
+  useEffect(() => { get<{ id: string; name: string; address?: string | null }[]>('/me/companies').then(cs => { const c = cs.find(x => x.id === session.companyId); if (c) setCompany({ name: c.name, address: c.address ?? null }) }).catch(() => undefined) }, [])
   useEffect(() => { if (printing) { printSheet(); setPrinting(null) } }, [printing])
 
   const create = () => {
@@ -67,26 +69,18 @@ function PaymentOrders() {
       </div>
       {printing && (() => {
         const p = printing, payee = partners.find(x => x.id === p.partnerId), acc = accounts.find(a => a.id === p.bankAccountId)
-        const [y, m, day] = p.requestedDate.split('-')
-        return (
-          <PrintSheet>
-            <h1>ỦY NHIỆM CHI</h1>
-            <div className="center">Số: <b>{p.number}</b> — <i>Ngày {day} tháng {m} năm {y}</i></div>
-            <table>
-              <tbody>
-                <tr><td style={{ width: '50%' }}><b>Đơn vị trả tiền:</b> {company}<br />Số tài khoản: ....................................<br />Tại ngân hàng: {acc ? acc.name : '....................................'}</td>
-                  <td><b>Đơn vị thụ hưởng:</b> {payee?.name}<br />Số tài khoản: {p.beneficiaryAccountNo || '....................................'}<br />Tại ngân hàng: {p.beneficiaryBank || '....................................'}</td></tr>
-                <tr><td colSpan={2}>Số tiền bằng số: <b>{formatMoney(p.amount)} đồng</b><br />Số tiền bằng chữ: <i>{amountInWords(p.amount)}</i><br />Nội dung thanh toán: {p.description}</td></tr>
-              </tbody>
-            </table>
-            <div className="signs" style={{ gridTemplateColumns: '1fr 1fr' }}>
-              <div><b>ĐƠN VỊ TRẢ TIỀN</b><br />Kế toán trưởng &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Chủ tài khoản<br /><i>(Ký, họ tên, đóng dấu)</i></div>
-              <div><b>NGÂN HÀNG</b><br />Giao dịch viên &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Kiểm soát<br /><i>(Ký, họ tên)</i></div>
-            </div>
-            <div className="foot">Bản in từ lệnh thanh toán {p.number} của HAK Accounting. Ngân hàng có thể yêu cầu dùng mẫu ủy nhiệm chi riêng của họ.</div>
-          </PrintSheet>
-        )
+        return <UncPrint layout={layout === 'auto' ? uncLayoutOf(acc?.bankName) : layout} data={{
+          number: p.number, date: p.requestedDate, amount: p.amount, description: p.description,
+          payerName: company.name, payerAddress: company.address, payerAccountNo: acc?.bankAccountNo ?? null, payerBank: acc?.bankName ?? acc?.name ?? null,
+          payeeName: payee?.name ?? '', payeeAccountNo: p.beneficiaryAccountNo ?? null, payeeBank: p.beneficiaryBank ?? null }} />
       })()}
+      <div className="toolbar">
+        <label>Mẫu in ủy nhiệm chi
+          <select value={layout} onChange={e => setLayout(e.target.value as 'auto' | UncLayout)}>
+            <option value="auto">Tự chọn theo ngân hàng của tài khoản chi</option><option value="vcb">Mẫu Vietcombank</option><option value="agribank">Mẫu Agribank</option><option value="generic">Mẫu chung</option>
+          </select></label>
+        <span className="muted">Số tài khoản, tên ngân hàng của tài khoản chi khai ở Thiết lập → Hệ thống tài khoản → Sửa; địa chỉ công ty ở Thiết lập → Mẫu, mã phân tích, hạn mức duyệt.</span>
+      </div>
       <div className="scroll">
         <table className="grid">
           <thead><tr><th>Số</th><th>Ngày</th><th>NCC</th><th>Nội dung</th><th className="num">Số tiền</th><th>Trạng thái</th><th>Mã GD NH</th><th>Thao tác</th></tr></thead>
@@ -156,16 +150,19 @@ function Reconciliation() {
     const head = new TextDecoder().decode((await file.slice(0, 200).arrayBuffer())).replace(/^\uFEFF/, '').trimStart()
     const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer())
     const isImage = (magic[0] === 0xff && magic[1] === 0xd8) || (magic[0] === 0x89 && magic[1] === 0x50)   // JPEG / PNG
-    let rows: string[][], ocr = false
+    let rows: string[][], ocr = false, details: string[] = []
     if (head.startsWith('%PDF')) {
       // A PDF with text is read directly; scanned pages go through OCR (slower: about half a minute per page).
       const pdf = await (await import('./pdfread')).pdfTextItems(new Uint8Array(await file.arrayBuffer()), setInfo)
       rows = statementRowsFromPdf(pdf.pages); ocr = pdf.ocrPages > 0
+      details = adviceDetails(rows)
     } else if (isImage) {
       setInfo('Đang nhận dạng chữ (OCR) từ ảnh — có thể mất khoảng nửa phút…')
       rows = statementRowsFromPdf(await (await import('./ocr')).ocrPages([file], (_, done) => setInfo(`Đang nhận dạng chữ (OCR) từ ảnh: ${Math.round(done * 100)}%`))); ocr = true
     } else rows = head.startsWith('<') ? htmlTableRows(await file.text()) : await readSheetFile(file)
     const st = parseStatementRows(rows)
+    // An account book without a description column, followed by one advice per transaction: the advices give the descriptions.
+    if (details.length === st.lines.length && st.lines.every(l => l.description === '')) st.lines.forEach((l, i) => { l.description = details[i] })
     if (ocr) st.warnings.unshift('Số liệu được nhận dạng từ ảnh (OCR) nên có thể sai ký tự — so từng dòng với sổ phụ gốc; số dư đầu + phát sinh phải bằng số dư cuối.')
     if (st.lines.length === 0) { setInfo(''); throw new Error(st.warnings.join(' ') || 'Không đọc được giao dịch nào từ tệp.') }
     setHdr(h => ({ fromDate: st.fromDate ?? h.fromDate, toDate: st.toDate ?? h.toDate, opening: st.opening ? formatMoney(st.opening) : h.opening,

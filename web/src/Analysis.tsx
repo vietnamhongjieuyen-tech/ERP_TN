@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { get, post, put } from './api'
+import { get, post, put, session } from './api'
 import { askConfirm } from './dialogs'
 import { ErrorBox, ExportButton, useAction } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
@@ -12,6 +12,7 @@ export function AnalysisSetup() {
   const [codes, setCodes] = useState<AnalysisCode[]>([])
   const [nw, setNw] = useState({ kind: '', code: '', name: '' })
   const [limit, setLimit] = useState('')
+  const [address, setAddress] = useState('')
   const [templates, setTemplates] = useState<{ id: string; name: string; voucherType: string; description: string; lines: unknown[]; updatedAt: string }[]>([])
   const [info, setInfo] = useState('')
   const { busy, error, setError, run } = useAction()
@@ -20,6 +21,7 @@ export function AnalysisSetup() {
     setTemplates(await get('/voucher-templates'))
     const l = (await get<{ limit: string | null }>('/company/approval-limit')).limit
     setLimit(l ? formatMoney(l) : '')
+    setAddress((await get<{ id: string; address?: string | null }[]>('/me/companies')).find(c => c.id === session.companyId)?.address ?? '')
   }), [run])
   useEffect(() => { load() }, [load])
   const kinds = [...new Set(codes.map(c => c.kind))]
@@ -61,6 +63,14 @@ export function AnalysisSetup() {
             {templates.length === 0 && <tr><td colSpan={6} className="muted">Chưa có định khoản mẫu.</td></tr>}
           </tbody>
         </table>
+      </div>
+      <div className="panel">
+        <strong>Thông tin in trên chứng từ</strong>
+        <p className="muted">Địa chỉ công ty được in trên phiếu thu, phiếu chi, phiếu kho và ủy nhiệm chi. Số tài khoản và tên ngân hàng của từng tài khoản tiền gửi khai khi sửa tài khoản đó ở tab Hệ thống tài khoản.</p>
+        <div className="form-row">
+          <label style={{ flex: 1 }}>Địa chỉ công ty<input value={address} onChange={e => setAddress(e.target.value)} /></label>
+          <button style={{ alignSelf: 'flex-end' }} disabled={busy} onClick={() => run(async () => { await put('/company/address', { address: address.trim() || null }); setInfo('Đã lưu địa chỉ công ty.'); await load() })}>Lưu địa chỉ</button>
+        </div>
       </div>
       <div className="panel">
         <strong>Hạn mức duyệt chứng từ</strong>

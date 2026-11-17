@@ -6,6 +6,8 @@ public sealed class Company
     public string Code { get; set; } = "";
     public string Name { get; set; } = "";
     public string? TaxCode { get; set; }
+    /// <summary>Registered address, printed on vouchers and payment orders.</summary>
+    public string? Address { get; set; }
     /// <summary>ISO 4217 functional (accounting) currency.</summary>
     public string FunctionalCurrency { get; set; } = "VND";
     public Guid RegimeVersionId { get; set; }

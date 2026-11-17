@@ -185,7 +185,8 @@ const PAGE = 200
 function VoucherPrint({ voucher: v }: { voucher: Voucher }) {
   const { accounts, partners } = useCatalog()
   const [company, setCompany] = useState('')
-  useEffect(() => { get<{ id: string; name: string }[]>('/me/companies').then(cs => setCompany(cs.find(c => c.id === session.companyId)?.name ?? '')).catch(() => undefined) }, [])
+  const [address, setAddress] = useState('')
+  useEffect(() => { get<{ id: string; name: string; address?: string | null }[]>('/me/companies').then(cs => { const c = cs.find(x => x.id === session.companyId); setCompany(c?.name ?? ''); setAddress(c?.address ?? '') }).catch(() => undefined) }, [])
   const acc = (id: string) => accounts.find(a => a.id === id)?.code ?? ''
   const par = (id: string | null) => (id ? partners.find(p => p.id === id) : undefined)
   const d = (s: string) => s.split('-').reverse().join('/')
@@ -202,7 +203,7 @@ function VoucherPrint({ voucher: v }: { voucher: Voucher }) {
     return (
       <PrintSheet>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <div><b>{company}</b><br />Địa chỉ: ..............................................</div>
+          <div><b>{company}</b><br />Địa chỉ: {address || '..............................................'}</div>
           <div style={{ textAlign: 'right' }}>Số: <b>{v.number}</b><br />Nợ: {codes('D')}<br />Có: {codes('C')}</div>
         </div>
         <h1>{receipt ? 'PHIẾU THU' : 'PHIẾU CHI'}</h1>
