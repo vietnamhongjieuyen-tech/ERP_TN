@@ -25,6 +25,7 @@ public sealed record TemplateRequest(string Name, string VoucherType, string? De
 public sealed record AnalysisCodeRequest(string Kind, string Code, string Name);
 public sealed record AnalysisCodeUpdateRequest(string Name, bool IsActive);
 public sealed record ApprovalLimitRequest(decimal? Limit);
+public sealed record SegregationRequest(bool RequireDistinctApprover, string? Reason);
 public sealed record CompanyAddressRequest(string? Address);
 public sealed record BankInfoRequest(string? BankAccountNo, string? BankName);
 
@@ -119,6 +120,10 @@ public static class Phase2Endpoints
         { await s.SetCompanyAddressAsync(await http.SessionAsync(), r.Address); return Results.NoContent(); });
         api.MapPut("/accounts/{id:guid}/bank-info", async (HttpContext http, Guid id, BankInfoRequest r, WorkflowSetupService s) =>
         { await s.SetBankInfoAsync(await http.SessionAsync(), id, r.BankAccountNo, r.BankName); return Results.NoContent(); });
+        api.MapGet("/company/segregation", async (HttpContext http, WorkflowSetupService s) =>
+            Results.Ok(new { requireDistinctApprover = await s.RequireDistinctApproverAsync(await http.SessionAsync()) }));
+        api.MapPut("/company/segregation", async (HttpContext http, SegregationRequest r, WorkflowSetupService s) =>
+        { await s.SetRequireDistinctApproverAsync(await http.SessionAsync(), r.RequireDistinctApprover, r.Reason); return Results.NoContent(); });
         api.MapPut("/company/approval-limit", async (HttpContext http, ApprovalLimitRequest r, WorkflowSetupService s) =>
         { await s.SetApprovalLimitAsync(await http.SessionAsync(), r.Limit); return Results.NoContent(); });
 

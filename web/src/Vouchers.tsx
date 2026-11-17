@@ -17,6 +17,9 @@ export function VouchersView() {
   // Opened from a report row (drill-down): show that voucher, with the list narrowed to its posting date.
   const [boot] = useState(() => takeParams('vouchers'))
   const [openId, setOpenId] = useState(boot?.voucherId ?? '')
+  // Company in one-person mode (Thiết lập → chế độ phân quyền): save, approve and post in one step.
+  const [oneStep, setOneStep] = useState(false)
+  useEffect(() => { get<{ requireDistinctApprover: boolean }>('/company/segregation').then(r => setOneStep(r.requireDistinctApprover === false)).catch(() => setOneStep(false)) }, [])
   const [from, setFrom] = useState(boot?.date ?? boot?.from ?? today().slice(0, 8) + '01')
   const [to, setTo] = useState(boot?.date ?? today())
   const [status, setStatus] = useState(boot?.status ?? '')
@@ -66,7 +69,7 @@ export function VouchersView() {
   const count = (...s: string[]) => list.filter(x => checked.has(x.id) && s.includes(x.status)).length
 
   if (editing) return <VoucherForm voucher={editing === 'new' || 'copy' in editing ? null : editing} seed={editing !== 'new' && 'copy' in editing ? editing.copy : undefined}
-    onDone={(saved, submit) => {
+    oneStep={oneStep} onDone={(saved, finish) => {
       setEditing(null)
       if (!saved) { load(); return }
       // Show the saved voucher with the result of the full server-side check; "Lưu và gửi duyệt" submits it when nothing blocks.
@@ -76,7 +79,14 @@ export function VouchersView() {
         setOpenId(saved.id)
         const errs = await post<{ code: string; message: string; lineNo: number | null }[]>(`/vouchers/${saved.id}/validate`)
         const text = errs.map(e => `${e.message}`).join(' | ')
-        if (submit) {
+        if (finish === 'post') {
+          if (errs.length) setInfo(`Đã lưu nháp ${saved.number}, chưa ghi sổ vì cần xem lại: ${text}`)
+          else {
+            let rv = saved.rowVersion
+            for (const s of ['submit', 'approve', 'post']) rv = (await post<Voucher>(`/vouchers/${saved.id}/${s}?rowVersion=${rv}`)).rowVersion
+            setInfo(`Đã lưu và ghi sổ ${saved.number}.`)
+          }
+        } else if (finish === 'submit') {
           await post(`/vouchers/${saved.id}/submit?rowVersion=${saved.rowVersion}`)
           setInfo(`Đã lưu và gửi duyệt ${saved.number}.${text ? ' Lưu ý: ' + text : ''}`)
         } else setInfo(errs.length ? `Đã lưu nháp ${saved.number}. Cần xem lại: ${text}` : `Đã lưu nháp ${saved.number} — hợp lệ, có thể gửi duyệt.`)
@@ -117,6 +127,7 @@ export function VouchersView() {
         <button disabled={busy || !count('Submitted')} onClick={() => bulk('Đã duyệt', ['Submitted'], ['approve'])}>Duyệt ({count('Submitted')})</button>
         <button disabled={busy || !count('Approved')} onClick={() => bulk('Đã ghi sổ', ['Approved'], ['post'])}>Ghi sổ ({count('Approved')})</button>
         <button className="primary" disabled={busy || !count('Submitted')} onClick={() => bulk('Đã duyệt và ghi sổ', ['Submitted'], ['approve', 'post'])}>Duyệt và ghi sổ ({count('Submitted')})</button>
+        {oneStep && <button className="primary" disabled={busy || !count('Draft')} onClick={() => bulk('Đã ghi sổ', ['Draft'], ['submit', 'approve', 'post'])}>Ghi sổ ngay ({count('Draft')})</button>}
         <button disabled={busy} onClick={() => setChecked(new Set())}>Bỏ chọn</button>
         <span className="muted">Làm lần lượt theo ngày; chứng từ nào không qua kiểm tra được liệt kê, các chứng từ khác vẫn tiếp tục.</span>
       </div>}
@@ -132,6 +143,10 @@ export function VouchersView() {
               setInfo(errs.length ? errs.map(e => `${e.lineNo ? 'Dòng ' + e.lineNo + ': ' : ''}${e.message}`).join(' | ') : 'Hợp lệ, có thể gửi duyệt.')
             })}>Kiểm tra</button>
             {v.status === 'Draft' && <button onClick={() => act('Đã gửi duyệt', () => post(`/vouchers/${v.id}/submit?rowVersion=${v.rowVersion}`))}>Gửi duyệt</button>}
+            {v.status === 'Draft' && oneStep && <button className="primary" onClick={() => act('Đã ghi sổ', async () => {
+              let rv = v.rowVersion
+              for (const s of ['submit', 'approve', 'post']) rv = (await post<Voucher>(`/vouchers/${v.id}/${s}?rowVersion=${rv}`)).rowVersion
+            })}>Ghi sổ ngay</button>}
             {v.status === 'Submitted' && <button onClick={() => act('Đã duyệt', () => post(`/vouchers/${v.id}/approve?rowVersion=${v.rowVersion}`))}>Duyệt</button>}
             {(v.status === 'Submitted' || v.status === 'Approved') && <button onClick={async () => {
               const reason = await askText('Lý do trả lại:'); if (reason) act('Đã trả lại', () => post(`/vouchers/${v.id}/reject?rowVersion=${v.rowVersion}`, { reason }))
@@ -291,7 +306,10 @@ function writeDraft(key: string, d: StoredDraft | null) {
 
 interface PeriodInfo { startDate: string; endDate: string; status: 'Open' | 'Locked' }
 
-function VoucherForm({ voucher, seed, onDone }: { voucher: Voucher | null; seed?: FormState; onDone: (saved?: Voucher, submit?: boolean) => void }) {
+/** save: draft only; submit: send for approval; post: submit, approve and post at once (company in one-person mode). */
+export type Finish = 'save' | 'submit' | 'post'
+
+function VoucherForm({ voucher, seed, onDone, oneStep }: { voucher: Voucher | null; seed?: FormState; onDone: (saved?: Voucher, finish?: Finish) => void; oneStep?: boolean }) {
   const { accounts, partners } = useCatalog()
   const key = draftKey(voucher?.id)
   const [initial] = useState<FormState>(() => (voucher ? fromVoucher(voucher)
@@ -378,7 +396,7 @@ function VoucherForm({ voucher, seed, onDone }: { voucher: Voucher | null; seed?
     if (l.amount !== '' && parsed[i] == null) warnings.push(`Dòng ${i + 1}: số tiền không hợp lệ.`)
   })
 
-  const save = (submit = false) => run(async () => {
+  const save = (finish: Finish = 'save') => run(async () => {
     const bad = parsed.findIndex(p => p == null)
     if (bad >= 0) { setError(new Error(`Dòng ${bad + 1}: số tiền không hợp lệ.`)); return }
     const body = {
@@ -388,14 +406,14 @@ function VoucherForm({ voucher, seed, onDone }: { voucher: Voucher | null; seed?
     }
     const saved = voucher ? await put<Voucher>(`/vouchers/${voucher.id}?rowVersion=${voucher.rowVersion}`, body) : await post<Voucher>('/vouchers', body)
     writeDraft(key, null)
-    onDone(saved, submit)
+    onDone(saved, finish)
   })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('.modal-backdrop')) return   // a dialog is open on top of the form
       if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); save() }
-      if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); save(true) }
+      if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); save(oneStep ? 'post' : 'submit') }
       if (e.key === 'Insert') { e.preventDefault(); addLine() }
       if (e.key === 'Escape') onDone()
     }
@@ -420,7 +438,9 @@ function VoucherForm({ voucher, seed, onDone }: { voucher: Voucher | null; seed?
         <span className="muted"><kbd>Enter</kbd> ô kế · <kbd>Insert</kbd> thêm dòng · <kbd>Ctrl+S</kbd> lưu · <kbd>Ctrl+Enter</kbd> lưu và gửi duyệt · <kbd>Esc</kbd> đóng</span>
         <button onClick={() => onDone()}>Đóng</button>
         <button onClick={() => save()} disabled={busy}>Lưu nháp</button>
-        <button className="primary" onClick={() => save(true)} disabled={busy}>Lưu và gửi duyệt</button>
+        {oneStep
+          ? <button className="primary" onClick={() => save('post')} disabled={busy} title="Lưu, duyệt và ghi sổ ngay (Ctrl+Enter)">Lưu và ghi sổ</button>
+          : <button className="primary" onClick={() => save('submit')} disabled={busy}>Lưu và gửi duyệt</button>}
       </div>
       <ErrorBox error={error} />
       {note && !error && <div className="msg ok">{note}</div>}

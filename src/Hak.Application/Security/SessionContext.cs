@@ -32,6 +32,11 @@ public static class RoleCatalog
 {
     private static readonly string[] Viewer = [Permissions.VoucherView, Permissions.ReportView];
 
+    /// <summary>Every company permission declared in <see cref="Permissions"/>.</summary>
+    public static string[] AllPermissions() =>
+        [.. typeof(Permissions).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(string)).Select(f => (string)f.GetRawConstantValue()!).Distinct().Order(StringComparer.Ordinal)];
+
     public static readonly IReadOnlyDictionary<string, (string Name, string[] Perms)> Defaults =
         new Dictionary<string, (string, string[])>
         {
@@ -51,5 +56,8 @@ public static class RoleCatalog
             ["APPROVER"] = ("Người duyệt", [.. Viewer, Permissions.VoucherApprove, Permissions.PaymentOrderApprove]),
             ["DIRECTOR"] = ("Giám đốc", [.. Viewer, Permissions.VoucherApprove, Permissions.VoucherApproveHigh, Permissions.SensitiveView, Permissions.PaymentOrderApprove]),
             ["INTERNAL_AUDITOR"] = ("Kiểm toán nội bộ", [.. Viewer, Permissions.AuditView]),
+            // Small office: one person keeps the whole set of books. Pair it with the company switch
+            // "Một người làm tất cả" (Company.RequireDistinctApprover = false) so that person may approve and post their own work.
+            ["ALL_IN_ONE"] = ("Toàn quyền công ty (một người làm hết)", AllPermissions()),
         };
 }

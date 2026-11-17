@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { get, post, put, session } from './api'
-import { askConfirm } from './dialogs'
+import { askConfirm, askText } from './dialogs'
 import { ErrorBox, ExportButton, useAction } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
 
@@ -12,6 +12,7 @@ export function AnalysisSetup() {
   const [codes, setCodes] = useState<AnalysisCode[]>([])
   const [nw, setNw] = useState({ kind: '', code: '', name: '' })
   const [limit, setLimit] = useState('')
+  const [distinct, setDistinct] = useState(true)
   const [address, setAddress] = useState('')
   const [templates, setTemplates] = useState<{ id: string; name: string; voucherType: string; description: string; lines: unknown[]; updatedAt: string }[]>([])
   const [info, setInfo] = useState('')
@@ -21,6 +22,7 @@ export function AnalysisSetup() {
     setTemplates(await get('/voucher-templates'))
     const l = (await get<{ limit: string | null }>('/company/approval-limit')).limit
     setLimit(l ? formatMoney(l) : '')
+    setDistinct((await get<{ requireDistinctApprover: boolean }>('/company/segregation')).requireDistinctApprover)
     setAddress((await get<{ id: string; address?: string | null }[]>('/me/companies')).find(c => c.id === session.companyId)?.address ?? '')
   }), [run])
   useEffect(() => { load() }, [load])
@@ -30,6 +32,20 @@ export function AnalysisSetup() {
     <>
       <ErrorBox error={error} />
       {info && !error && <div className="msg ok">{info}</div>}
+      <div className="panel">
+        <strong>Chế độ phân quyền</strong>
+        <div className="form-row" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+          <label className="check"><input type="radio" name="sod" checked={distinct} disabled={busy} onChange={() => run(async () => {
+            await put('/company/segregation', { requireDistinctApprover: true, reason: null }); setInfo('Đã chuyển sang phân quyền đầy đủ: người lập và người duyệt phải khác nhau.'); await load()
+          })} /> <b>Phân quyền đầy đủ</b> — người lập chứng từ không được tự duyệt / ghi sổ chứng từ của mình (mặc định, nên dùng khi có từ 2 người).</label>
+          <label className="check"><input type="radio" name="sod" checked={!distinct} disabled={busy} onChange={async () => {
+            const reason = await askText('Lý do cho phép một người tự lập, duyệt và ghi sổ (được ghi nhật ký):', 'Công ty chỉ có một kế toán')
+            if (reason) run(async () => { await put('/company/segregation', { requireDistinctApprover: false, reason }); setInfo('Đã chuyển sang chế độ một người làm tất cả. Màn Chứng từ có thêm nút "Lưu và ghi sổ".'); await load() })
+          }} /> <b>Một người làm tất cả</b> — người lập được tự duyệt và ghi sổ (chứng từ, hóa đơn, phiếu kho, lệnh chi, tài sản, vay, mẫu báo cáo).</label>
+        </div>
+        <p className="muted">Quyền của từng người vẫn theo vai trò được cấp (Quản trị → Người dùng). Để một nhân viên làm hết, cấp cho người đó vai trò <b>"Toàn quyền công ty (một người làm hết)"</b> và chọn "Một người làm tất cả" ở đây.
+          Mọi bước vẫn được ghi nhật ký kiểm toán với tên người làm; kỳ đã khóa vẫn không ghi sổ được. Đổi chế độ cần quyền quản trị cấu hình.</p>
+      </div>
       <div className="panel">
         <strong>Mã phân tích</strong>
         <p className="muted">Mã quản trị gắn thêm vào từng dòng chứng từ, bên cạnh tài khoản: khoản mục phí, bộ phận, hợp đồng, chuyến tàu… Mỗi mã thuộc một nhóm do doanh nghiệp đặt tên.

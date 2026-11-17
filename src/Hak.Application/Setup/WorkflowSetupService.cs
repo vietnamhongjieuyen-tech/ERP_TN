@@ -218,6 +218,36 @@ public sealed class WorkflowSetupService(HakDbContext db, AuditService audit, IC
         });
     }
 
+    // ---------------------------------------------------------------- segregation of duties
+
+    /// <summary>
+    /// Chế độ phân quyền of the company. true (default) = full segregation: whoever drafts a voucher, invoice, stock document,
+    /// payment order, asset card, loan contract or report template cannot approve / post it. false = one person may do every
+    /// step on their own work (small office); permissions are still checked and every step is still in the audit log.
+    /// </summary>
+    public async Task<bool> RequireDistinctApproverAsync(SessionContext ctx)
+    {
+        ctx.Require(Permissions.VoucherView);
+        return await db.Companies.Where(c => c.Id == ctx.CompanyId).Select(c => c.RequireDistinctApprover).FirstAsync();
+    }
+
+    public async Task SetRequireDistinctApproverAsync(SessionContext ctx, bool require, string? reason)
+    {
+        ctx.Require(Permissions.ConfigManage);
+        if (!require && string.IsNullOrWhiteSpace(reason))
+            throw new DomainException(ErrorCodes.ReasonRequired, "Ghi lý do bỏ tách người lập / người duyệt (ví dụ: công ty chỉ có một kế toán).");
+        await db.InTransactionAsync(async () =>
+        {
+            var company = await db.Companies.FirstAsync(c => c.Id == ctx.CompanyId);
+            if (company.RequireDistinctApprover == require) return;
+            company.RequireDistinctApprover = require;
+            company.RowVersion++;
+            await audit.AppendAsync(ctx.CompanyId, ctx, "company.segregation", "company", company.Id.ToString(),
+                new { requireDistinctApprover = require, reason = reason?.Trim() }, company.RowVersion);
+            await db.SaveChangesAsync();
+        });
+    }
+
     // ---------------------------------------------------------------- approval limit
 
     public async Task<decimal?> ApprovalLimitAsync(SessionContext ctx)

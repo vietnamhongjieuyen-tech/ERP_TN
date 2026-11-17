@@ -48,9 +48,9 @@ public sealed class PaymentOrder
     public string? CancelReason { get; set; }
     public long RowVersion { get; set; }
 
-    public void Approve(Guid userId)
+    public void Approve(Guid userId, bool requireDistinctApprover = true)
     {
-        if (userId == CreatedBy) throw new DomainException(ErrorCodes.SodViolation, "Người duyệt lệnh chi không được trùng người lập.");
+        if (requireDistinctApprover && userId == CreatedBy) throw new DomainException(ErrorCodes.SodViolation, "Người duyệt lệnh chi không được trùng người lập.");
         Move(PaymentOrderStatus.Created, PaymentOrderStatus.Approved);
         ApprovedBy = userId;
     }

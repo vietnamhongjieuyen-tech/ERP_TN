@@ -15,7 +15,11 @@ Menu bên trái chia nhóm: Tổng hợp, Tiền, Mua – Bán – Kho, Tài s�
 
 ## 2. Vòng đời một chứng từ
 
-**Nháp → Chờ duyệt → Đã duyệt → Đã ghi sổ.** Người lập và người duyệt phải là hai người khác nhau. Chứng từ đã ghi sổ không sửa, không xóa được: làm sai thì **Đảo** (sinh chứng từ đảo) rồi lập lại, hoặc lập chứng từ **Điều chỉnh**.
+**Nháp → Chờ duyệt → Đã duyệt → Đã ghi sổ.** Mặc định người lập và người duyệt phải là hai người khác nhau.
+
+**Chế độ phân quyền** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt → "Chế độ phân quyền"), chọn theo từng công ty:
+- **Phân quyền đầy đủ** (mặc định): mỗi người làm theo vai trò được cấp; người lập không tự duyệt / ghi sổ chứng từ, hóa đơn, phiếu kho, lệnh chi, thẻ tài sản, khế ước vay, mẫu báo cáo của mình.
+- **Một người làm tất cả**: dùng khi công ty chỉ có một kế toán. Quản trị cấp cho nhân viên đó vai trò **"Toàn quyền công ty (một người làm hết)"** (Quản trị → Người dùng → cấp vai trò), rồi chọn chế độ này (phải ghi lý do, được ghi nhật ký). Khi đó form chứng từ có nút **"Lưu và ghi sổ"** (Ctrl+Enter), chứng từ nháp có nút **"Ghi sổ ngay"**, và tick nhiều chứng từ nháp để "Ghi sổ ngay" hàng loạt. Phần mềm vẫn kiểm tra như thường (kỳ đã khóa, quỹ âm, cân Nợ/Có…): chứng từ chưa hợp lệ chỉ được lưu nháp. Nhật ký vẫn ghi rõ ai làm từng bước. Có thêm người thì chuyển lại "Phân quyền đầy đủ" bất cứ lúc nào. Chứng từ đã ghi sổ không sửa, không xóa được: làm sai thì **Đảo** (sinh chứng từ đảo) rồi lập lại, hoặc lập chứng từ **Điều chỉnh**.
 
 **Đính kèm chứng từ gốc**: chọn một chứng từ trong danh sách, mục "Tệp đính kèm" bên dưới bảng định khoản cho thêm tệp (PDF, ảnh, Excel, Word, XML… tối đa 10 MB mỗi tệp, 20 tệp mỗi chứng từ), kể cả sau khi đã ghi sổ. "Xem" mở PDF / ảnh, "Tải về" lưu tệp. Tệp không bị xóa: "Gỡ" yêu cầu ghi lý do, tệp đã gỡ vẫn hiện trong danh sách và người có quyền xem nhật ký vẫn mở được. Tệp nằm trong cơ sở dữ liệu nên có mặt trong bản sao lưu.
 
