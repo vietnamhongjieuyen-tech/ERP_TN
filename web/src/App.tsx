@@ -224,6 +224,17 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
         <label>Mật khẩu<input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete={firstRun ? 'new-password' : 'current-password'} /></label>
         {firstRun && <label>Nhập lại mật khẩu<input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} autoComplete="new-password" /></label>}
         <button className="primary" disabled={busy || !userName || !password || (firstRun && (!fullName || !confirm))}>{firstRun ? 'Tạo quản trị viên và đăng nhập' : 'Đăng nhập'}</button>
+        {!firstRun && <details className="muted">
+          <summary>Quên mật khẩu?</summary>
+          <p>Người dùng thường: nhờ quản trị đặt lại ở Quản trị hệ thống → Người dùng.</p>
+          <p>Quản trị hệ thống (mật khẩu chỉ đặt lại được ngay tại máy chạy HAK):</p>
+          <ol>
+            <li>Tắt HAK: đóng cửa sổ <b>HAK</b> (bản thử nghiệm: <b>HAK thu nghiem</b>) đang thu nhỏ dưới thanh tác vụ.</li>
+            <li>Bấm nút Start, gõ <b>khôi phục</b>, chọn <b>Khôi phục mật khẩu quản trị</b> (bản thử nghiệm: <b>… - thử nghiệm</b>).</li>
+            <li>Gõ tên đăng nhập quản trị, Enter, nhập mật khẩu mới hai lần (mật khẩu không hiện khi gõ).</li>
+            <li>Mở lại HAK và đăng nhập bằng mật khẩu mới.</li>
+          </ol>
+        </details>}
       </div>
     </form>
   )
