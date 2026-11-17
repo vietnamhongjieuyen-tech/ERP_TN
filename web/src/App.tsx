@@ -63,6 +63,8 @@ export default function App() {
   const [systemAdmin, setSystemAdmin] = useState(false)
   const [screen, setScreen] = useState<ScreenKey>('home')
   const [visit, setVisit] = useState(0)   // bumped by goTo so the target screen remounts and takes its parameters
+  const [menuOpen, setMenuOpen] = useState(false)   // narrow screens: the module menu is a drawer
+  const [me, setMe] = useState<{ userName: string; fullName?: string } | null>(null)
 
   useEffect(() => {
     const onGoto = async (e: Event) => { const to = (e as CustomEvent<ScreenKey>).detail; if (await confirmLeave()) { setScreen(to); setVisit(v => v + 1) } }
@@ -74,7 +76,7 @@ export default function App() {
     if (!token) return
     setCompanies(null)
     get<Company[]>('/me/companies').then(setCompanies).catch(() => { session.setToken(null); setToken(null) })
-    get<{ isSystemAdmin: boolean }>('/me').then(m => setIsSystemAdmin(m.isSystemAdmin)).catch(() => setIsSystemAdmin(false))
+    get<{ isSystemAdmin: boolean; userName: string; fullName?: string }>('/me').then(m => { setIsSystemAdmin(m.isSystemAdmin); setMe(m) }).catch(() => setIsSystemAdmin(false))
   }, [token])
 
   const logout = async () => {
@@ -122,22 +124,60 @@ export default function App() {
   }
   const allowed = SCREENS.filter(s => !('perm' in s) || !company.permissions || company.permissions.includes(s.perm))
   const current = allowed.find(s => s.key === screen) ?? allowed[0]
+  const changeCompany = async () => { if (await confirmLeave()) { session.setCompany(null); setCompanyId(null) } }
   return (
-    <div className="shell">
+    <div className={`shell${menuOpen ? ' menu-open' : ''}`}>
+      <header className="topbar">
+        <button className="menu-toggle" aria-label="Menu phân hệ" aria-expanded={menuOpen} onClick={() => setMenuOpen(o => !o)}>☰</button>
+        <nav className="crumbs" aria-label="Vị trí"><span className="muted">{current.group}</span><span aria-hidden="true"> › </span><b>{current.label}</b></nav>
+        <span className="spacer" />
+        <button className="ctx" onClick={changeCompany} title="Đổi công ty">{company.code}<span className="ctx-name"> – {company.name}</span></button>
+        <OpenPeriod key={company.id} />
+        <ThemeToggle />
+        {me && <span className="ctx user" title={me.fullName ?? me.userName}>{me.userName}</span>}
+        <button onClick={logout}>Đăng xuất</button>
+      </header>
       <nav className="sidebar" aria-label="Phân hệ">
         <h1>HAK Accounting</h1>
-        <div className="company">{company.code} – {company.name}</div>
         {allowed.map((s, i) => <Fragment key={s.key}>
           {(i === 0 || allowed[i - 1].group !== s.group) && <div className="group">{s.group}</div>}
-          <button className={s.key === current.key ? 'active' : ''} onClick={async () => { if (s.key !== current.key && await confirmLeave()) setScreen(s.key) }}>{s.label}</button>
+          <button className={s.key === current.key ? 'active' : ''} aria-current={s.key === current.key ? 'page' : undefined}
+            onClick={async () => { if (s.key !== current.key && await confirmLeave()) { setScreen(s.key); setMenuOpen(false) } }}>{s.label}</button>
         </Fragment>)}
-        <button onClick={async () => { if (await confirmLeave()) { session.setCompany(null); setCompanyId(null) } }}>Đổi công ty</button>
-        <button onClick={logout}>Đăng xuất</button>
       </nav>
+      {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} />}
       <main className="main" key={`${company.id}:${current.key}:${visit}`}>{current.el()}</main>
       <DialogHost />
     </div>
   )
+}
+
+/** The open accounting period that contains today (else the latest open one): where new entries normally go. */
+function OpenPeriod() {
+  const [text, setText] = useState('')
+  useEffect(() => {
+    get<{ startDate: string; endDate: string; status: string }[]>('/periods').then(ps => {
+      const d = new Date(), today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const open = ps.filter(p => p.status === 'Open')
+      const p = open.find(x => x.startDate <= today && x.endDate >= today) ?? open.sort((a, b) => (a.endDate < b.endDate ? 1 : -1))[0]
+      setText(p ? `Kỳ ${p.startDate.slice(5, 7)}/${p.startDate.slice(0, 4)}` : 'Chưa có kỳ mở')
+    }).catch(() => setText(''))
+  }, [])
+  return text ? <span className="ctx" title="Kỳ kế toán đang mở chứa ngày hôm nay">{text}</span> : null
+}
+
+/** Light / dark / follow Windows; remembered on this computer. */
+function ThemeToggle() {
+  const read = () => { try { return localStorage.getItem('hak.theme') ?? 'auto' } catch { return 'auto' } }
+  const [theme, setTheme] = useState(read)
+  useEffect(() => {
+    if (theme === 'auto') document.documentElement.removeAttribute('data-theme')
+    else document.documentElement.setAttribute('data-theme', theme)
+    try { localStorage.setItem('hak.theme', theme) } catch { /* private mode */ }
+  }, [theme])
+  const next = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto'
+  const label = theme === 'auto' ? 'Giao diện: theo Windows' : theme === 'light' ? 'Giao diện: sáng' : 'Giao diện: tối'
+  return <button className="theme" onClick={() => setTheme(next)} title={`${label} (bấm để đổi)`} aria-label={label}>{theme === 'dark' ? '☾' : theme === 'light' ? '☀' : '◐'}</button>
 }
 
 function Login({ onLogin }: { onLogin: (token: string) => void }) {

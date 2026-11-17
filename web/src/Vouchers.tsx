@@ -138,9 +138,11 @@ export function VouchersView() {
         <button disabled={busy} onClick={() => setChecked(new Set())}>Bỏ chọn</button>
         <span className="muted">Làm lần lượt theo ngày; chứng từ nào không qua kiểm tra được liệt kê, các chứng từ khác vẫn tiếp tục.</span>
       </div>}
+      <div className={v ? 'split' : undefined}>
       {v && (
-        <div className="panel">
+        <div className="panel detail-pane" aria-label={`Chi tiết chứng từ ${v.number}`}>
           <div className="toolbar">
+            <button className="tree-toggle" aria-label="Đóng chi tiết" title="Đóng chi tiết" onClick={() => setSelected(null)}>✕</button>
             <strong>{v.number}</strong> <span className={`badge ${v.status}`}>{STATUS_VI[v.status]}</span>
             <span className="muted">{TYPE_VI[v.voucherType] ?? v.voucherType} · {v.postingDate} · {v.description}</span>
             <span style={{ marginLeft: 'auto' }} />
@@ -174,11 +176,11 @@ export function VouchersView() {
           <VoucherPrint voucher={v} />
         </div>
       )}
-      <div className="scroll">
+      <div className="scroll list-pane">
         <table className="grid">
           <thead><tr><th><input type="checkbox" aria-label="Chọn tất cả chứng từ trên trang" checked={list.length > 0 && list.every(x => checked.has(x.id))}
             onChange={e => setChecked(e.target.checked ? new Set(list.map(x => x.id)) : new Set())} /></th>
-            <th>Ngày HT</th><th>Số</th><th>Loại</th><th>Diễn giải</th><th className="num">Số tiền</th><th>Trạng thái</th></tr></thead>
+            <th>Ngày HT</th><th>Số</th><th>Loại</th><th>Diễn giải</th><th className="num">Số tiền (đ)</th><th>Trạng thái</th></tr></thead>
           <tbody>
             {list.map(x => (
               <tr key={x.id} className={x.id === v?.id ? 'selected' : ''} onClick={() => setSelected(x)} style={{ cursor: 'pointer' }}>
@@ -191,6 +193,7 @@ export function VouchersView() {
             {list.length === 0 && <tr><td colSpan={7} className="muted">Không có chứng từ trong khoảng đã chọn.</td></tr>}
           </tbody>
         </table>
+      </div>
       </div>
       <div className="toolbar">
         <span className="muted">{total === 0 ? '' : `Dòng ${page * PAGE + 1}–${page * PAGE + list.length} / ${total}`}</span>

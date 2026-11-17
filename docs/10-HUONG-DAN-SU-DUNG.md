@@ -13,6 +13,8 @@ Bấm đúp `Chay HAK.cmd`, chờ trình duyệt mở, đăng nhập và chọn 
 
 Menu bên trái chia nhóm: Tổng hợp, Tiền, Mua – Bán – Kho, Tài sản – Lương – Thuế, Báo cáo, Hệ thống.
 
+**Khung làm việc**: thanh trên cùng luôn cho biết đang ở màn nào (nhóm › màn), công ty (bấm để đổi công ty), kỳ kế toán đang mở, người đăng nhập, nút ◐ / ☀ / ☾ đổi giao diện theo Windows / sáng / tối (nhớ trên máy này). Trên màn hình rộng (từ 1400 px), danh sách chứng từ và chi tiết chứng từ nằm cạnh nhau; màn hẹp hơn thì chi tiết hiện phía trên danh sách, bấm ✕ để đóng. Trên máy tính bảng / điện thoại, menu phân hệ mở bằng nút ☰. Bảng rộng cuộn ngang trong khung của bảng, cả trang không cuộn ngang. Rời một màn đang nhập dở (phiếu thu / chi, hóa đơn, phiếu kho, đơn hàng) phần mềm hỏi trước; chọn `Không` để ở lại, số đã nhập giữ nguyên.
+
 ## 2. Vòng đời một chứng từ
 
 **Nháp → Chờ duyệt → Đã duyệt → Đã ghi sổ.** Mặc định người lập và người duyệt phải là hai người khác nhau.
