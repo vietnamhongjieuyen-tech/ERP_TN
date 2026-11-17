@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { askText } from './dialogs'
 import { get, post } from './api'
 import { ErrorBox, useAction } from './common'
-import { formatMoney } from './money'
+import { formatMoney, today } from './money'
+import { downloadXlsx } from './xlsx'
 
 interface Me { id: string; userName: string; fullName: string; isSystemAdmin: boolean }
 interface Grant { companyId: string; companyCode: string; roleCode: string; roleName: string }
@@ -12,7 +13,7 @@ interface Company { id: string; code: string; name: string }
 interface BackupInfo { fileName: string; size: number; createdAt: string; databaseBytes: number; databaseSha256: string; note: string }
 interface Verification { fileName: string; integrity: string; systemAuditChainOk: boolean; isValid: boolean; restoredPath: string | null
   companies: { companyCode: string; vouchers: number; journalEntries: number; brokenAuditSeq: number | null }[] }
-interface AuditRow { seq: number; at: string; userName: string | null; device: string | null; action: string; entityType: string; entityId: string | null; result: string; dataJson: string | null }
+interface AuditRow { seq: number; at: string; userName: string | null; device: string | null; action: string; entityType: string; entityId: string | null; result: string; dataJson: string | null; hash?: string }
 
 export function AdminView() {
   const [me, setMe] = useState<Me | null>(null)
@@ -235,6 +236,7 @@ function Backups() {
           const b = await post<BackupInfo>('/admin/backups', { passphrase: pass, note }); setPass(''); setInfo(`Đã sao lưu ${b.fileName}.`); await load()
         })}>Sao lưu ngay</button>
       </div>
+      <BackupSchedule onRan={load} />
       <table className="grid"><thead><tr><th>File</th><th>Thời điểm</th><th className="num">Dung lượng</th><th>Ghi chú</th><th /></tr></thead>
         <tbody>{list.map(b => <tr key={b.fileName}><td>{b.fileName}</td><td>{new Date(b.createdAt).toLocaleString()}</td><td className="num">{formatMoney(String(b.size))}</td><td>{b.note}</td>
           <td style={{ display: 'flex', gap: 6 }}><button disabled={busy} onClick={() => check(b.fileName, false)}>Kiểm tra</button>
@@ -245,6 +247,43 @@ function Backups() {
         {result.restoredPath && <div>Đã khôi phục ra <code>{result.restoredPath}</code>. Dừng phần mềm, đặt <code>Hak:DatabasePath</code> trỏ tới file này rồi khởi động lại.</div>}
       </div>}
     </section>
+  )
+}
+
+interface ScheduleInfo { enabled: boolean; hour: number; keep: number; copyTo: string | null; hasPassphrase: boolean; configuredBy: string | null
+  lastRunAt: string | null; lastFile: string | null; lastError: string | null; directory: string }
+
+/** Daily automatic backup: hour, how many automatic copies to keep, an optional second folder (USB / NAS). */
+function BackupSchedule({ onRan }: { onRan: () => void }) {
+  const [s, setS] = useState<ScheduleInfo | null>(null)
+  const [v, setV] = useState({ enabled: false, hour: '18', keep: '14', copyTo: '', pass: '' })
+  const [msg, setMsg] = useState('')
+  const { busy, error, run } = useAction()
+  const show = (x: ScheduleInfo) => { setS(x); setV({ enabled: x.enabled, hour: String(x.hour), keep: String(x.keep), copyTo: x.copyTo ?? '', pass: '' }) }
+  useEffect(() => { get<ScheduleInfo>('/admin/backups/schedule').then(show).catch(() => setS(null)) }, [])
+  if (!s) return null
+  const save = () => run(async () => {
+    show(await post<ScheduleInfo>('/admin/backups/schedule', { enabled: v.enabled, hour: Number(v.hour), keep: Number(v.keep), copyTo: v.copyTo || null, passphrase: v.pass || null }))
+    setMsg('Đã lưu lịch sao lưu tự động.')
+  })
+  return (
+    <details className="panel" open={s.enabled || undefined} style={{ margin: '8px 0' }}>
+      <summary><b>Lịch sao lưu tự động</b> — {s.enabled ? `hằng ngày từ ${s.hour}:00, giữ ${s.keep} bản` : 'đang tắt'}
+        {s.lastRunAt && <span className={s.lastError ? 'field-warn' : 'muted'}> · lần chạy gần nhất {new Date(s.lastRunAt).toLocaleString()}: {s.lastError ?? s.lastFile}</span>}</summary>
+      <ErrorBox error={error} />
+      {msg && !error && <div className="msg ok">{msg}</div>}
+      <div className="form-row">
+        <label className="check"><input type="checkbox" checked={v.enabled} onChange={e => setV(x => ({ ...x, enabled: e.target.checked }))} /> Bật</label>
+        <label>Từ giờ<select value={v.hour} onChange={e => setV(x => ({ ...x, hour: e.target.value }))}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}</select></label>
+        <label>Giữ lại (bản tự động)<input className="num" size={4} value={v.keep} onChange={e => setV(x => ({ ...x, keep: e.target.value }))} /></label>
+        <label style={{ flex: 1 }}>Chép thêm sang thư mục (USB / máy khác, không bắt buộc)<input value={v.copyTo} onChange={e => setV(x => ({ ...x, copyTo: e.target.value }))} placeholder="E:\SaoLuuHAK" /></label>
+        <label>{s.hasPassphrase ? 'Đổi mật khẩu (để trống: giữ)' : 'Mật khẩu sao lưu (≥ 12 ký tự)'}<input type="password" autoComplete="new-password" value={v.pass} onChange={e => setV(x => ({ ...x, pass: e.target.value }))} /></label>
+        <button className="primary" disabled={busy} onClick={save}>Lưu lịch</button>
+        <button disabled={busy || !s.enabled} onClick={() => run(async () => { const r = await post<ScheduleInfo>('/admin/backups/schedule/run'); show(r); setMsg(r.lastError ? '' : `Đã sao lưu ${r.lastFile}.`); onRan() })}>Chạy ngay</button>
+      </div>
+      <p className="muted">Phần mềm phải đang chạy vào giờ đã chọn (nếu tắt máy, bản sao lưu được tạo ở lần mở kế tiếp trong ngày). Bản tự động tên <code>hak-auto-…</code>; bản quá số giữ lại bị xóa, bản sao lưu tay không bị xóa.
+        Mật khẩu được giữ trên máy này (mã hóa bằng Windows); vẫn phải ghi mật khẩu ở nơi riêng để khôi phục khi hỏng máy. Thư mục sao lưu chính: <code>{s.directory}</code>.</p>
+    </details>
   )
 }
 
@@ -279,6 +318,20 @@ function AuditLog() {
           const r = await get<{ intact: boolean; firstBrokenSeq: number | null }>('/audit/verify')
           setChain(r.intact ? 'Chuỗi băm nhật ký nguyên vẹn.' : `Chuỗi băm BỊ HỎNG từ bản ghi #${r.firstBrokenSeq} — dữ liệu nhật ký đã bị sửa ngoài phần mềm.`)
         })}>Kiểm tra chuỗi băm</button>
+        <button disabled={busy || total === 0} title="Mọi bản ghi theo bộ lọc hiện tại, kèm mã băm để đối chiếu" onClick={() => run(async () => {
+          const all: AuditRow[] = []
+          for (let s = 0; s < total && s < 200000; s += 500) {
+            const q = new URLSearchParams({ skip: String(s), take: '500' })
+            if (filter.from) q.set('from', filter.from)
+            if (filter.to) q.set('to', filter.to)
+            if (filter.action) q.set('action', filter.action)
+            all.push(...(await get<{ total: number; rows: AuditRow[] }>(`/audit?${q}`)).rows)
+          }
+          downloadXlsx(`nhat-ky-kiem-toan-${filter.from || 'dau'}-${filter.to || today()}.xlsx`, 'Nhật ký',
+            [{ header: '#', numeric: true, width: 8 }, { header: 'Thời điểm (giờ máy)', width: 20 }, { header: 'Người dùng', width: 14 }, { header: 'Máy', width: 16 }, { header: 'Hành động', width: 22 },
+              { header: 'Loại đối tượng', width: 14 }, { header: 'Mã đối tượng', width: 38 }, { header: 'Kết quả', width: 10 }, { header: 'Dữ liệu', width: 80 }, { header: 'Mã băm', width: 66 }],
+            all.map(r => [String(r.seq), new Date(r.at).toLocaleString('vi-VN'), r.userName, r.device, r.action, r.entityType, r.entityId, r.result, r.dataJson, r.hash]))
+        })}>Xuất Excel</button>
       </div>
       {chain && <div className={`msg ${chain.startsWith('Chuỗi băm nhật ký nguyên') ? 'ok' : 'error'}`}>{chain}</div>}
       <div className="scroll"><table className="grid"><thead><tr><th>#</th><th>Thời điểm</th><th>Người dùng</th><th>Máy</th><th>Hành động</th><th>Đối tượng</th><th>Kết quả</th><th>Dữ liệu</th></tr></thead>

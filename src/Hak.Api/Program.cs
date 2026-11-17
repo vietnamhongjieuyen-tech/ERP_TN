@@ -78,6 +78,8 @@ builder.Services.AddSingleton(new Hak.Application.Backup.BackupOptions
     Directory = builder.Configuration["Hak:BackupPath"] ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HAK", runtime.Environment, "backups"),
 });
 builder.Services.AddScoped<Hak.Application.Backup.BackupService>();
+builder.Services.AddScoped<Hak.Application.Backup.BackupScheduleService>();
+builder.Services.AddHostedService<Hak.Api.BackupScheduler>();
 builder.Services.AddScoped<Hak.Application.Reports.ReportService>();
 builder.Services.AddScoped<Hak.Application.Overview.OverviewService>();
 builder.Services.AddScoped<WorkflowSetupService>();

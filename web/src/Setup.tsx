@@ -3,8 +3,9 @@ import { AnalysisSetup } from './Analysis'
 import { get, post, put, type Account } from './api'
 import { AccountSelect, ErrorBox, Modal, useAction } from './common'
 import { ImportData } from './ImportData'
+import { RulesSetup } from './Rules'
 
-const TABS = { accounts: 'Hệ thống tài khoản', roles: 'Vai trò tài khoản', stock: 'Kho & vật tư', years: 'Năm tài chính', analysis: 'Mẫu, mã phân tích, hạn mức duyệt', import: 'Nhập từ Excel/CSV' } as const
+const TABS = { accounts: 'Hệ thống tài khoản', roles: 'Vai trò tài khoản', rules: 'Quy tắc định khoản', stock: 'Kho & vật tư', years: 'Năm tài chính', analysis: 'Mẫu, mã phân tích, hạn mức duyệt', import: 'Nhập từ Excel/CSV' } as const
 
 /** Thiết lập công ty: catalogue the modules depend on. Codes are the company's own (legal chart [CẦN XÁC MINH TT99]). */
 export function SetupView() {
@@ -16,6 +17,7 @@ export function SetupView() {
       </div>
       {tab === 'accounts' && <Accounts />}
       {tab === 'roles' && <Roles />}
+      {tab === 'rules' && <RulesSetup />}
       {tab === 'stock' && <Stock />}
       {tab === 'years' && <Years />}
       {tab === 'analysis' && <AnalysisSetup />}

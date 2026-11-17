@@ -45,7 +45,9 @@ Màn hình **Chứng từ → Thêm chứng từ**:
 
 ## 4. Thu, chi, ngân hàng
 
-- **Thu / Chi tiền**: lập phiếu thu, phiếu chi, báo Có, báo Nợ theo nghiệp vụ; chọn hóa đơn được thanh toán ngay trên phiếu. In phiếu thu / phiếu chi bằng nút "In chứng từ" ở màn hình Chứng từ.
+- **Thu / Chi tiền**: lập phiếu thu, phiếu chi, báo Có, báo Nợ theo nghiệp vụ; chọn hóa đơn được thanh toán ngay trên phiếu. In phiếu thu / phiếu chi bằng nút "In chứng từ" ở màn hình Chứng từ. Danh sách nghiệp vụ lấy từ các **quy tắc định khoản** đang hiệu lực (xem dưới).
+- **Quy tắc định khoản** (Thiết lập → Quy tắc định khoản): mỗi quy tắc cho biết một nghiệp vụ thu / chi ghi Nợ, Có vào đâu — TK tiền của chứng từ, TK đối ứng người lập nhập trên dòng, hoặc một **vai trò tài khoản** (ví dụ AR_TRADE → 131 của công ty). "Thêm quy tắc…" có sẵn mẫu thường dùng: thu tiền khách hàng, trả nhà cung cấp, chi phí, chuyển tiền nội bộ, **chi tạm ứng / thu hoàn ứng** (cần ánh xạ vai trò EMPLOYEE_ADVANCE sang TK tạm ứng ở tab Vai trò tài khoản), thu khác. Ở phần "Ca thử", chọn TK tiền mẫu (và TK đối ứng, đối tượng mẫu nếu quy tắc cần), xem định khoản quy tắc cho ra rồi "Lưu (nháp)". Bấm **Kích hoạt**: phần mềm chạy lại ca thử, đạt mới dùng được, phiên bản cũ cùng mã tự ngừng. Sửa quy tắc = "Phiên bản mới…" — chứng từ đã lập vẫn giữ định khoản cũ.
+- **Kiểm kê quỹ** (nút "Kiểm kê quỹ…" ở màn Thu / Chi tiền): chọn quỹ và ngày, nhập số tờ từng mệnh giá; phần mềm cộng tiền, so với số dư sổ quỹ đến hết ngày đó và tính chênh lệch, rồi in biên bản có chỗ ký. Biên bản không ghi sổ: thừa / thiếu quỹ xử lý bằng chứng từ riêng sau khi tìm ra nguyên nhân. Mẫu in là mẫu nội bộ — doanh nghiệp tự đối chiếu với mẫu biểu đang áp dụng.
 - **Ngân hàng → Lệnh thanh toán**: lập ủy nhiệm chi → duyệt → ghi nhận gửi ngân hàng → ngân hàng thực hiện (sinh báo Nợ nháp). Nút "In UNC" in ủy nhiệm chi để ký, theo bố cục mẫu giấy của ngân hàng của tài khoản chi (hiện có mẫu Vietcombank và Agribank, ngân hàng khác dùng mẫu chung; đổi mẫu ở ô "Mẫu in ủy nhiệm chi"). Để bản in đủ thông tin, khai một lần: **số tài khoản và tên ngân hàng** của từng tài khoản tiền gửi (Thiết lập → Hệ thống tài khoản → Sửa) và **địa chỉ công ty** (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt). Bản in không có logo ngân hàng; ngân hàng vẫn có thể yêu cầu dùng mẫu in sẵn của họ.
 - **Chuyển tiền theo lô**: nút "Xuất Excel lệnh đã duyệt" xuất các lệnh đã duyệt (hoặc chỉ các lệnh tick chọn) ra Excel với các cột STT, số lệnh, ngày, TK trích nợ, tên / số tài khoản / ngân hàng người hưởng, số tiền, nội dung. Lệnh thiếu số tài khoản hoặc ngân hàng thụ hưởng bị báo, không xuất. Đây là tệp cột chung, chưa theo mẫu tệp riêng của ngân hàng nào: nếu ngân hàng trực tuyến yêu cầu mẫu riêng, chép các cột sang mẫu đó.
 - **Ngân hàng → Sao kê & đối chiếu → Nhập sao kê**: bấm "Chọn tệp" và chọn tệp sao kê / sổ phụ của ngân hàng. Phần mềm tự nhận cột ngày, số tham chiếu, Nợ, Có, nội dung, điền kỳ sao kê và số dư đầu / cuối vào các ô bên dưới; **xem lại rồi mới bấm "Nhập & tự khớp"**. Các dạng tệp đọc được:
@@ -66,6 +68,7 @@ Khai mã số thuế công ty trước khi nhập (tab Hồ sơ), nếu không p
 - **Công nợ**: chọn tài khoản và ngày để xem tuổi nợ. Bấm một dòng đối tượng để xem chứng từ còn mở.
 - **Khớp tay**: tick một dòng Nợ và một dòng Có rồi "Phân bổ…". **Tự động bù trừ (FIFO)** khớp theo thứ tự hạn thanh toán.
 - **Lịch sử phân bổ**: xem và hủy phân bổ (bắt buộc ghi lý do).
+- **Nhật ký kiểm toán** (Quản trị, người có quyền xem nhật ký): lọc theo ngày / hành động, nút **Xuất Excel** xuất mọi bản ghi theo bộ lọc kèm mã băm, để lưu hồ sơ hoặc gửi kiểm toán.
 - **Biên bản đối chiếu công nợ**: nút "Biên bản đối chiếu…", chọn từ ngày, in hoặc lưu PDF.
 
 ## 7. Báo cáo và truy ngược

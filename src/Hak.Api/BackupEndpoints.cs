@@ -5,6 +5,7 @@ namespace Hak.Api;
 
 public sealed record BackupRequest(string Passphrase, string? Note);
 public sealed record BackupCheckRequest(string FileName, string Passphrase);
+public sealed record BackupScheduleRequest(bool Enabled, int Hour, int Keep, string? CopyTo, string? Passphrase);
 public sealed record AccountUpdateRequest(string Name, bool IsActive);
 public sealed record MoveAccountRequest(string? ParentCode);
 public sealed record AccountTagsRequest(string? Tags);
@@ -111,5 +112,9 @@ public static class BackupEndpoints
             Results.Ok(await s.VerifyAsync((await http.AuthAsync()).User.Id, r.FileName, r.Passphrase)));
         api.MapPost("/restore", async (HttpContext http, BackupCheckRequest r, BackupService s) =>
             Results.Ok(await s.VerifyAsync((await http.AuthAsync()).User.Id, r.FileName, r.Passphrase, restore: true)));
+        api.MapGet("/schedule", async (HttpContext http, BackupScheduleService s) => Results.Ok(await s.GetAsync((await http.AuthAsync()).User.Id)));
+        api.MapPost("/schedule", async (HttpContext http, BackupScheduleRequest r, BackupScheduleService s) =>
+            Results.Ok(await s.SetAsync((await http.AuthAsync()).User.Id, r.Enabled, r.Hour, r.Keep, r.CopyTo, r.Passphrase)));
+        api.MapPost("/schedule/run", async (HttpContext http, BackupScheduleService s) => Results.Ok(await s.RunNowAsync((await http.AuthAsync()).User.Id)));
     }
 }

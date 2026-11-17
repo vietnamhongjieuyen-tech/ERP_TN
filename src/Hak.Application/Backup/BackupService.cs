@@ -34,7 +34,7 @@ public sealed record BackupVerification(string FileName, DateTime CreatedAt, str
 /// </summary>
 public sealed class BackupService(HakDbContext db, AuditService audit, IClock clock, BackupOptions options)
 {
-    public async Task<BackupInfo> CreateAsync(Guid userId, string passphrase, string? note = null)
+    public async Task<BackupInfo> CreateAsync(Guid userId, string passphrase, string? note = null, string filePrefix = "hak-backup")
     {
         await RequireSystemAdminAsync(userId);
         RequireSqlite();
@@ -43,7 +43,7 @@ public sealed class BackupService(HakDbContext db, AuditService audit, IClock cl
         Directory.CreateDirectory(options.Directory);
         var stamp = clock.UtcNow.ToString("yyyyMMdd-HHmmss");
         var snapshot = Path.Combine(options.Directory, $".snapshot-{Guid.NewGuid():N}.db");
-        var fileName = $"hak-backup-{stamp}.hakbk";
+        var fileName = $"{filePrefix}-{stamp}.hakbk";
         var target = Path.Combine(options.Directory, fileName);
         if (File.Exists(target)) throw new DomainException(ErrorCodes.DuplicateCode, "Đã có bản sao lưu cùng thời điểm; thử lại sau một giây.");
         try
