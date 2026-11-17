@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { htmlTableRows, parseStatementRows } from './bankfile'
 import { adviceDetails, statementRowsFromPdf } from './pdftable'
 import { UncPrint, uncLayoutOf, type UncLayout } from './UncPrint'
+import { downloadXlsx } from './xlsx'
 import { readSheetFile } from './sheetread'
 import { askDate, askText } from './dialogs'
 import { get, post, session } from './api'
@@ -44,6 +45,22 @@ function PaymentOrders() {
   const [layout, setLayout] = useState<'auto' | UncLayout>('auto')
   useEffect(() => { get<{ id: string; name: string; address?: string | null }[]>('/me/companies').then(cs => { const c = cs.find(x => x.id === session.companyId); if (c) setCompany({ name: c.name, address: c.address ?? null }) }).catch(() => undefined) }, [])
   useEffect(() => { if (printing) { printSheet(); setPrinting(null) } }, [printing])
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  // Approved orders not yet sent: the ones a batch file for internet banking would carry.
+  const exportable = list.filter(p => p.status === 'Approved')
+  const exportBatch = () => run(async () => {
+    const chosen = exportable.filter(p => picked.size === 0 || picked.has(p.id))
+    if (chosen.length === 0) throw new Error('Không có lệnh đã duyệt nào để xuất.')
+    const missing = chosen.filter(p => !p.beneficiaryAccountNo || !p.beneficiaryBank).map(p => p.number)
+    if (missing.length) throw new Error(`Thiếu số tài khoản hoặc ngân hàng thụ hưởng ở: ${missing.join(', ')}.`)
+    const acc = (id?: string) => accounts.find(a => a.id === id)
+    downloadXlsx(`Danh_sach_chuyen_tien_${today()}`, 'Chuyển tiền', [
+      { header: 'STT' }, { header: 'Số lệnh' }, { header: 'Ngày' }, { header: 'TK trích nợ' }, { header: 'Tên người hưởng', width: 34 },
+      { header: 'Số tài khoản người hưởng', width: 22 }, { header: 'Ngân hàng người hưởng', width: 30 }, { header: 'Số tiền', numeric: true }, { header: 'Nội dung', width: 40 },
+    ], chosen.map((p, i) => [String(i + 1), p.number, p.requestedDate, acc(p.bankAccountId)?.bankAccountNo ?? acc(p.bankAccountId)?.code ?? '',
+      partners.find(x => x.id === p.partnerId)?.name ?? '', p.beneficiaryAccountNo ?? '', p.beneficiaryBank ?? '', p.amount, p.description]))
+    setInfo(`Đã xuất ${chosen.length} lệnh, tổng ${formatMoney(addMoney(chosen.map(p => p.amount)))} đồng. Tệp có cột chung; nếu ngân hàng yêu cầu mẫu riêng, chép các cột sang mẫu của ngân hàng.`)
+  })
 
   const create = () => {
     const amount = parseMoney(form.amount)
@@ -79,13 +96,18 @@ function PaymentOrders() {
           <select value={layout} onChange={e => setLayout(e.target.value as 'auto' | UncLayout)}>
             <option value="auto">Tự chọn theo ngân hàng của tài khoản chi</option><option value="vcb">Mẫu Vietcombank</option><option value="agribank">Mẫu Agribank</option><option value="generic">Mẫu chung</option>
           </select></label>
+        <button disabled={busy || exportable.length === 0} onClick={exportBatch}
+          title="Danh sách các lệnh đã duyệt (hoặc các lệnh đã đánh dấu) để chuyển tiền theo lô qua ngân hàng trực tuyến">
+          Xuất Excel lệnh đã duyệt{picked.size ? ` (${[...picked].filter(id => exportable.some(p => p.id === id)).length} đã chọn)` : ` (${exportable.length})`}</button>
         <span className="muted">Số tài khoản, tên ngân hàng của tài khoản chi khai ở Thiết lập → Hệ thống tài khoản → Sửa; địa chỉ công ty ở Thiết lập → Mẫu, mã phân tích, hạn mức duyệt.</span>
       </div>
       <div className="scroll">
         <table className="grid">
-          <thead><tr><th>Số</th><th>Ngày</th><th>NCC</th><th>Nội dung</th><th className="num">Số tiền</th><th>Trạng thái</th><th>Mã GD NH</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th></th><th>Số</th><th>Ngày</th><th>NCC</th><th>Nội dung</th><th className="num">Số tiền</th><th>Trạng thái</th><th>Mã GD NH</th><th>Thao tác</th></tr></thead>
           <tbody>{list.map(p => (
             <tr key={p.id}>
+              <td>{p.status === 'Approved' && <input type="checkbox" aria-label={`Chọn ${p.number} để xuất`} checked={picked.has(p.id)}
+                onChange={e => setPicked(s => { const n = new Set(s); if (e.target.checked) n.add(p.id); else n.delete(p.id); return n })} />}</td>
               <td>{p.number}</td><td>{p.requestedDate}</td><td>{partnerName(p.partnerId)}</td><td>{p.description}</td>
               <td className="num">{formatMoney(p.amount)}</td><td><span className="badge">{PO_STATUS[p.status] ?? p.status}</span></td><td>{p.bankReference}</td>
               <td style={{ display: 'flex', gap: 4 }}>
@@ -104,7 +126,7 @@ function PaymentOrders() {
                 }}>Hủy</button>}
               </td>
             </tr>))}
-            {list.length === 0 && <tr><td colSpan={8} className="muted">Chưa có lệnh thanh toán.</td></tr>}
+            {list.length === 0 && <tr><td colSpan={9} className="muted">Chưa có lệnh thanh toán.</td></tr>}
           </tbody>
         </table>
       </div>

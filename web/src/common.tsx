@@ -71,7 +71,8 @@ export function ErrorBox({ error }: { error: unknown }) {
         )}
       </div>
     )
-  return <div className="msg error" role="alert">{String(error)}</div>
+  // A check made in the screen itself: show its message only, not the technical "Error:" prefix.
+  return <div className="msg error" role="alert">{error instanceof Error ? error.message : String(error)}</div>
 }
 
 /** Runs an async action, tracking busy state and the last error. */
