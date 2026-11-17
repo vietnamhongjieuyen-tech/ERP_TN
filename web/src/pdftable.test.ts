@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseStatementRows } from './bankfile.ts'
-import { adviceDetails, statementRowsFromPdf, textLines, type TextItem } from './pdftable.ts'
+import { adviceDetails, columnRole, statementRowsFromPdf, textLines, type Page, type TextItem } from './pdftable.ts'
 import { phrases } from './ocr.ts'
 
 test('phrases joins OCR words into cells: close words together, a column gap apart, coordinates scaled', () => {
@@ -112,4 +112,36 @@ test('statementRowsFromPdf + adviceDetails: account book with advices on the fol
     [['2026-10-03', '-55000', 'VND0000000001', ''], ['2026-10-03', '5000.5', 'VND0000000002', '']])
   assert.deepEqual([st.opening, st.closing, st.warnings], ['1000000', '950000.5', []])
   assert.deepEqual(adviceDetails(rows), ['THU PHI DICH VU', 'LAI TIEN GUI'])
+})
+// Layout 4 (a photographed statement read by OCR): the header captions are spread over three lines and the date caption is
+// lost, the date sits on its own line above the amounts, the document number under it in the same cell, and the description
+// wraps around the amounts. Horizontal rules separate the rows.
+test('statementRowsFromPdf: OCR layout with dates above the amounts and ruled rows', () => {
+  const page: Page = Object.assign([
+    ...row(80, [35, 'Số dư đầu kỳ / Opening Balance'], [229, '1.000.000 VND']),
+    ...row(118, [97, 'Ngày'], [135, 'giao dịch/']),
+    ...row(135, [50, 'STT'], [106, '8 kêu Nên'], [210, 'Sốtiềnghinợ'], [319, 'Số tiền ghi có'], [456, 'số dư'], [627, 'Nội dung chi tiết']),
+    ...row(151, [53, 'No'], [104, 'Số CT/ Doc No'], [235, 'Debit'], [342, 'Credit'], [452, 'Balance'], [622, 'Transaction In Detail']),
+    ...row(189, [114, '03/10/2026'], [541, 'THU PHI DICH VU']),
+    ...row(199, [59, '1'], [258, '55.000'], [474, '945.000']),
+    ...row(205, [114, '9915-2949'], [542, 'THANG 09/2026']),
+    ...row(240, [114, '25/10/2026']),
+    ...row(257, [58, '2'], [97, '9701 - 0578019'], [380, '971'], [474, '945.971'], [542, 'INTEREST PAYMENT']),
+    ...row(300, [35, 'Tổng số / Total'], [239, '55.000'], [380, '971']),
+    ...row(325, [35, 'Số dư cuối kỳ / Closing Balance'], [228, '945.971 VND']),
+  ], { rowRules: [160, 225, 280] })
+  const rows = statementRowsFromPdf([page])
+  assert.deepEqual(rows.find(r => r.length > 2), ['STT', 'Ngày giao dịch', 'Ghi nợ', 'Ghi có', 'Số dư', 'Nội dung'])
+  const st = parseStatementRows(rows)
+  assert.deepEqual(st.lines, [
+    { transactionDate: '2026-10-03', amount: '-55000', bankReference: '9915-2949', description: 'THU PHI DICH VU THANG 09/2026' },
+    { transactionDate: '2026-10-25', amount: '971', bankReference: '9701 - 0578019', description: 'INTEREST PAYMENT' },
+  ])
+  assert.deepEqual([st.opening, st.closing, st.warnings], ['1000000', '945971', []])
+})
+
+test('columnRole reads Vietnamese and English captions, OCR-joined words, and keeps titles out', () => {
+  const cases: [string, string | null][] = [['ngay giao dich txn date', 'txdate'], ['so but toan transaction no', 'ref'], ['no debit', 'debit'], ['co credit', 'credit'],
+    ['sotienghino debit', 'debit'], ['so du balance', 'balance'], ['noi dung chi tiet transaction in detail', 'desc'], ['stt no', 'stt'], ['phi lai fee interest', null]]
+  for (const [k, role] of cases) assert.equal(columnRole(k), role, k)
 })

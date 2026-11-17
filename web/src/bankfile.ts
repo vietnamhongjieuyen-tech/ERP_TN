@@ -116,7 +116,8 @@ export function parseStatementRows(rows: string[][]): ParsedStatement {
     const n = out.lines.length + 1
     out.lines.push({
       transactionDate: date, amount,
-      bankReference: (col.ref >= 0 ? r[col.ref] ?? '' : '').trim() || `KHONG-MA-${date}-${n}`,
+      // Without a reference column, a document number printed under the date in the same cell ("03/10/2026 9915 - 2949") is the reference.
+      bankReference: (col.ref >= 0 ? r[col.ref] ?? '' : (r[col.date] ?? '').replace(/^\s*\S+/, '')).trim() || `KHONG-MA-${date}-${n}`,
       description: (col.desc >= 0 ? r[col.desc] ?? '' : '').trim(),
     })
     if (col.balance >= 0) {
