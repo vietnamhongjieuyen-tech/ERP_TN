@@ -105,6 +105,7 @@ using (var scope = app.Services.CreateScope())
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         if (at + 1 >= args.Length || Console.IsInputRedirected) { Console.Error.WriteLine("Dùng: Hak.Api.exe --reset-admin-password <tên đăng nhập> (chạy trong cửa sổ dòng lệnh)."); return 2; }
+        Console.WriteLine("Gõ mật khẩu mới rồi bấm Enter (mỗi ký tự hiện một dấu *).");
         var first = ConsoleSecret.Read("Mật khẩu mới: ");
         if (first != ConsoleSecret.Read("Nhập lại: ")) { Console.Error.WriteLine("Hai lần nhập không khớp."); return 1; }
         try
@@ -170,15 +171,15 @@ public partial class Program;
 
 internal static class ConsoleSecret
 {
-    /// <summary>Reads a line from the console without echoing it.</summary>
+    /// <summary>Reads a line from the console showing one * per character (the text itself is never shown).</summary>
     public static string Read(string prompt)
     {
         Console.Write(prompt);
         var sb = new System.Text.StringBuilder();
         for (ConsoleKeyInfo k; (k = Console.ReadKey(intercept: true)).Key != ConsoleKey.Enter;)
         {
-            if (k.Key == ConsoleKey.Backspace) { if (sb.Length > 0) sb.Length--; }
-            else if (!char.IsControl(k.KeyChar)) sb.Append(k.KeyChar);
+            if (k.Key == ConsoleKey.Backspace) { if (sb.Length > 0) { sb.Length--; Console.Write("\b \b"); } }
+            else if (!char.IsControl(k.KeyChar)) { sb.Append(k.KeyChar); Console.Write('*'); }
         }
         Console.WriteLine();
         return sb.ToString();
