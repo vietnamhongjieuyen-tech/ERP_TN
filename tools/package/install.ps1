@@ -82,17 +82,22 @@ try {
         $shell = New-Object -ComObject WScript.Shell
         $menu = Join-Path ([Environment]::GetFolderPath("Programs")) "HAK Accounting"
         New-Item -ItemType Directory -Force $menu | Out-Null
-        function Link($path, $target, $desc, $minimized) {
-            $l = $shell.CreateShortcut($path)
-            $l.TargetPath = $target; $l.WorkingDirectory = $InstallDir; $l.IconLocation = "$exe,0"; $l.Description = $desc
-            if ($minimized) { $l.WindowStyle = 7 }
+        # WScript cannot save a shortcut whose name has Vietnamese letters (outside the ANSI code page): save under an ASCII
+        # name, then rename.
+        function Save-Link($path, [scriptblock]$fill) {
+            $tmp = Join-Path (Split-Path $path -Parent) ("hak-" + [guid]::NewGuid().ToString("N") + ".lnk")
+            $l = $shell.CreateShortcut($tmp)
+            & $fill $l
             $l.Save()
+            Move-Item -LiteralPath $tmp -Destination $path -Force
+        }
+        function Link($path, $target, $desc, $minimized) {
+            Save-Link $path { param($l) $l.TargetPath = $target; $l.WorkingDirectory = $InstallDir; $l.IconLocation = "$exe,0"; $l.Description = $desc; if ($minimized) { $l.WindowStyle = 7 } }
         }
         Link (Join-Path $menu "HAK Accounting.lnk") (Join-Path $InstallDir "Chay HAK.cmd") "Mở HAK Accounting" $true
         Link (Join-Path $menu "HAK - thử nghiệm.lnk") (Join-Path $InstallDir "Chay HAK - thu nghiem.cmd") "HAK với CSDL thử nghiệm riêng" $true
         Link (Join-Path $menu "Khôi phục mật khẩu quản trị.lnk") (Join-Path $InstallDir "Khoi phuc mat khau quan tri.cmd") "Đặt lại mật khẩu quản trị (tắt HAK trước)" $false
-        $u = $shell.CreateShortcut((Join-Path $menu "Gỡ cài đặt HAK.lnk"))
-        $u.TargetPath = "powershell.exe"; $u.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\uninstall.ps1`""; $u.IconLocation = "$exe,0"; $u.Save()
+        Save-Link (Join-Path $menu "Gỡ cài đặt HAK.lnk") { param($l) $l.TargetPath = "powershell.exe"; $l.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\uninstall.ps1`""; $l.IconLocation = "$exe,0" }
         Link (Join-Path ([Environment]::GetFolderPath("Desktop")) "HAK Accounting.lnk") (Join-Path $InstallDir "Chay HAK.cmd") "Mở HAK Accounting" $true
     }
 
