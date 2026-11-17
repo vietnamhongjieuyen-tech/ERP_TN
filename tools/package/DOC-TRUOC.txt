@@ -1,4 +1,4 @@
-HAK Accounting — bản chạy độc lập (chưa phải bộ cài chính thức)
+HAK Accounting — bản chạy độc lập (dùng khi không cài; bộ cài HAK-Setup-<phiên bản>.exe làm sẵn lối tắt và gỡ cài đặt)
 
 1. Chạy "Chay HAK.cmd". Trình duyệt mở http://127.0.0.1:5080/ — chỉ máy này truy cập được.
 2. Lần đầu: tạo quản trị hệ thống trên màn hình đăng nhập, rồi làm theo docs/08 mục 3

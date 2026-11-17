@@ -112,7 +112,22 @@ pg_dump -h 127.0.0.1 -U hak_app -Fc -f D:\hak-backup\hak-%DATE%.dump hak
 - Mã hóa tệp dump trước khi đưa ra ngoài (BitLocker / 7-Zip AES-256).
 - Thử khôi phục định kỳ vào **CSDL mới**: `createdb hak_restore_test` rồi `pg_restore -d hak_restore_test <tệp>`; không khôi phục đè lên `hak` đang dùng.
 
+## 1b. Bộ cài đặt (một tệp .exe, không cần quyền quản trị)
+
+Tạo (máy phát triển): `.\tools\package\build-setup.ps1 [-Package artifacts\HAK-…] [-Version 2026.11.17]` → `artifacts\HAK-Setup-<phiên bản>.exe` (khoảng 57 MB) và tệp `.sha256.txt` kèm theo. Bộ cài dựng bằng IExpress có sẵn trong Windows, không tải thêm công cụ.
+
+Trên máy dùng: chạy `HAK-Setup-….exe` (Windows SmartScreen có thể cảnh báo vì tệp chưa ký số → "More info / Thông tin thêm" → "Run anyway / Vẫn chạy"). Bộ cài:
+- cài cho người dùng hiện tại vào `%LOCALAPPDATA%\Programs\HAK`, không cần quyền quản trị;
+- kiểm mã băm từng tệp, giải nén vào thư mục mới rồi mới thay bản cũ (lỗi giữa chừng không làm hỏng bản đang dùng);
+- tạo biểu tượng "HAK Accounting" trên màn hình nền và menu Start (kèm "HAK - thử nghiệm", "Khôi phục mật khẩu quản trị", "Gỡ cài đặt HAK"), và mục "HAK Accounting" trong Settings → Apps để gỡ;
+- **nâng cấp**: chạy bộ cài bản mới. HAK đang chạy thì bộ cài hỏi rồi mới tắt; trước khi thay, chép CSDL vào `%LOCALAPPDATA%\HAK\<Production|Test>\backups\truoc-nang-cap-<bản cũ>-<thời điểm>.db` (bản chép KHÔNG mã hóa, cùng mức bảo vệ với CSDL; xóa khi đã kiểm tra bản mới ổn);
+- **gỡ**: chỉ xóa chương trình, **không xóa dữ liệu** `%LOCALAPPDATA%\HAK`.
+
+Chưa có: chữ ký số cho bộ cài (cần chứng thư ký mã), bản MSI / Tauri (cần Visual Studio C++ — quyền quản trị), cài cho mọi người dùng trên máy.
+
 ## 6. Nâng cấp phiên bản
+
+Máy đơn dùng bộ cài: chạy bộ cài bản mới (mục 1b), bộ cài tự chép dữ liệu trước khi thay. Vẫn nên sao lưu mã hóa trước (mục 5).
 
 1. Sao lưu (mục 5) và kiểm tra bản sao lưu.
 2. LAN: **dừng phần mềm trên tất cả máy trạm** (máy cũ chạy trên lược đồ mới có thể lỗi).
