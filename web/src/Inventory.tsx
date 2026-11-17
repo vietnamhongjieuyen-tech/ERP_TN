@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { askDate, askText } from './dialogs'
 import { get, post, session, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog } from './common'
+import { useUnsaved } from './leave'
 import { addMoney, amountInWords, divideMoney, formatMoney, parseMoney, today } from './money'
 import type { Order } from './Orders'
 import { useAnalysisOptions } from './Analysis'
@@ -57,6 +58,7 @@ function StockDocs() {
   const [partnerId, setPartnerId] = useState('')
   const [description, setDescription] = useState('')
   const [lines, setLines] = useState<LineDraft[]>([{ itemId: '', quantity: '', amount: '', counterAccountId: '', orderLine: '' }])
+  useUnsaved(lines.some(l => l.itemId || l.quantity.trim() || l.amount.trim()), 'phiếu nhập / xuất kho')
   const [info, setInfo] = useState('')
   const { busy, error, setError, run } = useAction()
   const codeOptions = useAnalysisOptions()

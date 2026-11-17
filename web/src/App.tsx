@@ -11,6 +11,7 @@ import { ErrorBox, useAction } from './common'
 import { DialogHost } from './dialogs'
 import { FxView } from './Fx'
 import { InventoryView } from './Inventory'
+import { confirmLeave } from './leave'
 import { LoansView } from './Loans'
 import { OrdersView } from './Orders'
 import { PayrollView } from './Payroll'
@@ -64,7 +65,7 @@ export default function App() {
   const [visit, setVisit] = useState(0)   // bumped by goTo so the target screen remounts and takes its parameters
 
   useEffect(() => {
-    const onGoto = (e: Event) => { setScreen((e as CustomEvent<ScreenKey>).detail); setVisit(v => v + 1) }
+    const onGoto = async (e: Event) => { const to = (e as CustomEvent<ScreenKey>).detail; if (await confirmLeave()) { setScreen(to); setVisit(v => v + 1) } }
     window.addEventListener('hak:goto', onGoto)
     return () => window.removeEventListener('hak:goto', onGoto)
   }, [])
@@ -77,6 +78,7 @@ export default function App() {
   }, [token])
 
   const logout = async () => {
+    if (!(await confirmLeave())) return
     try { await post('/auth/logout') } catch { /* already expired */ }
     session.setToken(null); session.setCompany(null); setCompanyId(null); setCompanies(null); setSystemAdmin(false); setToken(null)
   }
@@ -127,9 +129,9 @@ export default function App() {
         <div className="company">{company.code} – {company.name}</div>
         {allowed.map((s, i) => <Fragment key={s.key}>
           {(i === 0 || allowed[i - 1].group !== s.group) && <div className="group">{s.group}</div>}
-          <button className={s.key === current.key ? 'active' : ''} onClick={() => setScreen(s.key)}>{s.label}</button>
+          <button className={s.key === current.key ? 'active' : ''} onClick={async () => { if (s.key !== current.key && await confirmLeave()) setScreen(s.key) }}>{s.label}</button>
         </Fragment>)}
-        <button onClick={() => { session.setCompany(null); setCompanyId(null) }}>Đổi công ty</button>
+        <button onClick={async () => { if (await confirmLeave()) { session.setCompany(null); setCompanyId(null) } }}>Đổi công ty</button>
         <button onClick={logout}>Đăng xuất</button>
       </nav>
       <main className="main" key={`${company.id}:${current.key}:${visit}`}>{current.el()}</main>

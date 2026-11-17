@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ApiError, get, post, type Account, type Partner } from './api'
+import { ApiError, get, post, session, type Account, type Partner } from './api'
 import { SearchSelect } from './combo'
 import { catalogChanged } from './nav'
 import { downloadXlsx, type Cell, type Column } from './xlsx'
@@ -24,18 +24,30 @@ export function printSheet() {
   try { window.print() } finally { document.body.classList.remove('print-sheet-mode') }
 }
 
-/** Modal dialog: Esc or the backdrop closes it (unless busy); focus moves into it and Tab stays inside it; Enter in a field runs onSubmit (pass it only when the form is valid). */
+// Open modals: only the top one answers Esc / Tab / Enter (a confirmation opened over a form must not also close the form).
+// Top = deepest nesting (a modal rendered inside another's content), then the most recently opened (a dialog opened later
+// from elsewhere, e.g. askConfirm). Depth matters because effects of nested components run child-first.
+const ModalDepth = createContext(0)
+const modalStack: { id: symbol; depth: number; seq: number }[] = []
+let modalSeq = 0
+const topModal = () => modalStack.reduce<(typeof modalStack)[number] | null>((t, m) => (!t || m.depth > t.depth || (m.depth === t.depth && m.seq > t.seq) ? m : t), null)?.id
+
+/** Modal dialog: Esc or the backdrop closes it (unless busy); focus moves into it and Tab stays inside it; Enter in a field runs onSubmit (pass it only when the form is valid). Nested modals: only the top one takes keys. */
 export function Modal({ title, onClose, children, footer, busy, onSubmit }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; busy?: boolean; onSubmit?: () => void }) {
   const [box, setBox] = useState<HTMLDivElement | null>(null)
+  const depth = useContext(ModalDepth) + 1
   const latest = useRef({ onClose, busy, onSubmit })
   latest.current = { onClose, busy, onSubmit }
   useEffect(() => {
     if (!box) return
     const focusable = () => [...box.querySelectorAll<HTMLElement>('input, select, textarea, button')].filter(el => !(el as HTMLButtonElement).disabled)
     const back = document.activeElement as HTMLElement | null
-    focusable().find(el => el.tagName !== 'BUTTON')?.focus()
+    const me = Symbol('modal')
+    modalStack.push({ id: me, depth, seq: ++modalSeq })
+    if (topModal() === me) focusable().find(el => el.tagName !== 'BUTTON')?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !latest.current.busy) latest.current.onClose()
+      if (topModal() !== me || e.defaultPrevented) return
+      if (e.key === 'Escape' && !latest.current.busy) { e.preventDefault(); latest.current.onClose() }
       const t = e.target as HTMLInputElement
       if (e.key === 'Enter' && t.tagName === 'INPUT' && t.type !== 'checkbox' && box.contains(t) && !latest.current.busy && latest.current.onSubmit) {
         e.preventDefault(); latest.current.onSubmit()
@@ -48,13 +60,17 @@ export function Modal({ title, onClose, children, footer, busy, onSubmit }: { ti
       else if (!e.shiftKey && (i === -1 || i === els.length - 1)) { e.preventDefault(); els[0].focus() }
     }
     window.addEventListener('keydown', onKey)
-    return () => { window.removeEventListener('keydown', onKey); back?.focus?.() }
-  }, [box])
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      modalStack.splice(modalStack.findIndex(m => m.id === me), 1)
+      back?.focus?.()
+    }
+  }, [box, depth])
   return createPortal(
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !busy) onClose() }}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} ref={setBox}>
         <header><h3>{title}</h3><button className="tree-toggle" aria-label="Đóng" disabled={busy} onClick={onClose}>✕</button></header>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body"><ModalDepth.Provider value={depth}>{children}</ModalDepth.Provider></div>
         {footer && <footer>{footer}</footer>}
       </div>
     </div>, document.body)
@@ -148,6 +164,23 @@ function QuickPartnerDialog({ typed, onClose, onCreated }: { typed: string; onCl
       <p className="muted">Thông tin khác (địa chỉ, tài khoản ngân hàng…) bổ sung sau ở Danh mục đối tượng.</p>
     </Modal>
   )
+}
+
+/** Vietnamese names of permissions, for "cần quyền …" hints. */
+export const PERM_VI: Record<string, string> = {
+  'voucher.submit': 'gửi duyệt chứng từ', 'voucher.approve': 'duyệt chứng từ', 'voucher.post': 'ghi sổ', 'voucher.reverse': 'đảo bút toán',
+  'voucher.edit_draft': 'sửa / hủy chứng từ nháp', 'voucher.create': 'lập chứng từ', 'config.manage': 'quản trị cấu hình', 'payment_order.approve': 'duyệt lệnh chi',
+}
+
+/** The user's permissions at the selected company (null while loading: buttons stay enabled and the server decides). */
+export function usePermissions(): Set<string> | null {
+  const [perms, setPerms] = useState<Set<string> | null>(null)
+  useEffect(() => {
+    get<{ id: string; permissions?: string[] }[]>('/me/companies')
+      .then(cs => { const p = cs.find(c => c.id === session.companyId)?.permissions; setPerms(p ? new Set(p) : null) })
+      .catch(() => setPerms(null))
+  }, [])
+  return perms
 }
 
 export const STATUS_VI: Record<string, string> = {

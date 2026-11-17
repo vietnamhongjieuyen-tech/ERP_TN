@@ -5,7 +5,7 @@ import { SearchSelect } from './combo'
 import type { AnalysisCode } from './Analysis'
 import { askDate, askText } from './dialogs'
 import { get, post, put, session, type Voucher } from './api'
-import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog } from './common'
+import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PERM_VI, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog, usePermissions } from './common'
 import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
 
 interface LineDraft { accountId: string; side: 'D' | 'C'; amount: string; partnerId: string; description: string; cashFlowCode: string; analysisCodeId?: string }
@@ -19,6 +19,13 @@ export function VouchersView() {
   const [openId, setOpenId] = useState(boot?.voucherId ?? '')
   // Company in one-person mode (Thiết lập → chế độ phân quyền): save, approve and post in one step.
   const [oneStep, setOneStep] = useState(false)
+  // Action buttons follow the user's permissions at this company (the server checks again): a missing one disables the
+  // button and says why; busy disables every action so a slow reply cannot be sent twice.
+  const perms = usePermissions()
+  const gate = (...need: string[]) => {
+    const missing = perms ? need.filter(p => !perms.has(p)) : []
+    return { disabled: busy || missing.length > 0, title: missing.length ? `Cần quyền ${missing.map(p => PERM_VI[p] ?? p).join(', ')} tại công ty này` : undefined }
+  }
   useEffect(() => { get<{ requireDistinctApprover: boolean }>('/company/segregation').then(r => setOneStep(r.requireDistinctApprover === false)).catch(() => setOneStep(false)) }, [])
   const [from, setFrom] = useState(boot?.date ?? boot?.from ?? today().slice(0, 8) + '01')
   const [to, setTo] = useState(boot?.date ?? today())
@@ -142,21 +149,21 @@ export function VouchersView() {
               const errs = await post<{ code: string; message: string; lineNo: number | null }[]>(`/vouchers/${v.id}/validate`)
               setInfo(errs.length ? errs.map(e => `${e.lineNo ? 'Dòng ' + e.lineNo + ': ' : ''}${e.message}`).join(' | ') : 'Hợp lệ, có thể gửi duyệt.')
             })}>Kiểm tra</button>
-            {v.status === 'Draft' && <button onClick={() => act('Đã gửi duyệt', () => post(`/vouchers/${v.id}/submit?rowVersion=${v.rowVersion}`))}>Gửi duyệt</button>}
-            {v.status === 'Draft' && oneStep && <button className="primary" onClick={() => act('Đã ghi sổ', async () => {
+            {v.status === 'Draft' && <button {...gate('voucher.submit')} onClick={() => act('Đã gửi duyệt', () => post(`/vouchers/${v.id}/submit?rowVersion=${v.rowVersion}`))}>Gửi duyệt</button>}
+            {v.status === 'Draft' && oneStep && <button className="primary" {...gate('voucher.submit', 'voucher.approve', 'voucher.post')} onClick={() => act('Đã ghi sổ', async () => {
               let rv = v.rowVersion
               for (const s of ['submit', 'approve', 'post']) rv = (await post<Voucher>(`/vouchers/${v.id}/${s}?rowVersion=${rv}`)).rowVersion
             })}>Ghi sổ ngay</button>}
-            {v.status === 'Submitted' && <button onClick={() => act('Đã duyệt', () => post(`/vouchers/${v.id}/approve?rowVersion=${v.rowVersion}`))}>Duyệt</button>}
-            {(v.status === 'Submitted' || v.status === 'Approved') && <button onClick={async () => {
+            {v.status === 'Submitted' && <button {...gate('voucher.approve')} onClick={() => act('Đã duyệt', () => post(`/vouchers/${v.id}/approve?rowVersion=${v.rowVersion}`))}>Duyệt</button>}
+            {(v.status === 'Submitted' || v.status === 'Approved') && <button {...gate('voucher.approve')} onClick={async () => {
               const reason = await askText('Lý do trả lại:'); if (reason) act('Đã trả lại', () => post(`/vouchers/${v.id}/reject?rowVersion=${v.rowVersion}`, { reason }))
             }}>Trả lại</button>}
-            {v.status === 'Approved' && <button className="primary" onClick={() => act('Đã ghi sổ', () => post(`/vouchers/${v.id}/post?rowVersion=${v.rowVersion}`))}>Ghi sổ</button>}
-            {v.status === 'Posted' && <button className="danger" onClick={async () => {
+            {v.status === 'Approved' && <button className="primary" {...gate('voucher.post')} onClick={() => act('Đã ghi sổ', () => post(`/vouchers/${v.id}/post?rowVersion=${v.rowVersion}`))}>Ghi sổ</button>}
+            {v.status === 'Posted' && <button className="danger" {...gate('voucher.reverse')} onClick={async () => {
               const reason = await askText('Lý do đảo bút toán:'); if (!reason) return
               const date = await askDate('Ngày đảo', v.postingDate); if (date) act('Đã đảo bút toán', () => post(`/vouchers/${v.id}/reverse`, { reversalDate: date, reason }))
             }}>Đảo</button>}
-            {(v.status === 'Draft' || v.status === 'Submitted') && <button className="danger" onClick={async () => {
+            {(v.status === 'Draft' || v.status === 'Submitted') && <button className="danger" {...gate('voucher.edit_draft')} onClick={async () => {
               const reason = await askText('Lý do hủy:'); if (reason) act('Đã hủy', () => post(`/vouchers/${v.id}/cancel?rowVersion=${v.rowVersion}`, { reason }))
             }}>Hủy</button>}
             {MANUAL_TYPES.includes(v.voucherType) && <button onClick={() => setEditing({ copy: copyOf(v) })} title="Lập chứng từ mới với cùng định khoản, ngày hôm nay">Sao chép</button>}

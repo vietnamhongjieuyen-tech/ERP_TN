@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { askConfirm, askDate, askText } from './dialogs'
 import { get, post } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
+import { useUnsaved } from './leave'
 import { formatMoney, parseMoney, today } from './money'
 import { useAnalysisOptions } from './Analysis'
 import { SearchSelect } from './combo'
@@ -24,6 +25,7 @@ export function TradeView() {
   const [list, setList] = useState<Invoice[]>([])
   const [head, setHead] = useState({ partnerId: '', series: '', no: '', invoiceDate: today(), postingDate: today(), dueDate: '', currency: '', rate: '', description: '' })
   const [lines, setLines] = useState<LineDraft[]>([empty()])
+  useUnsaved(lines.some(l => l.candidate || l.price.trim() || l.qty.trim() || l.description.trim()), 'hóa đơn mua / bán')
   const codeOptions = useAnalysisOptions()
   const [info, setInfo] = useState('')
   const [adjusting, setAdjusting] = useState<Invoice | null>(null)

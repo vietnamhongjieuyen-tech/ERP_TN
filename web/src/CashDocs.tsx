@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AnalysisCode } from './Analysis'
 import { CashCountDialog } from './CashCount'
+import { useUnsaved } from './leave'
 import { SearchSelect } from './combo'
 import { get, post, type OpenItem, type Voucher } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
@@ -41,6 +42,7 @@ export function CashDocsView() {
   const [openItems, setOpenItems] = useState<OpenItem[]>([])
   const [created, setCreated] = useState<Voucher | null>(null)
   const [counting, setCounting] = useState(false)
+  useUnsaved(lines.some(l => l.amount.trim() || l.description.trim() || l.counterAccountId), 'phiếu thu / chi')
   const { busy, error, setError, run } = useAction()
   const [codes, setCodes] = useState<AnalysisCode[]>([])
   useEffect(() => { get<AnalysisCode[]>('/analysis-codes').then(setCodes).catch(() => setCodes([])) }, [])

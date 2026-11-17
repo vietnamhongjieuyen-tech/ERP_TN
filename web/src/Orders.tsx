@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { askText } from './dialogs'
 import { get, post } from './api'
 import { ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
+import { useUnsaved } from './leave'
 import { formatMoney, parseMoney, today } from './money'
 
 export interface Order { id: string; number: string; kind: string; partnerId: string; contractNo: string | null; orderDate: string; description: string; overDeliveryTolerancePercent: string; status: string; statusReason: string | null; lines: { lineNo: number; itemId: string; quantity: string; basis: string; unitPrice: string; vatRate: string | null }[] }
@@ -20,6 +21,7 @@ export function OrdersView() {
   const [list, setList] = useState<Order[]>([])
   const [head, setHead] = useState({ partnerId: '', contractNo: '', orderDate: today(), description: '', tolerance: '0' })
   const [lines, setLines] = useState<LineDraft[]>([{ itemId: '', qty: '', basis: 'Bdmt', price: '', vat: '' }])
+  useUnsaved(lines.some(l => l.itemId || l.qty.trim() || l.price.trim()), 'đơn hàng')
   const [detail, setDetail] = useState<Fulfil | null>(null)
   const [info, setInfo] = useState('')
   const { busy, error, setError, run } = useAction()
