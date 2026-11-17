@@ -97,6 +97,7 @@ try {
         Link (Join-Path $menu "HAK Accounting.lnk") (Join-Path $InstallDir "Chay HAK.cmd") "Mở HAK Accounting" $true
         Link (Join-Path $menu "HAK - thử nghiệm.lnk") (Join-Path $InstallDir "Chay HAK - thu nghiem.cmd") "HAK với CSDL thử nghiệm riêng" $true
         Link (Join-Path $menu "Khôi phục mật khẩu quản trị.lnk") (Join-Path $InstallDir "Khoi phuc mat khau quan tri.cmd") "Đặt lại mật khẩu quản trị (tắt HAK trước)" $false
+        Link (Join-Path $menu "Khôi phục mật khẩu quản trị - thử nghiệm.lnk") (Join-Path $InstallDir "Khoi phuc mat khau quan tri - thu nghiem.cmd") "Đặt lại mật khẩu quản trị bản thử nghiệm (tắt HAK thử nghiệm trước)" $false
         Save-Link (Join-Path $menu "Gỡ cài đặt HAK.lnk") { param($l) $l.TargetPath = "powershell.exe"; $l.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$InstallDir\uninstall.ps1`""; $l.IconLocation = "$exe,0" }
         Link (Join-Path ([Environment]::GetFolderPath("Desktop")) "HAK Accounting.lnk") (Join-Path $InstallDir "Chay HAK.cmd") "Mở HAK Accounting" $true
     }
