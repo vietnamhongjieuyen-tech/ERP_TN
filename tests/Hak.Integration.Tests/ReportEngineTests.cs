@@ -152,7 +152,9 @@ public class ReportEngineTests
         // Gián tiếp: khoản trả 100 chọn mã 21 nhưng đối ứng 331 của nhà cung cấp hàng hóa (không nhãn DT) → kiểm tra 20 gián tiếp ≠ trực tiếp báo lệch.
         var b03i = await Run("mau-B03-DN-gian-tiep.json");
         Assert.All(b03i.Lines, l => Assert.Null(l.Error));
-        Assert.Equal((250m, -450m, -100m, 250m, -50m), (V(b03i, "01"), V(b03i, "09"), V(b03i, "10"), V(b03i, "11"), V(b03i, "20")));
+        // Phần D mục 4.1.2: Mã 09 lấy số dư Nợ từng đối tượng của 131 / 331, Mã 11 số dư Có (khách KH02 trả trước 100 thuộc 11,
+        // không bù trừ với phải thu KH01 550): 09 = −550, 11 = 50 thuế + 200 NCC01 + 100 KH02 = 350; tổng 09 + 11 như số thuần.
+        Assert.Equal((250m, -550m, -100m, 350m, -50m), (V(b03i, "01"), V(b03i, "09"), V(b03i, "10"), V(b03i, "11"), V(b03i, "20")));
         var mismatch = b03i.Checks.Single(c => c.Rule.StartsWith("LINE(20)", StringComparison.Ordinal));
         Assert.Equal((false, -50m, 50m), (mismatch.Passed, mismatch.Left, mismatch.Right));
     }

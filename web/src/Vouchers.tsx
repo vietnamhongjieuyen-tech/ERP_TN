@@ -5,6 +5,7 @@ import { SearchSelect } from './combo'
 import type { AnalysisCode } from './Analysis'
 import { askDate, askText } from './dialogs'
 import { get, post, put, saveOnce, session, type Voucher } from './api'
+import { dateWords, FORM_FOOT, FormHeader } from './forms'
 import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PERM_VI, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog, usePermissions, useRequestKey } from './common'
 import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
 
@@ -225,28 +226,33 @@ function VoucherPrint({ voucher: v }: { voucher: Voucher }) {
     const amount = cashLines.length ? addMoney(cashLines.map(l => l.amount)) : v.totalDebit
     const codes = (side: 'D' | 'C') => [...new Set(v.lines.filter(l => l.side === side).map(l => acc(l.accountId)))].join(', ')
     const person = par(v.lines.find(l => l.partnerId)?.partnerId ?? null)
-    const [, m, day] = v.voucherDate.split('-'), y = v.voucherDate.slice(0, 4)
+    // Mẫu số 01-TT / 02-TT, Phụ lục I TT 99/2025: signatures in the order of the form (the receipt has the payer before the
+    // preparer and the cashier; the payment has the cashier and the preparer before the payee).
+    const sign = (title: string, note = '(Ký, họ tên)') => <div key={title}><b>{title}</b><br /><i>{note}</i></div>
+    const signs = receipt
+      ? [sign('Giám đốc', '(Ký, họ tên, đóng dấu)'), sign('Kế toán trưởng'), sign('Người nộp tiền'), sign('Người lập phiếu'), sign('Thủ quỹ')]
+      : [sign('Giám đốc', '(Ký, họ tên, đóng dấu)'), sign('Kế toán trưởng'), sign('Thủ quỹ'), sign('Người lập phiếu'), sign('Người nhận tiền')]
     return (
       <PrintSheet>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <div><b>{company}</b><br />Địa chỉ: {address || '..............................................'}</div>
-          <div style={{ textAlign: 'right' }}>Số: <b>{v.number}</b><br />Nợ: {codes('D')}<br />Có: {codes('C')}</div>
+        <FormHeader company={company} second={<>Địa chỉ: {address || '..............................................'}</>} formNo={receipt ? '01 - TT' : '02 - TT'} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'end', marginTop: 8 }}>
+          <span />
+          <div className="center"><h1 style={{ margin: 0 }}>{receipt ? 'PHIẾU THU' : 'PHIẾU CHI'}</h1><i>{dateWords(v.voucherDate)}</i></div>
+          <div style={{ justifySelf: 'end' }}>Quyển số: ..........<br />Số: <b>{v.number}</b><br />Nợ: {codes('D')}<br />Có: {codes('C')}</div>
         </div>
-        <h1>{receipt ? 'PHIẾU THU' : 'PHIẾU CHI'}</h1>
-        <div className="center"><i>Ngày {day} tháng {m} năm {y}</i></div>
         {v.status !== 'Posted' && <div className="center" style={{ marginTop: 6 }}><span className="stamp">{STATUS_VI[v.status]?.toUpperCase()} — CHƯA GHI SỔ</span></div>}
         <p>Họ và tên người {receipt ? 'nộp' : 'nhận'} tiền: <b>{person?.name ?? '..............................................................'}</b><br />
           Địa chỉ: ..........................................................................................<br />
           Lý do {receipt ? 'nộp' : 'chi'}: {v.description}<br />
-          Số tiền: <b>{formatMoney(amount)} đồng</b><br />
-          Viết bằng chữ: <i>{amountInWords(amount)}</i><br />
-          Kèm theo: ............ chứng từ gốc.</p>
-        <div className="signs" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-          <div><b>Giám đốc</b><br /><i>(Ký, họ tên, đóng dấu)</i></div><div><b>Kế toán trưởng</b><br /><i>(Ký, họ tên)</i></div>
-          <div><b>Người {receipt ? 'nộp' : 'nhận'} tiền</b><br /><i>(Ký, họ tên)</i></div><div><b>Người lập phiếu</b><br /><i>(Ký, họ tên)</i></div><div><b>Thủ quỹ</b><br /><i>(Ký, họ tên)</i></div>
-        </div>
-        <p>Đã nhận đủ số tiền (viết bằng chữ): ............................................................................................</p>
-        <div className="foot">Mẫu in của HAK Accounting, doanh nghiệp tự thiết kế — kế toán trưởng xem lại nội dung trước khi dùng chính thức [CẦN XÁC MINH]. In lúc {new Date().toLocaleString('vi-VN')}.</div>
+          Số tiền: <b>{formatMoney(amount)} đồng</b> (Viết bằng chữ): <i>{amountInWords(amount)}</i><br />
+          Kèm theo: ............ Chứng từ gốc: ..........................................</p>
+        <div className="right"><i>{dateWords(v.voucherDate)}</i></div>
+        <div className="signs" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>{signs}</div>
+        <p>Đã nhận đủ số tiền (viết bằng chữ): ............................................................................................<br />
+          + Tỷ giá ngoại tệ (vàng bạc, đá quý): ........................<br />
+          + Số tiền quy đổi: ........................</p>
+        <p><i>(Liên gửi ra ngoài phải đóng dấu)</i></p>
+        <div className="foot">{FORM_FOOT} In lúc {new Date().toLocaleString('vi-VN')}.</div>
       </PrintSheet>
     )
   }

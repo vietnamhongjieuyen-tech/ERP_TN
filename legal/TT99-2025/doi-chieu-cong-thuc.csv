@@ -1,0 +1,132 @@
+﻿Mẫu;Mã số;Chỉ tiêu;TK theo hướng dẫn;TK trong công thức;Hướng dẫn có, công thức không;Công thức có, hướng dẫn không nêu;Kết quả máy;Căn cứ;Kết luận người đọc
+B01-DN;111;1. Tiền;111 112 113;111 112 113;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;112;2. Các khoản tương đương tiền;1281 1288;1281 1288;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;121;1. Chứng khoán kinh doanh;121;121;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;122;2. Dự phòng giảm giá chứng khoán kinh doanh (*);2291;2291;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;123;3. Đầu tư nắm giữ đến ngày đáo hạn ngắn hạn;1281 1282 1283 1288;128;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;124;4. Dự phòng đầu tư nắm giữ đến ngày đáo hạn ngắn hạn (*);2292;2292;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;125;5. Đầu tư ngắn hạn khác;2281;2281;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;126;6. Dự phòng tổn thất các khoản đầu tư ngắn hạn khác (*);2292;2292;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;131;1. Phải thu ngắn hạn của khách hàng;131;131;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;132;2. Trả trước cho người bán ngắn hạn;331;331;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;133;3. Phải thu nội bộ ngắn hạn;1362 1363 1368;1362 1363 1368;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;134;4. Phải thu theo tiến độ hợp đồng xây dựng;337;337;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;135;5. Phải thu ngắn hạn khác;1388 141 244 334 338;1388 141 244 334 338;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;136;6. Dự phòng phải thu ngắn hạn khó đòi (*);2293;2293;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;137;7. Tài sản thiếu chờ xử lý;1381;1381;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;141;1. Hàng tồn kho;151 152 153 154 155 156 157 158;151 152 153 154 155 156 157 158;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;142;2. Dự phòng giảm giá hàng tồn kho (*);2294;2294;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;151;Súc vật nuôi lấy sản phẩm một lần ngắn hạn;2152;2152;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;152;2. Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần ngắn hạn;2153;2153;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;153;3. Dự phòng tổn thất tài sản sinh học ngắn hạn (*);2295;2295;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;161;1. Chi phí chờ phân bổ ngắn hạn;242;242;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;162;2. Thuế GTGT được khấu trừ;133;133;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;163;3. Thuế và các khoản khác phải thu Nhà nước;1383 333;1383 333;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;164;4. Giao dịch mua bán lại trái phiếu Chính phủ;171;171;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;165;5. Tài sản ngắn hạn khác;2288;111 112 113 128 2288;;111 112 113 128;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Đoạn hướng dẫn Mã 110/111 nêu tiền bị hạn chế sử dụng chuyển sang Mã 165 / 274; HAK lấy 111–113, 128 nhãn HCSD đúng như vậy. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;211;1. Phải thu dài hạn của khách hàng;131;131;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;212;2. Trả trước cho người bán dài hạn;331;331;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;213;3. Vốn kinh doanh ở đơn vị trực thuộc;;1361;;1361;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Hướng dẫn Mã 213: vốn kinh doanh giao đơn vị trực thuộc (TK 1361), chỉ ghi ở BCTC trụ sở chính. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;214;4. Phải thu nội bộ dài hạn;1362 1363 1368;1362 1363 1368;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;215;5. Phải thu dài hạn khác;1388 141 244 334 338;1388 141 244 334 338;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;216;6. Dự phòng phải thu dài hạn khó đòi (*);2293;2293;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;222;- Nguyên giá;211;211;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;223;- Giá trị hao mòn lũy kế (*);2141;2141;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;225;- Nguyên giá;212;212;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;226;- Giá trị hao mòn lũy kế (*);2142;2142;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;228;- Nguyên giá;213;213;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;229;- Giá trị hao mòn lũy kế (*);2143;2143;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;230;III. Tài sản sinh học dài hạn;215;;215;;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Mã 230 = 231 + 236 + 237 + 238 (tổng các dòng con lấy TK chi tiết 215xx). Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;231;1. Súc vật nuôi cho sản phẩm định kỳ;2151;;2151;;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Mã 231 = 232 + 233 (dòng con lấy 21511, 21512). Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;232;a) Súc vật nuôi cho sản phẩm định kỳ chưa đến giai đoạn trưởng thành;21511;21511;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;234;- Nguyên giá;21512;215121;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;235;- Giá trị khấu hao lũy kế (*);21512;215122;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;236;2. Súc vật nuôi lấy sản phẩm một lần dài hạn;2152;2152;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;237;3. Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần dài hạn;2153;2153;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;238;4. Dự phòng tổn thất tài sản sinh học dài hạn (*);2295;2295;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;241;- Nguyên giá;217;217;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;242;- Giá trị hao mòn lũy kế (*);2147;2147;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;251;1. Chi phí sản xuất, kinh doanh dở dang dài hạn;154 2294;154 2294;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;252;2. Chi phí xây dựng cơ bản dở dang;241;241;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;261;1. Đầu tư vào công ty con;221;221;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;262;2. Đầu tư vào công ty liên doanh, liên kết;222;222;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;263;3. Đầu tư góp vốn vào đơn vị khác;2281;2281;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;264;4. Dự phòng tổn thất đầu tư vào đơn vị khác dài hạn (*);2292;2292;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;265;5. Đầu tư nắm giữ đến ngày đáo hạn dài hạn;1281 1282 1283 1288;128;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;266;6. Dự phòng đầu tư nắm giữ đến ngày đáo hạn dài hạn (*);2292;2292;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;271;1. Chi phí chờ phân bổ dài hạn;242;242;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;272;2. Tài sản thuế thu nhập hoãn lại;243;243;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;273;3. Thiết bị, vật tư, phụ tùng thay thế dài hạn;153 2294;153 2294;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;274;4. Tài sản dài hạn khác;2288;111 112 113 2288;;111 112 113;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Như Mã 165, phần dài hạn (nhãn HCSD + DH). Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;311;1. Phải trả người bán ngắn hạn;331;331;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;312;2. Người mua trả tiền trước ngắn hạn;131;131;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;313;3. Phải trả cổ tức, lợi nhuận;332;332;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;314;4. Thuế và các khoản phải nộp Nhà nước ngắn hạn;333;333;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;315;5. Phải trả người lao động;334;334;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;316;6. Chi phí phải trả ngắn hạn;335;335;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;317;7. Phải trả nội bộ ngắn hạn;3362 3363 3368;3362 3363 3368;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;318;8. Phải trả theo tiến độ hợp đồng xây dựng ngắn hạn;337;337;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;319;9. Doanh thu chờ phân bổ ngắn hạn;3387;3387;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;320;10. Phải trả ngắn hạn khác;138 338 344;138 338 344;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;321;11. Vay và nợ thuê tài chính ngắn hạn;341 343;341 3431;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;322;12. Dự phòng phải trả ngắn hạn;352;352;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;323;13. Quỹ khen thưởng, phúc lợi;353;353;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;324;14. Quỹ bình ổn giá;357;357;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;325;15. Giao dịch mua bán lại trái phiếu Chính phủ;171;171;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;331;1. Phải trả người bán dài hạn;331;331;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;332;2. Người mua trả tiền trước dài hạn;131;131;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;333;3. Thuế và các khoản phải nộp Nhà nước dài hạn;333;333;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;334;4. Chi phí phải trả dài hạn;335;335;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;335;5. Phải trả nội bộ về vốn kinh doanh;;3361;;3361;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Hướng dẫn: phải trả nội bộ về vốn kinh doanh (TK 3361), đơn vị trực thuộc. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;336;6. Phải trả nội bộ dài hạn;3362 3363 3368;3362 3363 3368;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;337;7. Doanh thu chờ phân bổ dài hạn;3387;3387;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;338;8. Phải trả dài hạn khác;338 344;338 344;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;339;9. Vay và nợ thuê tài chính dài hạn;341 3431;341 3431;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;340;10. Trái phiếu chuyển đổi;3432;3432;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;341;11. Cổ phiếu ưu đãi;41112;41112;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;342;12. Thuế thu nhập hoãn lại phải trả;347;347;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;343;13. Dự phòng phải trả dài hạn;352;352;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;344;14. Quỹ phát triển khoa học và công nghệ;356;356;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;411;1. Vốn góp của chủ sở hữu;1361 3361 411 4111;4111;1361 3361;;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Đoạn cắt nhầm: 1361 / 3361 thuộc Mã 213 / 335 nhắc bên cạnh. Mã 411 = dư Có 4111 (trừ cổ phiếu ưu đãi phân loại nợ). Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;411A;- Cổ phiếu phổ thông có quyền biểu quyết;41111;41111;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;411B;- Cổ phiếu ưu đãi;41112;41112;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;412;2. Thặng dư vốn;4112;4112;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;413;3. Quyền chọn chuyển đổi trái phiếu;4113;4113;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;414;4. Vốn khác của chủ sở hữu;4118;4118;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;415;5. Cổ phiếu mua lại của chính mình (*);419;419;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;416;6. Chênh lệch đánh giá lại tài sản;412;412;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;417;7. Chênh lệch tỷ giá hối đoái;413;413;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;418;8. Quỹ đầu tư phát triển;414;414;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;419;9. Quỹ khác thuộc vốn chủ sở hữu;418;418;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;420;10. Lợi nhuận sau thuế chưa phân phối;421;;421;;xem lại;Công báo 1579+1580, Phần B mục 1.4;"Mã 420 = 420a + 420b (dư Có 421 chia theo 4211 / 4212). Khớp. Đã sửa 18/11/2026: 420a cộng dư 4212 đầu kỳ cho BCTC quý theo hướng dẫn. (Claude đọc 18/11/2026; KTT xác nhận)"
+B01-DN;420A;- LNST chưa phân phối lũy kế đến cuối kỳ trước;4211 4212;4211 4212;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B01-DN;420B;- LNST chưa phân phối kỳ này;4212;4212;;;khớp;Công báo 1579+1580, Phần B mục 1.4;Khớp (máy)
+B02-DN;01;1. Doanh thu bán hàng và cung cấp dịch vụ;511;511;;;khớp;Công báo 1579–1582, Phần C mục 3;Khớp (máy)
+B02-DN;02;2. Các khoản giảm trừ doanh thu;511 521;521;511;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn: phát sinh Nợ 511 đối ứng Có 521; HAK lấy phát sinh thuần 521 — cùng số. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;11;4. Giá vốn hàng bán;632 911;632;911;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 khi kết chuyển; HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;21;6. Lãi/lỗ của hoạt động bán, thanh lý bất động sản đầu tư;511 632 911;511 632;911;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 khi kết chuyển; HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;22;7. Doanh thu hoạt động tài chính;515 911;515 635;911;635;xem lại;Công báo 1579–1582, Phần C mục 3;"Có thêm 635 nhãn DGL để trình bày lãi thuần chênh lệch tỷ giá đánh giá lại, đúng đoạn 'Riêng trường hợp…' của hướng dẫn. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;23;8. Chi phí tài chính;635 911;515 635;911;515;xem lại;Công báo 1579–1582, Phần C mục 3;"Có thêm 515 nhãn DGL để trình bày lỗ thuần đánh giá lại tỷ giá, đúng hướng dẫn. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;24;- Trong đó: Chi phí đi vay;635;635;;;khớp;Công báo 1579–1582, Phần C mục 3;Khớp (máy)
+B02-DN;25;9. Chi phí bán hàng;641 911;641;911;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 khi kết chuyển; HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;26;10. Chi phí quản lý doanh nghiệp;642 911;642;911;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 khi kết chuyển; HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;31;12. Thu nhập khác;711 911;711 811;911;811;xem lại;Công báo 1579–1582, Phần C mục 3;"Có thêm 811 nhãn TLTS: thanh lý TSCĐ trình bày phần chênh lệch thuần, đúng đoạn 'Riêng đối với giao dịch thanh lý…'. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;32;13. Chi phí khác;811 911;711 811;911;711;xem lại;Công báo 1579–1582, Phần C mục 3;"Có thêm 711 nhãn TLTS, như Mã 31. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;51;16. Chi phí thuế TNDN hiện hành;8211 911;8211;911;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 khi kết chuyển; HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B02-DN;52;17. Chi phí thuế TNDN hoãn lại;8212 911;8212;911;;xem lại;Công báo 1579–1582, Phần C mục 3;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 khi kết chuyển; HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;01;1. Lợi nhuận trước thuế;;511 515 521 632 635 641 642 711 811;;511 515 521 632 635 641 642 711 811;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Mã 01 = Mã 50 B02-DN; HAK tính lại từ các TK doanh thu, chi phí như B02. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;02;- Khấu hao TSCĐ và BĐSĐT;;242 6234 6274 6414 6424;;242 6234 6274 6414 6424;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Hướng dẫn nêu khấu hao TSCĐ, BĐSĐT, phân bổ… không ghi số TK; HAK lấy TK chi phí khấu hao 6234, 6274, 6414, 6424 (+ nhãn KH) và phân bổ 242 nhãn DT. Khớp nội dung. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;03;- Các khoản dự phòng;;229 352;;229 352;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Hướng dẫn nêu các khoản dự phòng; HAK lấy biến động 229, 352. Khớp nội dung. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;04;- Lãi, lỗ chênh lệch tỷ giá hối đoái do đánh giá lại các khoản mục tiền tệ có gốc ngoại tệ;515 635 911;515 635;911;;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Hướng dẫn mô tả số liệu là phát sinh đối ứng TK 911 (515/635 nhãn DGL); HAK lấy phát sinh thuần trong kỳ không tính chứng từ kết chuyển (CLS) — cùng số khi kết chuyển lập bằng chức năng Kết chuyển. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;05;- Lãi, lỗ từ hoạt động đầu tư, tài chính;511 515 632 635 711 811;511 515 632 635 711 811;;;khớp;Công báo 1581+1582, Phần D mục 4.1.2;Khớp (máy)
+B03-DN-gian-tiep;06;- Chi phí đi vay;635;635;;;khớp;Công báo 1581+1582, Phần D mục 4.1.2;Khớp (máy)
+B03-DN-gian-tiep;07;- Các khoản điều chỉnh khác;356 357;353 356 357;;353;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Hướng dẫn: các khoản điều chỉnh khác (trích lập / hoàn nhập quỹ); HAK lấy 353, 356, 357 đối ứng chi phí / thu nhập. Khớp nội dung. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;09;- Tăng, giảm các khoản phải thu;131 133 136 138 141 244 331;131 133 136 138 141 244 331;;;khớp;Công báo 1581+1582, Phần D mục 4.1.2;Khớp (máy)
+B03-DN-gian-tiep;11;- Tăng, giảm các khoản phải trả (Không kể lãi vay phải trả, thuế thu nhập doanh nghiệp phải nộp);131 331 333 3334 334 335 336 337 338 344;131 331 333 334 335 336 337 338 344;;;khớp;Công báo 1581+1582, Phần D mục 4.1.2;Khớp (máy)
+B03-DN-gian-tiep;12;- Tăng, giảm chi phí chờ phân bổ;242;242;;;khớp;Công báo 1581+1582, Phần D mục 4.1.2;Khớp (máy)
+B03-DN-gian-tiep;13;- Tăng, giảm chứng khoán kinh doanh;121;121;;;khớp;Công báo 1581+1582, Phần D mục 4.1.2;Khớp (máy)
+B03-DN-gian-tiep;14;- Chi phí đi vay đã trả;111 112 113 335 341 635;;111 112 113 335 341 635;;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"HAK lấy luồng tiền mã 04 (tiền trả lãi vay theo TK đối ứng nhãn LV) — chính là chi tiền 111/112/113 trả lãi 335/635 mà hướng dẫn nêu. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;15;- Thuế thu nhập doanh nghiệp đã nộp;111 112 113 3334;;111 112 113 3334;;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"HAK lấy luồng tiền mã 05 (tiền nộp thuế TNDN, đối ứng 3334). Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;16;- Tiền thu khác từ hoạt động kinh doanh;111 112 113;111 112 113 1281 1288 353 356 357;;1281 1288 353 356 357;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Hướng dẫn: căn cứ sổ 111, 112, 113 đối chiếu TK liên quan (quỹ); HAK lấy tiền (gồm tương đương tiền) đối ứng 353, 356, 357. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;17;- Tiền chi khác cho hoạt động kinh doanh;111 112 113;111 112 113 1281 1288 334 338 353 356 357;;1281 1288 334 338 353 356 357;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Như Mã 16, chi quỹ (kể cả chuyển sang 334, 338). Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"
+B03-DN-gian-tiep;60;Tiền và tương đương tiền đầu kỳ;;111 112 113 1281 1288;;111 112 113 1281 1288;xem lại;Công báo 1581+1582, Phần D mục 4.1.2;"Tiền và tương đương tiền đầu kỳ: 111–113 và 1281 / 1288 nhãn TDT. Khớp. (Claude đọc 18/11/2026; KTT xác nhận)"

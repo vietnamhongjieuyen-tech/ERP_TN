@@ -991,18 +991,18 @@
   {
    "code": "420A",
    "name": "- LNST chưa phân phối lũy kế đến cuối kỳ trước",
-   "formula": "-BAL_NET(4211*)",
+   "formula": "-BAL_NET(4211*) - OPEN_NET(4212*)",
    "indent": 2,
    "bold": false,
-   "note": "BCTC năm: dư Có 4211"
+   "note": "Dư Có 4211 cuối kỳ + dư Có 4212 đầu kỳ báo cáo (lợi nhuận năm nay lũy kế đến đầu kỳ — BCTC quý); BCTC năm: 4212 đầu năm bằng 0 sau khi kết chuyển sang 4211, nên chỉ còn dư Có 4211. Dư Nợ ghi âm"
   },
   {
    "code": "420B",
    "name": "- LNST chưa phân phối kỳ này",
-   "formula": "-BAL_NET(4212*)",
+   "formula": "-BAL_NET(4212*) + OPEN_NET(4212*)",
    "indent": 2,
    "bold": false,
-   "note": "BCTC năm: dư Có 4212"
+   "note": "Lợi nhuận sau thuế kỳ này: dư Có 4212 cuối kỳ trừ dư Có đầu kỳ báo cáo (BCTC năm: dư Có 4212). Dư Nợ ghi âm"
   },
   {
    "code": "440",

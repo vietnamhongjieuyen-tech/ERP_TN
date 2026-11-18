@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { get, session, type Account } from './api'
 import { AccountSelect, ErrorBox, Modal, PrintSheet, printSheet, useAction } from './common'
-import { addMoney, amountInWords, formatMoney, today } from './money'
+import { addMoney, formatMoney, today } from './money'
+import { FORM_FOOT, FormHeader } from './forms'
 
-// Biên bản kiểm kê quỹ tiền mặt: count of notes by denomination against the book balance of a cash account on a date.
-// The paper layout is the program's own [mẫu nội bộ — doanh nghiệp tự đối chiếu với mẫu đang áp dụng]; nothing is posted:
+// Bảng kiểm kê quỹ (dùng cho VNĐ), Mẫu số 08a-TT Phụ lục I TT 99/2025: count of notes by denomination against the book balance of a
+// cash account on a date. Chênh lệch III = I − II (sổ − thực tế): dương là thiếu quỹ, âm là thừa. Nothing is posted:
 // a difference is handled by a voucher the accountant makes after the cause is found.
 
 export const DENOMINATIONS = ['500000', '200000', '100000', '50000', '20000', '10000', '5000', '2000', '1000', '500', '200']
@@ -40,12 +41,12 @@ export function CashCountDialog({ accounts, onClose }: { accounts: Account[]; on
 
   const counted = countedTotal(counts)
   const book = ledger?.closingBalance ?? '0'
-  const diff = addMoney([counted, book.startsWith('-') ? book.slice(1) : '-' + book])   // counted − book
+  const diff = addMoney([book, '-' + counted])   // III = I − II: book − counted (positive: cash short)
   const badCount = DENOMINATIONS.some(x => counts[x] && !/^\d+$/.test(counts[x]))
 
   return (
-    <Modal title="Biên bản kiểm kê quỹ tiền mặt" onClose={onClose}
-      footer={<><button onClick={onClose}>Đóng</button><button className="primary" disabled={!ledger || badCount} onClick={printSheet}>In biên bản</button></>}>
+    <Modal title="Bảng kiểm kê quỹ (dùng cho VNĐ)" onClose={onClose}
+      footer={<><button onClick={onClose}>Đóng</button><button className="primary" disabled={!ledger || badCount} onClick={printSheet}>In bảng kiểm kê</button></>}>
       <ErrorBox error={error} />
       <div className="form-row">
         <label>Quỹ<AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} filter={a => a.cashKind === 'Cash'} /></label>
@@ -63,13 +64,13 @@ export function CashCountDialog({ accounts, onClose }: { accounts: Account[]; on
         <tfoot>
           <tr><td colSpan={2}><b>Số kiểm kê thực tế</b></td><td className="num"><b>{formatMoney(counted)}</b></td></tr>
           <tr><td colSpan={2}>Số dư theo sổ{ledger ? ` (TK ${ledger.accountCode})` : ''}</td><td className="num">{ledger ? formatMoney(book) : '…'}</td></tr>
-          <tr><td colSpan={2}><b>Chênh lệch (thực tế − sổ)</b></td><td className="num"><b>{ledger ? formatMoney(diff) : ''}</b></td></tr>
+          <tr><td colSpan={2}><b>Chênh lệch (sổ − thực tế){ledger && diff !== '0' ? (diff.startsWith('-') ? ' — thừa quỹ' : ' — thiếu quỹ') : ''}</b></td><td className="num"><b>{ledger ? formatMoney(diff) : ''}</b></td></tr>
         </tfoot>
       </table>
       {badCount && <div className="field-warn">Số tờ phải là số nguyên không âm.</div>}
       <label>Thành viên ban kiểm kê (mỗi người một dòng: họ tên – chức vụ)<textarea rows={3} value={members} onChange={e => setMembers(e.target.value)} /></label>
       {ledger && diff !== '0' && <label>Lý do chênh lệch / kiến nghị<textarea rows={2} value={reason} onChange={e => setReason(e.target.value)} /></label>}
-      <p className="muted">Biên bản chỉ in, không ghi sổ. Chênh lệch thừa / thiếu xử lý bằng chứng từ riêng sau khi xác định nguyên nhân. Số dư theo sổ gồm các chứng từ đã ghi sổ đến hết ngày kiểm kê.</p>
+      <p className="muted">Theo Mẫu số 08a-TT (Phụ lục I TT 99/2025). Chỉ in, không ghi sổ. Chênh lệch thừa / thiếu xử lý bằng chứng từ riêng sau khi xác định nguyên nhân. Số dư theo sổ gồm các chứng từ đã ghi sổ đến hết ngày kiểm kê.</p>
       {ledger && <CashCountPrint company={company} ledger={ledger} date={date} counts={counts} counted={counted} diff={diff}
         members={members.split('\n').map(s => s.trim()).filter(Boolean)} reason={reason} />}
     </Modal>
@@ -82,31 +83,32 @@ function CashCountPrint({ company, ledger, date, counts, counted, diff, members,
   const abs = diff.startsWith('-') ? diff.slice(1) : diff
   return (
     <PrintSheet>
-      <div><b>{company?.name ?? ''}</b>{company?.taxCode ? <><br />MST: {company.taxCode}</> : null}</div>
-      <h1>BIÊN BẢN KIỂM KÊ QUỸ</h1>
-      <div className="center">(Dùng cho đồng Việt Nam) — Số: ..........</div>
-      <p>Hôm nay, vào ..... giờ ..... ngày {d(date)}, chúng tôi gồm:</p>
+      <FormHeader company={company?.name ?? ''} second={<>Bộ phận: ................</>} formNo="08a - TT" />
+      <h1>BẢNG KIỂM KÊ QUỸ</h1>
+      <div className="center">(Dùng cho VNĐ)<br />Số: ..........</div>
+      <p>Hôm nay, vào ..... giờ ..... ngày {d(date).split('/')[0]} tháng {d(date).split('/')[1]} năm {d(date).split('/')[2]}</p>
+      <p>Chúng tôi gồm:</p>
       {members.length > 0
         ? <ul>{members.map((m, i) => <li key={i}>{m}</li>)}</ul>
         : <p>– Ông/Bà: ........................................ đại diện kế toán<br />– Ông/Bà: ........................................ đại diện thủ quỹ<br />– Ông/Bà: ........................................ đại diện ..........</p>}
-      <p>Cùng tiến hành kiểm kê quỹ tiền mặt (TK {ledger.accountCode} – {ledger.accountName}), kết quả như sau:</p>
+      <p>Cùng tiến hành kiểm kê quỹ tiền mặt (TK {ledger.accountCode} – {ledger.accountName}) kết quả như sau:</p>
       <table>
-        <thead><tr><th>STT</th><th>Diễn giải</th><th>Số lượng (tờ)</th><th>Số tiền</th></tr></thead>
+        <thead><tr><th>STT</th><th>Diễn giải</th><th>Số lượng (tờ)</th><th>Số tiền</th></tr><tr className="center"><td>A</td><td>B</td><td>1</td><td>2</td></tr></thead>
         <tbody>
-          <tr><td>I</td><td>Số dư theo sổ quỹ</td><td /><td className="num">{formatMoney(ledger.closingBalance)}</td></tr>
-          <tr><td>II</td><td>Số kiểm kê thực tế</td><td /><td className="num">{formatMoney(counted)}</td></tr>
+          <tr><td>I</td><td>Số dư theo sổ quỹ:</td><td className="center">x</td><td className="num">{formatMoney(ledger.closingBalance)}</td></tr>
+          <tr><td>II</td><td>Số kiểm kê thực tế:</td><td className="center">x</td><td className="num">{formatMoney(counted)}</td></tr>
           {DENOMINATIONS.filter(x => counts[x] && counts[x] !== '0').map((x, i) => (
-            <tr key={x}><td>{i + 1}</td><td>Loại {formatMoney(x)}</td><td className="num">{formatMoney(counts[x])}</td><td className="num">{formatMoney((BigInt(x) * BigInt(counts[x])).toString())}</td></tr>))}
-          <tr><td>III</td><td>Chênh lệch (II − I)</td><td /><td className="num"><b>{formatMoney(diff)}</b></td></tr>
+            <tr key={x}><td>{i + 1}</td><td>{i === 0 ? 'Trong đó: - Loại ' : '- Loại '}{formatMoney(x)}</td><td className="num">{formatMoney(counts[x])}</td><td className="num">{formatMoney((BigInt(x) * BigInt(counts[x])).toString())}</td></tr>))}
+          <tr><td>III</td><td>Chênh lệch (III = I – II):</td><td className="center">x</td><td className="num"><b>{formatMoney(diff)}</b></td></tr>
         </tbody>
       </table>
-      <p>Số kiểm kê thực tế bằng chữ: <i>{amountInWords(counted)}</i></p>
-      <p>– Lý do: {diff === '0' ? 'không có chênh lệch.' : `${diff.startsWith('-') ? 'thiếu' : 'thừa'} quỹ ${formatMoney(abs)} — ${reason || '..................................................................'}`}</p>
-      <p>– Kết luận sau khi kiểm kê quỹ: ................................................................................</p>
+      <p>- Lý do: + Thừa: {diff.startsWith('-') ? `${formatMoney(abs)} — ${reason || '..............................'}` : '..............................................'}<br />
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ Thiếu: {diff !== '0' && !diff.startsWith('-') ? `${formatMoney(abs)} — ${reason || '..............................'}` : '..............................................'}</p>
+      <p>- Kết luận sau khi kiểm kê quỹ: ................................................................................</p>
       <div className="signs" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <div><b>KẾ TOÁN TRƯỞNG</b><br /><i>(Ký, họ tên)</i></div><div><b>THỦ QUỸ</b><br /><i>(Ký, họ tên)</i></div><div><b>NGƯỜI CHỊU TRÁCH NHIỆM KIỂM KÊ QUỸ</b><br /><i>(Ký, họ tên)</i></div>
+        <div><b>Kế toán trưởng</b><br /><i>(Ký, họ tên)</i></div><div><b>Thủ quỹ</b><br /><i>(Ký, họ tên)</i></div><div><b>Người chịu trách nhiệm kiểm kê quỹ</b><br /><i>(Ký, họ tên)</i></div>
       </div>
-      <div className="foot">Mẫu in nội bộ HAK Accounting — doanh nghiệp tự đối chiếu với mẫu biểu đang áp dụng. In lúc {new Date().toLocaleString('vi-VN')}.</div>
+      <div className="foot">{FORM_FOOT} In lúc {new Date().toLocaleString('vi-VN')}.</div>
     </PrintSheet>
   )
 }

@@ -132,8 +132,8 @@ B01 = {
  "417": ("-BAL_NET(413*)", "Dư Có 413; dư Nợ ghi âm"),
  "418": ("BAL_C(414*)", "Dư Có 414"), "419": ("BAL_C(418*)", "Dư Có 418"),
  "420": ("LINE(420A) + LINE(420B)", "Dư Có 421; dư Nợ ghi âm"),
- "420A": ("-BAL_NET(4211*)", "BCTC năm: dư Có 4211"),
- "420B": ("-BAL_NET(4212*)", "BCTC năm: dư Có 4212"),
+ "420A": ("-BAL_NET(4211*) - OPEN_NET(4212*)", "Dư Có 4211 cuối kỳ + dư Có 4212 đầu kỳ báo cáo (lợi nhuận năm nay lũy kế đến đầu kỳ — BCTC quý); BCTC năm: 4212 đầu năm bằng 0 sau khi kết chuyển sang 4211, nên chỉ còn dư Có 4211. Dư Nợ ghi âm"),
+ "420B": ("-BAL_NET(4212*) + OPEN_NET(4212*)", "Lợi nhuận sau thuế kỳ này: dư Có 4212 cuối kỳ trừ dư Có đầu kỳ báo cáo (BCTC năm: dư Có 4212). Dư Nợ ghi âm"),
  "440": ("LINE(300) + LINE(400)", "B.1.4.h"),
 }
 SUB = {"411A", "411B", "420A", "420B", "222", "223", "225", "226", "228", "229", "232", "233", "234", "235", "241", "242"}
@@ -217,6 +217,11 @@ print("B03-DN", len(b03["lines"]), "dòng")
 # FXR() adds back the exchange-rate revaluation booked on them (non-cash, already removed with Mã 04).
 REC = "131*[!DT], 133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT]"
 PAY = "331*[!DT], 333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT]"
+# 131 / 331 are split by the side of each partner's balance (Mã 09 takes debit balances, Mã 11 credit balances), as the guide lists
+# 331 prepayments under receivables and 131 customer advances under payables; the sum 09 + 11 equals the net change.
+PARTY = "131*[!DT], 331*[!DT]"
+REC_OTHER = "133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT]"
+PAY_OTHER = "333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT]"
 FUNDS = "353*, 356*, 357*"
 B03I = {c: B03[c] for c in ["21", "22", "23", "24", "25", "26", "27", "30", "31", "32", "33", "34", "35", "36", "40", "50", "60", "61", "70"]}
 B03I.update({
@@ -230,11 +235,11 @@ B03I.update({
  "06": ("NET_D(635*[LV])", "Chi phí đi vay ghi nhận trong kỳ (635 nhãn LV) — khớp Mã 24 B02-DN"),
  "07": (f"MOV_C({FUNDS} ; 6*, 8*) - MOV_D({FUNDS} ; 5*, 6*, 7*)", "Trích lập (dương) / hoàn nhập (âm) Quỹ phát triển KH&CN (356), Quỹ bình ổn giá (357) vào kết quả kinh doanh"),
  "08": ("LINE(01) + LINE(02) + LINE(03) + LINE(04) + LINE(05) + LINE(06) + LINE(07)", ""),
- "09": (f"OPEN_NET({REC}) - BAL_NET({REC}) + FXR({REC})",
-        "Chênh lệch đầu kỳ – cuối kỳ các khoản phải thu hoạt động kinh doanh (131, 133, 136, 138, 141, 244; trừ TK chi tiết nhãn DT — phải thu đầu tư), không kể đánh giá lại tỷ giá"),
+ "09": (f"OPEN_NET({REC_OTHER}) - BAL_NET({REC_OTHER}) + OPEN_GROSS_D({PARTY}) - GROSS_D({PARTY}) + FXR({REC})",
+        "Chênh lệch đầu kỳ – cuối kỳ các khoản phải thu hoạt động kinh doanh: 133, 136, 138, 141, 244 và số dư Nợ theo từng đối tượng của 131 (phải thu khách hàng) và 331 (trả trước cho người bán, gồm thuế GTGT đầu vào) — Phần D mục 4.1.2 Mã số 09; trừ TK chi tiết nhãn DT (phải thu đầu tư); không kể đánh giá lại tỷ giá"),
  "10": ("OPEN_NET(15*) - BAL_NET(15*)", "Chênh lệch đầu kỳ – cuối kỳ hàng tồn kho (151–158, không gồm dự phòng 2294)"),
- "11": (f"OPEN_NET({PAY}) - BAL_NET({PAY}) + FXR({PAY})",
-        "Chênh lệch cuối kỳ – đầu kỳ các khoản phải trả hoạt động kinh doanh (331, 333 trừ 3334, 334, 335 trừ lãi vay nhãn LV, 336, 337, 338, 344; trừ TK chi tiết nhãn DT — phải trả đầu tư, tài chính), không kể đánh giá lại tỷ giá"),
+ "11": (f"OPEN_NET({PAY_OTHER}) - BAL_NET({PAY_OTHER}) + GROSS_C({PARTY}) - OPEN_GROSS_C({PARTY}) + FXR({PAY})",
+        "Chênh lệch cuối kỳ – đầu kỳ các khoản phải trả hoạt động kinh doanh: 333 trừ 3334, 334, 335 trừ lãi vay nhãn LV, 336, 337, 338, 344 và số dư Có theo từng đối tượng của 331 (phải trả người bán) và 131 (người mua trả tiền trước) — Phần D mục 4.1.2 Mã số 11; trừ TK chi tiết nhãn DT (phải trả đầu tư, tài chính); không kể đánh giá lại tỷ giá"),
  "12": ("OPEN_NET(242*[!DT]) - BAL_NET(242*[!DT])", "Chênh lệch đầu kỳ – cuối kỳ chi phí chờ phân bổ 242 (trừ tiền thuê đất trả một lần — nhãn DT)"),
  "13": ("OPEN_NET(121*) - BAL_NET(121*)", "Chênh lệch đầu kỳ – cuối kỳ chứng khoán kinh doanh 121"),
  "14": ("CF(04)", "Tiền chi trả chi phí đi vay (luồng tiền mã 04: TK đối ứng nhãn LV hoặc mã chọn tay)"),

@@ -3,6 +3,7 @@ import { askDate, askText } from './dialogs'
 import { get, post, saveOnce, session, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog, useRequestKey } from './common'
 import { useUnsaved } from './leave'
+import { FORM_FOOT, FormHeader } from './forms'
 import { addMoney, amountInWords, divideMoney, formatMoney, parseMoney, today } from './money'
 import type { Order } from './Orders'
 import { useAnalysisOptions } from './Analysis'
@@ -65,7 +66,7 @@ function StockDocs() {
   const codeOptions = useAnalysisOptions()
   const [printing, setPrinting] = useState<StockDoc | null>(null)
   const [company, setCompany] = useState('')
-  const [address, setAddress] = useState('')
+  const [, setAddress] = useState('')   // phiếu kho 01-VT / 02-VT ghi Bộ phận, không ghi địa chỉ
   useEffect(() => { get<{ id: string; name: string; address?: string | null }[]>('/me/companies').then(cs => { const c = cs.find(x => x.id === session.companyId); setCompany(c?.name ?? ''); setAddress(c?.address ?? '') }).catch(() => undefined) }, [])
   useEffect(() => { if (printing) { printSheet(); setPrinting(null) } }, [printing])   // print once the sheet of the chosen document is rendered
   const [orders, setOrders] = useState<Order[]>([])
@@ -150,28 +151,43 @@ function StockDocs() {
         const whName = (id: string | null) => { const w = warehouses.find(x => x.id === id); return w ? `${w.code} – ${w.name}` : '' }
         return (
           <PrintSheet>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><div><b>{company}</b><br />Địa chỉ: {address || '..............................................'}</div><div>Số: <b>{d.number}</b></div></div>
-            <h1>{receipt ? 'PHIẾU NHẬP KHO' : d.type === 'Issue' ? 'PHIẾU XUẤT KHO' : 'PHIẾU ĐIỀU CHUYỂN KHO'}</h1>
-            <div className="center"><i>Ngày {day} tháng {m} năm {y}</i></div>
-            {d.status !== 'Posted' && <div className="center" style={{ marginTop: 6 }}><span className="stamp">{(STATUS_VI[d.status] ?? d.status).toUpperCase()} — CHƯA GHI SỔ</span></div>}
-            <p>Họ và tên người {receipt ? 'giao' : 'nhận'} hàng: ..............................................................<br />
-              Lý do {receipt ? 'nhập' : 'xuất'}: {d.description}<br />
-              {receipt ? 'Nhập tại kho' : 'Xuất tại kho'}: {whName(d.warehouseId)}{d.toWarehouseId ? ` — chuyển đến kho: ${whName(d.toWarehouseId)}` : ''}</p>
-            <table>
-              <thead><tr><th>STT</th><th>Tên vật tư, hàng hóa</th><th>Mã</th><th>ĐVT</th><th>Số lượng</th>{receipt && <th>Đơn giá</th>}{receipt && <th>Thành tiền</th>}</tr></thead>
-              <tbody>{d.lines.map(l => { const x = it(l.itemId); return (
-                <tr key={l.lineNo}><td className="center">{l.lineNo}</td><td>{x?.name}</td><td>{x?.code}</td><td>{x?.unit}</td><td className="num">{formatMoney(l.quantity)}</td>
-                  {receipt && <td className="num">{l.amount ? formatMoney(divideMoney(l.amount, l.quantity) ?? '') : ''}</td>}{receipt && <td className="num">{l.amount ? formatMoney(l.amount) : ''}</td>}</tr>) })}</tbody>
-              {receipt && <tfoot><tr><td colSpan={6}><b>Cộng</b></td><td className="num"><b>{formatMoney(total)}</b></td></tr></tfoot>}
-            </table>
-            {receipt && <p>Tổng số tiền (viết bằng chữ): <i>{amountInWords(total)}</i></p>}
-            {!receipt && <p className="center"><i>Giá xuất kho được tính theo phương pháp của kho và ghi trên sổ kho.</i></p>}
-            <p>Số chứng từ gốc kèm theo: ............</p>
-            <div className="signs" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-              <div><b>Người lập phiếu</b><br /><i>(Ký, họ tên)</i></div><div><b>Người {receipt ? 'giao' : 'nhận'} hàng</b><br /><i>(Ký, họ tên)</i></div>
-              <div><b>Thủ kho</b><br /><i>(Ký, họ tên)</i></div><div><b>Kế toán trưởng</b><br /><i>(Ký, họ tên)</i></div>
+            {/* Mẫu số 01-VT (phiếu nhập kho) / 02-VT (phiếu xuất kho), Phụ lục I TT 99/2025. A transfer prints on the issue layout. */}
+            <FormHeader company={company} second={<>Bộ phận: ................</>} formNo={receipt ? '01 - VT' : '02 - VT'} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'end', marginTop: 8 }}>
+              <span />
+              <div className="center"><h1 style={{ margin: 0 }}>{receipt ? 'PHIẾU NHẬP KHO' : d.type === 'Issue' ? 'PHIẾU XUẤT KHO' : 'PHIẾU XUẤT KHO (ĐIỀU CHUYỂN)'}</h1><i>Ngày {day} tháng {m} năm {y}</i></div>
+              <div style={{ justifySelf: 'end' }}>Số: <b>{d.number}</b><br />Nợ: ..........<br />Có: ..........</div>
             </div>
-            <div className="foot">Mẫu in của HAK Accounting, doanh nghiệp tự thiết kế — kế toán trưởng xem lại nội dung trước khi dùng chính thức [CẦN XÁC MINH].</div>
+            {d.status !== 'Posted' && <div className="center" style={{ marginTop: 6 }}><span className="stamp">{(STATUS_VI[d.status] ?? d.status).toUpperCase()} — CHƯA GHI SỔ</span></div>}
+            {receipt
+              ? <p>- Họ và tên người giao: ..............................................................<br />
+                - Theo ............ số ........... ngày ..... tháng ..... năm ..... của ........................ ({d.description})<br />
+                Nhập tại kho: {whName(d.warehouseId)} &nbsp; địa điểm ..........................</p>
+              : <p>- Họ và tên người nhận hàng: .................................... Địa chỉ (bộ phận) .................<br />
+                - Lý do xuất kho: {d.description}<br />
+                - Xuất tại kho (ngăn lô): {whName(d.warehouseId)}{d.toWarehouseId ? ` — chuyển đến kho: ${whName(d.toWarehouseId)}` : ''} &nbsp; Địa điểm ..........................</p>}
+            <table>
+              <thead>
+                <tr><th rowSpan={2}>STT</th><th rowSpan={2}>Tên, nhãn hiệu, quy cách, phẩm chất vật tư, dụng cụ, sản phẩm, hàng hóa</th><th rowSpan={2}>Mã số</th><th rowSpan={2}>Đơn vị tính</th>
+                  <th colSpan={2}>Số lượng</th><th rowSpan={2}>Đơn giá</th><th rowSpan={2}>Thành tiền</th></tr>
+                <tr>{receipt ? <><th>Theo chứng từ</th><th>Thực nhập</th></> : <><th>Yêu cầu</th><th>Thực xuất</th></>}</tr>
+                <tr className="center"><td>A</td><td>B</td><td>C</td><td>D</td><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+              </thead>
+              <tbody>{d.lines.map(l => { const x = it(l.itemId); return (
+                <tr key={l.lineNo}><td className="center">{l.lineNo}</td><td>{x?.name}</td><td>{x?.code}</td><td>{x?.unit}</td><td />{/* theo chứng từ / yêu cầu: ghi tay */}<td className="num">{formatMoney(l.quantity)}</td>
+                  <td className="num">{l.amount ? formatMoney(divideMoney(l.amount, l.quantity) ?? '') : ''}</td><td className="num">{l.amount ? formatMoney(l.amount) : ''}</td></tr>) })}</tbody>
+              <tfoot><tr><td colSpan={2}><b>Cộng</b></td><td className="center">x</td><td className="center">x</td><td className="center">x</td><td className="center">x</td><td className="center">x</td><td className="num"><b>{total !== '0' ? formatMoney(total) : ''}</b></td></tr></tfoot>
+            </table>
+            <p>- Tổng số tiền (viết bằng chữ): {total !== '0' ? <i>{amountInWords(total)}</i> : '..............................................................................'}<br />
+              - Số chứng từ gốc kèm theo: .................................................................................</p>
+            {!receipt && total === '0' && <p className="center"><i>Đơn giá, thành tiền xuất kho ghi sau khi tính giá xuất kho theo phương pháp của kho.</i></p>}
+            <div className="right"><i>Ngày {day} tháng {m} năm {y}</i></div>
+            <div className="signs" style={{ gridTemplateColumns: receipt ? 'repeat(4, 1fr)' : 'repeat(5, 1fr)' }}>
+              <div><b>Người lập phiếu</b><br /><i>(Ký, họ tên)</i></div><div><b>Người {receipt ? 'giao' : 'nhận'} hàng</b><br /><i>(Ký, họ tên)</i></div>
+              <div><b>Thủ kho</b><br /><i>(Ký, họ tên)</i></div><div><b>Kế toán trưởng</b><br /><i>(Hoặc bộ phận có nhu cầu nhập)<br />(Ký, họ tên)</i></div>
+              {!receipt && <div><b>Giám đốc</b><br /><i>(Ký, họ tên)</i></div>}
+            </div>
+            <div className="foot">{FORM_FOOT}</div>
           </PrintSheet>
         )
       })()}

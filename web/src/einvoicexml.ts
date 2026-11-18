@@ -52,6 +52,9 @@ export function parseEInvoiceXml(xml: string, ownTaxCode: string | null): EInvoi
   const sellerTax = text(seller, 'MST'), number = text(general, 'SHDon'), issue = (text(general, 'NLap') ?? '').slice(0, 10)
   const series = (text(general, 'KHMSHDon') ?? '') + (text(general, 'KHHDon') ?? '')
   if (!sellerTax || !number || !series || !/^\d{4}-\d{2}-\d{2}$/.test(issue)) throw new Error('thiếu MST người bán, ký hiệu, số hoặc ngày lập')
+  // Ký hiệu mẫu 6 (TT 91/2026/TT-BTC Phụ lục I; trước đó TT 78/2021): phiếu xuất kho kiêm vận chuyển nội bộ / hàng gửi bán đại lý —
+  // a stock movement document, not a sale or purchase: it does not belong in the VAT invoice list.
+  if (series.startsWith('6')) throw new Error(`ký hiệu ${series} (mẫu 6) là phiếu xuất kho kiêm vận chuyển nội bộ / gửi bán đại lý, không phải hóa đơn mua bán — không đưa vào bảng kê thuế GTGT`)
 
   // VAT by rate: the summary table when present, otherwise the goods lines grouped by rate.
   const byRate = new Map<string, EInvoiceRate>()

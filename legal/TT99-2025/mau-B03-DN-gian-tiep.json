@@ -87,10 +87,10 @@
   {
    "code": "09",
    "name": "- Tăng, giảm các khoản phải thu",
-   "formula": "OPEN_NET(131*[!DT], 133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT]) - BAL_NET(131*[!DT], 133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT]) + FXR(131*[!DT], 133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT])",
+   "formula": "OPEN_NET(133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT]) - BAL_NET(133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT]) + OPEN_GROSS_D(131*[!DT], 331*[!DT]) - GROSS_D(131*[!DT], 331*[!DT]) + FXR(131*[!DT], 133*, 136*[!DT], 138*[!DT], 141*, 244*[!DT])",
    "indent": 1,
    "bold": false,
-   "note": "Chênh lệch đầu kỳ – cuối kỳ các khoản phải thu hoạt động kinh doanh (131, 133, 136, 138, 141, 244; trừ TK chi tiết nhãn DT — phải thu đầu tư), không kể đánh giá lại tỷ giá"
+   "note": "Chênh lệch đầu kỳ – cuối kỳ các khoản phải thu hoạt động kinh doanh: 133, 136, 138, 141, 244 và số dư Nợ theo từng đối tượng của 131 (phải thu khách hàng) và 331 (trả trước cho người bán, gồm thuế GTGT đầu vào) — Phần D mục 4.1.2 Mã số 09; trừ TK chi tiết nhãn DT (phải thu đầu tư); không kể đánh giá lại tỷ giá"
   },
   {
    "code": "10",
@@ -103,10 +103,10 @@
   {
    "code": "11",
    "name": "- Tăng, giảm các khoản phải trả (Không kể lãi vay phải trả, thuế thu nhập doanh nghiệp phải nộp)",
-   "formula": "OPEN_NET(331*[!DT], 333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT]) - BAL_NET(331*[!DT], 333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT]) + FXR(331*[!DT], 333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT])",
+   "formula": "OPEN_NET(333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT]) - BAL_NET(333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT]) + GROSS_C(131*[!DT], 331*[!DT]) - OPEN_GROSS_C(131*[!DT], 331*[!DT]) + FXR(331*[!DT], 333*, !3334*, 334*, 335*[!LV,!DT], 336*[!DT], 337*, 338*[!DT], 344*[!DT])",
    "indent": 1,
    "bold": false,
-   "note": "Chênh lệch cuối kỳ – đầu kỳ các khoản phải trả hoạt động kinh doanh (331, 333 trừ 3334, 334, 335 trừ lãi vay nhãn LV, 336, 337, 338, 344; trừ TK chi tiết nhãn DT — phải trả đầu tư, tài chính), không kể đánh giá lại tỷ giá"
+   "note": "Chênh lệch cuối kỳ – đầu kỳ các khoản phải trả hoạt động kinh doanh: 333 trừ 3334, 334, 335 trừ lãi vay nhãn LV, 336, 337, 338, 344 và số dư Có theo từng đối tượng của 331 (phải trả người bán) và 131 (người mua trả tiền trước) — Phần D mục 4.1.2 Mã số 11; trừ TK chi tiết nhãn DT (phải trả đầu tư, tài chính); không kể đánh giá lại tỷ giá"
   },
   {
    "code": "12",
