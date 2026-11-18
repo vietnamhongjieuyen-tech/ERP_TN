@@ -53,6 +53,8 @@ public sealed class LongTermAsset
     public DateOnly? DisposalDate { get; set; }
     public Guid? DisposalVoucherId { get; set; }
     public string? Note { get; set; }
+    /// <summary>Nơi sử dụng: department, room or person using the asset (S22-DN); informational, can change while the asset is in use.</summary>
+    public string? UsedBy { get; set; }
     public DateTime CreatedAt { get; set; }
     public Guid CreatedBy { get; set; }
     public DateTime? ActivatedAt { get; set; }

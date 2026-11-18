@@ -17,11 +17,11 @@ public sealed record AssetCostSourceInput(Guid JournalLineId, decimal Amount);
 
 public sealed record AssetInput(string Code, string Name, AssetClass Class, Guid AssetAccountId, Guid? AccumulatedAccountId, Guid ExpenseAccountId,
     ProrationPolicy Proration, decimal ResidualValue, int UsefulLifeMonths, DateOnly InServiceDate, IReadOnlyList<AssetCostSourceInput> CostSources,
-    decimal OpeningAccumulated = 0, int? RemainingLifeMonths = null, DateOnly? ScheduleStartDate = null, string? Note = null);
+    decimal OpeningAccumulated = 0, int? RemainingLifeMonths = null, DateOnly? ScheduleStartDate = null, string? Note = null, string? UsedBy = null);
 
 public sealed record AssetRegisterRow(Guid Id, string Code, string Name, AssetClass Class, AssetStatus Status, string AssetAccountCode,
     DateOnly InServiceDate, DateOnly ScheduleStartDate, int UsefulLifeMonths, decimal OriginalCost, decimal Accumulated, decimal NetBookValue, DateOnly? DisposalDate,
-    decimal ResidualValue = 0, string? SourceVoucher = null, DateOnly? SourceDate = null, string? DisposalVoucher = null, string? DisposalReason = null);
+    decimal ResidualValue = 0, string? SourceVoucher = null, DateOnly? SourceDate = null, string? DisposalVoucher = null, string? DisposalReason = null, string? UsedBy = null);
 
 public sealed record AssetScheduleRow(DateOnly PeriodEnd, decimal Planned, decimal Cumulative, decimal? Booked);
 
@@ -89,7 +89,7 @@ public sealed class AssetService(HakDbContext db, AccountingEngine engine, Audit
                 AssetAccountId = input.AssetAccountId, AccumulatedAccountId = input.AccumulatedAccountId, ExpenseAccountId = input.ExpenseAccountId,
                 Proration = input.Proration, ResidualValue = input.ResidualValue, UsefulLifeMonths = input.UsefulLifeMonths,
                 InServiceDate = input.InServiceDate, OpeningAccumulated = input.OpeningAccumulated, RemainingLifeMonths = input.RemainingLifeMonths,
-                ScheduleStartDate = scheduleStart, Note = input.Note, CreatedAt = clock.UtcNow, CreatedBy = ctx.UserId, RowVersion = 1,
+                ScheduleStartDate = scheduleStart, Note = input.Note, UsedBy = string.IsNullOrWhiteSpace(input.UsedBy) ? null : input.UsedBy.Trim(), CreatedAt = clock.UtcNow, CreatedBy = ctx.UserId, RowVersion = 1,
             };
             asset.CostSources = input.CostSources.Select(s => new AssetCostSource
             {
@@ -129,6 +129,26 @@ public sealed class AssetService(HakDbContext db, AccountingEngine engine, Audit
             await audit.AppendAsync(ctx.CompanyId, ctx, "asset.activate", "asset", asset.Id.ToString(), new { asset.OriginalCost, asset.ScheduleStartDate }, asset.RowVersion);
             await db.SaveChangesAsync();
             return asset;
+        });
+    }
+
+    /// <summary>Changes where the asset is used (department / person, S22-DN). Allowed at any status except cancelled; logged.</summary>
+    public async Task SetUsedByAsync(SessionContext ctx, Guid assetId, string? usedBy)
+    {
+        ctx.Require(Permissions.AssetManage);
+        var value = string.IsNullOrWhiteSpace(usedBy) ? null : usedBy.Trim();
+        if (value is { Length: > 200 }) throw new DomainException(ErrorCodes.ValidationFailed, "Nơi sử dụng tối đa 200 ký tự.");
+        await db.InTransactionAsync(async () =>
+        {
+            var asset = await LoadAsync(ctx, assetId, tracking: true);
+            if (asset.Status == AssetStatus.Cancelled) throw new DomainException(ErrorCodes.InvalidStateTransition, "Thẻ tài sản đã hủy.");
+            if (asset.UsedBy == value) return 0;
+            var before = asset.UsedBy;
+            asset.UsedBy = value;
+            asset.RowVersion++;
+            await audit.AppendAsync(ctx.CompanyId, ctx, "asset.used_by", "asset", asset.Id.ToString(), new { before, after = value }, asset.RowVersion);
+            await db.SaveChangesAsync();
+            return 0;
         });
     }
 
@@ -397,7 +417,8 @@ public sealed class AssetService(HakDbContext db, AccountingEngine engine, Audit
             return new AssetRegisterRow(a.Id, a.Code, a.Name, a.Class, a.Status, accounts[a.AssetAccountId], a.InServiceDate, a.ScheduleStartDate, a.UsefulLifeMonths,
                 a.OriginalCost, acc, a.OriginalCost - acc, a.DisposalDate, a.ResidualValue,
                 src?.VoucherNumber, src?.PostingDate, disposal?.Number,
-                disposal?.Description is { } text && text.StartsWith($"Ghi giảm {a.Code} – ", StringComparison.Ordinal) ? text[($"Ghi giảm {a.Code} – ".Length)..] : disposal?.Description);
+                disposal?.Description is { } text && text.StartsWith($"Ghi giảm {a.Code} – ", StringComparison.Ordinal) ? text[($"Ghi giảm {a.Code} – ".Length)..] : disposal?.Description,
+                a.UsedBy);
         }).ToList();
     }
 

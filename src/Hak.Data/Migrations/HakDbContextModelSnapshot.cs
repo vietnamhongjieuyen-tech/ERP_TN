@@ -289,6 +289,11 @@ namespace Hak.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("status");
 
+                    b.Property<string>("UsedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("used_by");
+
                     b.Property<int>("UsefulLifeMonths")
                         .HasColumnType("INTEGER")
                         .HasColumnName("useful_life_months");

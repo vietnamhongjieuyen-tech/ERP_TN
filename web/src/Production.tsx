@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
 import { get, post, type Period } from './api'
-import { AccountSelect, ErrorBox, useAction, useCatalog } from './common'
+import { AccountSelect, ErrorBox, useAction, useCatalog, usePrintBook } from './common'
+import { CostCardPrint, type LedgerData } from './books'
+import { useCompanyInfo } from './forms'
 import { formatMoney, parseMoney } from './money'
 
 interface CostObject { id: string; code: string; name: string; itemId: string; wipAccountId: string; plannedUnitCost: string; isActive: boolean }
@@ -24,6 +26,17 @@ export function ProductionView() {
   const [preview, setPreview] = useState<Preview | null>(null)
   const [info, setInfo] = useState('')
   const { busy, error, run } = useAction()
+  const company = useCompanyInfo()
+  const [book, setBook] = usePrintBook<'S37'>()
+  const [card, setCard] = useState<{ wip: LedgerData; product: string; from: string; to: string } | null>(null)
+  // Thẻ tính giá thành (S37-DN): the WIP account's ledger for the period, with the figures of the preview.
+  const printCard = () => run(async () => {
+    const o = objects.find(x => x.id === pick.costObjectId), p = periods.find(x => x.id === pick.periodId)
+    if (!o || !p) return
+    const wip = await get<LedgerData>(`/reports/account-ledger?${new URLSearchParams({ accountId: o.wipAccountId, from: p.startDate, to: p.endDate })}`)
+    const it = items.find(i => i.id === o.itemId)
+    setCard({ wip, product: `${o.code} – ${o.name}${it ? ` (${it.code}, ${it.unit})` : ''}`, from: p.startDate, to: p.endDate }); setBook('S37')
+  })
 
   const load = useCallback(() => run(async () => {
     setObjects(await get<CostObject[]>('/production/cost-objects'))
@@ -82,7 +95,10 @@ export function ProductionView() {
             await post('/production/cost-runs', body()); setPreview(null); setInfo('Đã tính giá thành và ghi sổ.'); await load()
           })}>Tính giá thành</button>
         </div>
+        {preview && card && book === 'S37' && <CostCardPrint company={company.name} address={company.address} product={card.product} wip={card.wip}
+          actualCost={preview.actualCost} closingWip={preview.closingWip} from={card.from} to={card.to} />}
         {preview && <>
+          <div className="toolbar"><button disabled={busy} title="Mẫu số S37-DN, Phụ lục III TT 99/2025" onClick={printCard}>In thẻ tính giá thành (S37-DN)</button></div>
           <table className="grid"><tbody>
             <tr><td>Số dư TK dở dang cuối kỳ (trước khi tính)</td><td className="num">{formatMoney(preview.wipBalanceBefore)}</td></tr>
             <tr><td>Giá trị thành phẩm đã nhập theo giá kế hoạch</td><td className="num">{formatMoney(preview.provisionalValue)}</td></tr>

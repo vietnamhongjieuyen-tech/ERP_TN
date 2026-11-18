@@ -478,6 +478,7 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
             e.HasMany(x => x.CostSources).WithOne().HasForeignKey(x => x.AssetId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.Code).HasMaxLength(30);
             e.Property(x => x.Name).HasMaxLength(250);
+            e.Property(x => x.UsedBy).HasMaxLength(200);
             e.Property(x => x.RowVersion).IsConcurrencyToken();
             e.ToTable(t =>
             {

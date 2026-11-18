@@ -7,8 +7,10 @@ import { addMoney, divideMoney, formatMoney } from './money'
 // S31-DN / S38-DN Sổ chi tiết.
 
 export interface JournalLine { postingDate: string; voucherDate?: string | null; voucherNumber: string; lineNo: number; accountCode: string; debit: string; credit: string; description: string | null }
-export interface LedgerLine { postingDate: string; voucherDate?: string | null; voucherNumber: string; voucherType: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string }
-export interface LedgerData { accountCode: string; accountName: string; openingBalance: string; rows: LedgerLine[]; totalDebit: string; totalCredit: string; closingBalance: string }
+export interface LedgerLine { postingDate: string; voucherDate?: string | null; voucherNumber: string; voucherType: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string
+  foreignCurrency?: string | null; foreignAmount?: string | null }
+export interface LedgerData { accountCode: string; accountName: string; openingBalance: string; rows: LedgerLine[]; totalDebit: string; totalCredit: string; closingBalance: string
+  foreignClosing?: { currency: string; closing: string }[] }
 
 const m = (v: string) => (v === '0' || v === '' ? '' : formatMoney(v))
 /** Signed balance (debit positive) → [Nợ, Có] cells. */
@@ -388,6 +390,7 @@ export function SalesBookPrint({ company, address, book: b, from, to }: { compan
 export interface FixedAssetLine {
   code: string; name: string; assetAccountCode: string; inServiceDate: string; usefulLifeMonths: number; originalCost: string; residualValue?: string; accumulated: string
   sourceVoucher?: string | null; sourceDate?: string | null; disposalDate: string | null; disposalVoucher?: string | null; disposalReason?: string | null
+  usedBy?: string | null
 }
 const monthYear = (d: string) => `${d.slice(5, 7)}/${d.slice(0, 4)}`
 /** Straight line over the useful life: yearly rate (%) and yearly amount on the depreciable base. */
@@ -489,6 +492,366 @@ export function FixedAssetCardPrint({ company, address, card: c, date }: { compa
       </table>
       <p>Ghi giảm TSCĐ chứng từ số: {a.disposalVoucher ?? '................'} ngày {a.disposalDate ? dmy(a.disposalDate) : '..../..../........'}<br />Lý do giảm: {a.disposalReason ?? '................'}</p>
       <BookFoot date={date} />
+    </PrintSheet>
+  )
+}
+
+export interface TrialBalanceLine { accountCode: string; accountName: string; isGroup?: boolean; level?: number
+  openingDebit: string; openingCredit: string; periodDebit: string; periodCredit: string; closingDebit: string; closingCredit: string }
+
+/** Mẫu số S06-DN — Bảng cân đối số phát sinh (summary accounts in bold, never in the totals). */
+export function TrialBalancePrint({ company, address, lines, totals, from, to }:
+  { company: string; address: string; lines: TrialBalanceLine[]; totals: Record<string, string>; from: string; to: string }) {
+  const month = from.slice(0, 7) === to.slice(0, 7) && from.endsWith('-01')
+  const word = month ? 'tháng' : 'kỳ'
+  return (
+    <PrintSheet landscape>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo="S06-DN" />
+      <h1>BẢNG CÂN ĐỐI SỐ PHÁT SINH</h1>
+      <div className="center">{month ? `Tháng ${from.slice(5, 7)} năm ${from.slice(0, 4)}` : `Từ ngày ${dmy(from)} đến ngày ${dmy(to)}`}</div>
+      <table>
+        <thead>
+          <tr><th rowSpan={2}>Số hiệu tài khoản</th><th rowSpan={2}>Tên tài khoản kế toán</th><th colSpan={2}>Số dư đầu {word}</th><th colSpan={2}>Số phát sinh trong {word}</th><th colSpan={2}>Số dư cuối {word}</th></tr>
+          <tr><th>Nợ</th><th>Có</th><th>Nợ</th><th>Có</th><th>Nợ</th><th>Có</th></tr>
+          {letters(['A', 'B', '1', '2', '3', '4', '5', '6'])}
+        </thead>
+        <tbody>
+          {lines.map(r => {
+            const cells = [r.openingDebit, r.openingCredit, r.periodDebit, r.periodCredit, r.closingDebit, r.closingCredit].map((v, i) => <td key={i} className="num">{m(v)}</td>)
+            return <tr key={r.accountCode + (r.isGroup ? 'g' : '')} style={r.isGroup ? { fontWeight: 600 } : undefined}><td>{r.accountCode}</td>
+              <td style={{ paddingLeft: 4 + 10 * (r.level ?? 0) }}>{r.accountName}</td>{cells}</tr>
+          })}
+          <tr><td /><td className="center"><b>Tổng cộng</b></td>
+            {['totalOpeningDebit', 'totalOpeningCredit', 'totalPeriodDebit', 'totalPeriodCredit', 'totalClosingDebit', 'totalClosingCredit'].map(k => <td key={k} className="num"><b>{formatMoney(totals[k] ?? '0')}</b></td>)}</tr>
+        </tbody>
+      </table>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+export type SpecialJournal = 'S03a1' | 'S03a2' | 'S03a3' | 'S03a4'
+export interface SpecialJournalLine extends JournalLine { voucherId: string }
+const SPECIAL: Record<SpecialJournal, { title: string; focusSide: 'debit' | 'credit'; focusHead: string; countersHead: string; focusFirst: boolean }> = {
+  S03a1: { title: 'SỔ NHẬT KÝ THU TIỀN', focusSide: 'debit', focusHead: 'Ghi Nợ TK', countersHead: 'Ghi Có các TK', focusFirst: true },
+  S03a2: { title: 'SỔ NHẬT KÝ CHI TIỀN', focusSide: 'credit', focusHead: 'Ghi Có TK', countersHead: 'Ghi Nợ các TK', focusFirst: true },
+  S03a3: { title: 'SỔ NHẬT KÝ MUA HÀNG', focusSide: 'credit', focusHead: 'Phải trả người bán (ghi Có)', countersHead: 'Tài khoản ghi Nợ', focusFirst: false },
+  S03a4: { title: 'SỔ NHẬT KÝ BÁN HÀNG', focusSide: 'debit', focusHead: 'Phải thu từ người mua (ghi Nợ)', countersHead: 'Ghi Có tài khoản', focusFirst: true },
+}
+
+/**
+ * Build the rows of a special journal from the general journal lines: one row per voucher that touches the focus account on the
+ * focus side; the opposite-side lines of the voucher go to the counter-account columns (the most used ones get their own column, the
+ * rest go to "Tài khoản khác" with their code).
+ */
+export function specialJournalRows(lines: SpecialJournalLine[], focusAccounts: string[], form: SpecialJournal, columns = 4) {
+  const { focusSide } = SPECIAL[form]
+  const other = focusSide === 'debit' ? 'credit' : 'debit'
+  const byVoucher = new Map<string, SpecialJournalLine[]>()
+  for (const l of lines) byVoucher.set(l.voucherId, [...(byVoucher.get(l.voucherId) ?? []), l])
+  const rows: { first: SpecialJournalLine; focus: string; counters: Map<string, string> }[] = []
+  for (const vl of byVoucher.values()) {
+    const focus = vl.filter(l => focusAccounts.includes(l.accountCode) && l[focusSide] !== '0')
+    if (!focus.length) continue
+    const counters = new Map<string, string>()
+    for (const l of vl) if (l[other] !== '0' && !focusAccounts.includes(l.accountCode)) counters.set(l.accountCode, addMoney([counters.get(l.accountCode) ?? '0', l[other]]))
+    rows.push({ first: focus[0], focus: addMoney(focus.map(l => l[focusSide])), counters })
+  }
+  const use = new Map<string, number>()
+  for (const r of rows) for (const k of r.counters.keys()) use.set(k, (use.get(k) ?? 0) + 1)
+  const fixed = [...use.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, columns).map(([k]) => k).sort()
+  return { rows, fixed }
+}
+
+/** Mẫu số S03a1-DN … S03a4-DN — Sổ Nhật ký thu tiền / chi tiền / mua hàng / bán hàng. */
+export function SpecialJournalPrint({ company, address, form, lines, focusAccounts, from, to }:
+  { company: string; address: string; form: SpecialJournal; lines: SpecialJournalLine[]; focusAccounts: string[]; from: string; to: string }) {
+  const s = SPECIAL[form]
+  const { rows, fixed } = specialJournalRows(lines, focusAccounts, form)
+  const others = (r: (typeof rows)[number]) => [...r.counters.entries()].filter(([k]) => !fixed.includes(k))
+  const focusLabel = form === 'S03a1' || form === 'S03a2' ? `${s.focusHead} ${focusAccounts.join(', ')}` : `${s.focusHead}${focusAccounts.length ? ` – TK ${focusAccounts.join(', ')}` : ''}`
+  const focusTh = <th rowSpan={2}>{focusLabel}</th>
+  const sum = (xs: string[]) => formatMoney(addMoney(xs))
+  const focusTotal = sum(rows.map(r => r.focus))
+  return (
+    <PrintSheet landscape>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo={`${form}-DN`} />
+      <h1>{s.title}</h1>
+      <div className="center"><b>Năm {year(from, to)}</b></div>
+      {period(from, to)}
+      <table>
+        <thead>
+          <tr><th rowSpan={2}>Ngày, tháng ghi sổ</th><th colSpan={2}>Chứng từ</th><th rowSpan={2}>Diễn giải</th>{s.focusFirst && focusTh}
+            <th colSpan={fixed.length + 2}>{s.countersHead}</th>{!s.focusFirst && focusTh}</tr>
+          <tr><th>Số hiệu</th><th>Ngày tháng</th>{fixed.map(k => <th key={k}>TK {k}</th>)}<th>Tài khoản khác – Số tiền</th><th>Số hiệu</th></tr>
+        </thead>
+        <tbody>
+          <tr><td /><td /><td /><td>Số trang trước chuyển sang</td>{s.focusFirst && <td />}{fixed.map(k => <td key={k} />)}<td /><td />{!s.focusFirst && <td />}</tr>
+          {rows.map((r, i) => {
+            const rest = others(r)
+            const focusTd = <td className="num">{formatMoney(r.focus)}</td>
+            return <tr key={i}><td>{dmy(r.first.postingDate)}</td><td>{r.first.voucherNumber}</td><td>{dmy(r.first.voucherDate ?? r.first.postingDate)}</td><td>{r.first.description}</td>
+              {s.focusFirst && focusTd}{fixed.map(k => <td key={k} className="num">{m(r.counters.get(k) ?? '0')}</td>)}
+              <td className="num">{rest.length ? sum(rest.map(([, v]) => v)) : ''}</td><td className="center">{rest.map(([k]) => k).join(', ')}</td>{!s.focusFirst && focusTd}</tr>
+          })}
+          <tr><td /><td /><td /><td><b>Cộng chuyển sang trang sau</b></td>{s.focusFirst && <td className="num"><b>{focusTotal}</b></td>}
+            {fixed.map(k => <td key={k} className="num"><b>{sum(rows.map(r => r.counters.get(k) ?? '0'))}</b></td>)}
+            <td className="num"><b>{sum(rows.flatMap(r => others(r).map(([, v]) => v)))}</b></td><td />{!s.focusFirst && <td className="num"><b>{focusTotal}</b></td>}</tr>
+        </tbody>
+      </table>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+/** Mẫu số S07a-DN — Sổ kế toán chi tiết quỹ tiền mặt: like S07 with the counter account and Nợ / Có movement columns. */
+export function CashDetailBookPrint({ company, address, ledger: l, from, to }: { company: string; address: string; ledger: LedgerData; from: string; to: string }) {
+  return (
+    <PrintSheet>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo="S07a-DN" />
+      <h1>SỔ KẾ TOÁN CHI TIẾT QUỸ TIỀN MẶT</h1>
+      <div className="center"><b>Tài khoản: {l.accountCode}<br />Loại quỹ: {l.accountName}<br />Năm {year(from, to)}</b></div>
+      {period(from, to)}
+      <div style={{ textAlign: 'right' }}><i>Đơn vị tính: đồng</i></div>
+      <table>
+        <thead>
+          <tr><th rowSpan={2}>Ngày, tháng ghi sổ</th><th rowSpan={2}>Ngày, tháng chứng từ</th><th colSpan={2}>Số hiệu chứng từ</th><th rowSpan={2}>Diễn giải</th><th rowSpan={2}>TK đối ứng</th>
+            <th colSpan={2}>Số phát sinh</th><th rowSpan={2}>Số tồn</th><th rowSpan={2}>Ghi chú</th></tr>
+          <tr><th>Thu</th><th>Chi</th><th>Nợ</th><th>Có</th></tr>
+          {letters(['A', 'B', 'C', 'D', 'E', 'F', '1', '2', '3', 'G'])}
+        </thead>
+        <tbody>
+          <tr><td /><td /><td /><td /><td>- Số tồn đầu kỳ</td><td /><td /><td /><td className="num">{formatMoney(l.openingBalance)}</td><td /></tr>
+          <tr><td /><td /><td /><td /><td>- Số phát sinh trong kỳ</td><td /><td /><td /><td /><td /></tr>
+          {l.rows.map((r, i) => {
+            const receipt = r.debit !== '0'
+            return <tr key={i}><td>{dmy(r.postingDate)}</td><td>{dmy(r.voucherDate ?? r.postingDate)}</td><td>{receipt ? r.voucherNumber : ''}</td><td>{receipt ? '' : r.voucherNumber}</td>
+              <td>{r.description}</td><td className="center">{r.counterAccounts}</td><td className="num">{m(r.debit)}</td><td className="num">{m(r.credit)}</td>
+              <td className="num">{formatMoney(r.runningBalance)}</td><td /></tr>
+          })}
+          <tr><td /><td /><td /><td /><td><b>- Cộng số phát sinh trong kỳ</b></td><td className="center">x</td><td className="num"><b>{formatMoney(l.totalDebit)}</b></td>
+            <td className="num"><b>{formatMoney(l.totalCredit)}</b></td><td className="center">x</td><td className="center">x</td></tr>
+          <tr><td /><td /><td /><td /><td><b>- Số tồn cuối kỳ</b></td><td className="center">x</td><td className="center">x</td><td className="center">x</td>
+            <td className="num"><b>{formatMoney(l.closingBalance)}</b></td><td className="center">x</td></tr>
+        </tbody>
+      </table>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+export interface LoanInfo { code: string; description: string; lender: string; ratePercent: string | null; maturityDate: string }
+
+/** Mẫu số S34-DN — Sổ chi tiết tiền vay of one loan contract (ledger of the principal account for the lender). */
+export function LoanBookPrint({ company, address, ledger: l, loan, from, to }: { company: string; address: string; ledger: LedgerData; loan: LoanInfo; from: string; to: string }) {
+  const [od, oc] = sides(l.openingBalance), [cd, cc] = sides(l.closingBalance)
+  return (
+    <PrintSheet landscape>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo="S34-DN" />
+      <h1>SỔ CHI TIẾT TIỀN VAY</h1>
+      <div className="center"><b>(Dùng cho TK 341)<br />Tài khoản: {l.accountCode} – {l.accountName}<br />Đối tượng cho vay: {loan.lender}<br />
+        Khế ước vay: {loan.description} &nbsp; Số: {loan.code}</b></div>
+      <div style={{ textAlign: 'right' }}><b>(Tỷ lệ lãi vay: {loan.ratePercent ? `${formatMoney(loan.ratePercent)}%/năm` : '..........'})</b></div>
+      {period(from, to)}
+      <table>
+        <thead>
+          <tr><th rowSpan={2}>Ngày, tháng ghi sổ</th><th colSpan={2}>Chứng từ</th><th rowSpan={2}>Diễn giải</th><th rowSpan={2}>TK đối ứng</th><th rowSpan={2}>Ngày đến hạn thanh toán</th><th colSpan={2}>Số tiền</th></tr>
+          <tr><th>Số hiệu</th><th>Ngày, tháng</th><th>Nợ</th><th>Có</th></tr>
+          {letters(['A', 'B', 'C', 'D', 'E', 'G', '1', '2'])}
+        </thead>
+        <tbody>
+          <tr><td /><td /><td /><td>- Số dư đầu kỳ</td><td /><td /><td className="num">{od}</td><td className="num">{oc}</td></tr>
+          <tr><td /><td /><td /><td>- Số phát sinh trong kỳ</td><td /><td /><td /><td /></tr>
+          {l.rows.map((r, i) => (
+            <tr key={i}><td>{dmy(r.postingDate)}</td><td>{r.voucherNumber}</td><td>{dmy(r.voucherDate ?? r.postingDate)}</td><td>{r.description}</td><td className="center">{r.counterAccounts}</td>
+              <td className="center">{r.credit !== '0' ? dmy(loan.maturityDate) : ''}</td><td className="num">{m(r.debit)}</td><td className="num">{m(r.credit)}</td></tr>))}
+          <tr><td /><td /><td /><td><b>- Cộng số phát sinh</b></td><td className="center">x</td><td className="center">x</td>
+            <td className="num"><b>{formatMoney(l.totalDebit)}</b></td><td className="num"><b>{formatMoney(l.totalCredit)}</b></td></tr>
+          <tr><td /><td /><td /><td><b>- Số dư cuối kỳ</b></td><td className="center">x</td><td className="center">x</td><td className="num"><b>{cd}</b></td><td className="num"><b>{cc}</b></td></tr>
+        </tbody>
+      </table>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+/** The currency a foreign-currency ledger is kept in: the first one on the rows, else the one of the closing balance. */
+export const ledgerCurrency = (l: LedgerData) => l.rows.find(r => r.foreignCurrency && r.foreignAmount)?.foreignCurrency ?? l.foreignClosing?.[0]?.currency ?? null
+
+/**
+ * Mẫu số S32-DN (131, 331 — with the discount-term column) / S33-DN (other payables / receivables) — sổ theo dõi thanh toán bằng ngoại tệ.
+ * Foreign amounts come from the ledger lines; revaluation lines carry no foreign amount and only move the VND columns. The opening
+ * foreign balance is the closing one less the period's movements.
+ */
+export function ForeignLedgerPrint({ company, address, ledger: l, from, to, partner, form }:
+  { company: string; address: string; ledger: LedgerData; from: string; to: string; partner: string | null; form: 'S32' | 'S33' }) {
+  const s32 = form === 'S32'
+  const cur = ledgerCurrency(l) ?? ''
+  const rows = l.rows.map(r => ({ ...r, fx: r.foreignCurrency === cur && r.foreignAmount ? r.foreignAmount : '0' }))
+  const signedFx = (r: (typeof rows)[number]) => (r.debit !== '0' ? r.fx : neg(r.fx))
+  const closingFx = l.foreignClosing?.find(f => f.currency === cur)?.closing ?? addMoney(rows.map(signedFx))
+  const openingFx = addMoney([closingFx, ...rows.map(r => neg(signedFx(r)))])
+  let runFx = openingFx
+  const [od, oc] = sides(l.openingBalance), [ofd, ofc] = sides(openingFx), [cd, cc] = sides(l.closingBalance), [cfd, cfc] = sides(closingFx)
+  const extra = s32 ? <td /> : null
+  const x = <td className="center">x</td>
+  return (
+    <PrintSheet landscape>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo={`${form}-DN`} />
+      <h1>{s32 ? 'SỔ CHI TIẾT THANH TOÁN VỚI NGƯỜI MUA (NGƯỜI BÁN) BẰNG NGOẠI TỆ' : 'SỔ THEO DÕI THANH TOÁN BẰNG NGOẠI TỆ'}</h1>
+      <div className="center"><b>{s32 ? '(Dùng cho TK: 131, 331)' : '(Dùng cho các TK 136, 138, 141, 244, 334, 336, 338, 344)'}<br />
+        Tài khoản: {l.accountCode} – {l.accountName}<br />Đối tượng: {partner ?? 'tất cả'}<br />Loại ngoại tệ: {cur}</b></div>
+      {period(from, to)}
+      <table>
+        <thead>
+          <tr><th rowSpan={3}>Ngày, tháng ghi sổ</th><th colSpan={2}>Chứng từ</th><th rowSpan={3}>Diễn giải</th><th rowSpan={3}>TK đối ứng</th><th rowSpan={3}>Tỷ giá hối đoái</th>
+            {s32 && <th rowSpan={3}>Thời hạn được chiết khấu</th>}<th colSpan={4}>Số phát sinh</th><th colSpan={4}>Số dư</th></tr>
+          <tr><th rowSpan={2}>Số hiệu</th><th rowSpan={2}>Ngày, tháng</th><th colSpan={2}>Nợ</th><th colSpan={2}>Có</th><th colSpan={2}>Nợ</th><th colSpan={2}>Có</th></tr>
+          <tr>{Array.from({ length: 4 }, (_, i) => [<th key={i + 'f'}>Ngoại tệ</th>, <th key={i + 'v'}>Quy ra VNĐ</th>])}</tr>
+          {letters(s32 ? ['A', 'B', 'C', 'D', 'E', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] : ['A', 'B', 'C', 'D', 'E', '1', '2', '3', '4', '5', '6', '7', '8', '9'])}
+        </thead>
+        <tbody>
+          <tr><td /><td /><td /><td>- Số dư đầu kỳ</td><td /><td />{extra}<td /><td /><td /><td /><td className="num">{ofd}</td><td className="num">{od}</td><td className="num">{ofc}</td><td className="num">{oc}</td></tr>
+          <tr><td /><td /><td /><td>- Số phát sinh</td><td /><td />{extra}<td /><td /><td /><td /><td /><td /><td /><td /></tr>
+          {rows.map((r, i) => {
+            runFx = addMoney([runFx, signedFx(r)])
+            const [bd, bc] = sides(r.runningBalance), [bfd, bfc] = sides(runFx)
+            const vnd = r.debit !== '0' ? r.debit : r.credit
+            const rate = r.fx !== '0' ? formatMoney(divideMoney(vnd, r.fx) ?? '') : ''
+            return <tr key={i}><td>{dmy(r.postingDate)}</td><td>{r.voucherNumber}</td><td>{dmy(r.voucherDate ?? r.postingDate)}</td><td>{r.description}</td><td className="center">{r.counterAccounts}</td>
+              <td className="num">{rate}</td>{extra}
+              <td className="num">{r.debit !== '0' ? m(r.fx) : ''}</td><td className="num">{m(r.debit)}</td><td className="num">{r.credit !== '0' ? m(r.fx) : ''}</td><td className="num">{m(r.credit)}</td>
+              <td className="num">{bfd}</td><td className="num">{bd}</td><td className="num">{bfc}</td><td className="num">{bc}</td></tr>
+          })}
+          <tr><td /><td /><td /><td><b>- Cộng số phát sinh</b></td>{x}{x}{s32 && x}
+            <td className="num"><b>{formatMoney(addMoney(rows.filter(r => r.debit !== '0').map(r => r.fx)))}</b></td><td className="num"><b>{formatMoney(l.totalDebit)}</b></td>
+            <td className="num"><b>{formatMoney(addMoney(rows.filter(r => r.credit !== '0').map(r => r.fx)))}</b></td><td className="num"><b>{formatMoney(l.totalCredit)}</b></td>{x}{x}{x}{x}</tr>
+          <tr><td /><td /><td /><td><b>- Số dư cuối kỳ</b></td>{x}{x}{s32 && x}{x}{x}{x}{x}
+            <td className="num"><b>{cfd}</b></td><td className="num"><b>{cd}</b></td><td className="num"><b>{cfc}</b></td><td className="num"><b>{cc}</b></td></tr>
+        </tbody>
+      </table>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+/** Debit lines split by counter account: the most used single counter accounts get a column, lines with several or other ones go to "khác". */
+function costBreakdown(rows: LedgerLine[], columns: number) {
+  const debit = rows.filter(r => r.debit !== '0')
+  const single = (r: LedgerLine) => (r.counterAccounts && !r.counterAccounts.includes(',') ? r.counterAccounts.trim() : null)
+  const use = new Map<string, number>()
+  for (const r of debit) { const k = single(r); if (k) use.set(k, (use.get(k) ?? 0) + 1) }
+  const fixed = [...use.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, columns).map(([k]) => k).sort()
+  const column = (r: LedgerLine) => { const k = single(r); return k && fixed.includes(k) ? k : 'khác' }
+  const total = (k: string) => addMoney(debit.filter(r => column(r) === k).map(r => r.debit))
+  return { debit, fixed, column, total, hasOther: debit.some(r => column(r) === 'khác') }
+}
+
+/** Mẫu số S36-DN — Sổ chi phí sản xuất, kinh doanh of one cost account: debits split by counter account, credits listed below. */
+export function CostBookPrint({ company, address, ledger: l, from, to }: { company: string; address: string; ledger: LedgerData; from: string; to: string }) {
+  const b = costBreakdown(l.rows, 6)
+  const cols = [...b.fixed, ...(b.hasOther ? ['khác'] : [])]
+  const credits = l.rows.filter(r => r.credit !== '0')
+  const creditBy = new Map<string, string>()
+  for (const r of credits) creditBy.set(r.counterAccounts || '—', addMoney([creditBy.get(r.counterAccounts || '—') ?? '0', r.credit]))
+  const empty = cols.map(c => <td key={c} />)
+  return (
+    <PrintSheet landscape>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo="S36-DN" />
+      <h1>SỔ CHI PHÍ SẢN XUẤT, KINH DOANH</h1>
+      <div className="center"><b>(Dùng cho các TK 621, 622, 623, 627, 154, 641, 642, 242, 335, 632)<br />- Tài khoản: {l.accountCode} – {l.accountName}<br />
+        - Tên phân xưởng: ................ &nbsp; - Tên sản phẩm, dịch vụ: ................</b></div>
+      {period(from, to)}
+      <table>
+        <thead>
+          <tr><th rowSpan={3}>Ngày, tháng ghi sổ</th><th colSpan={2}>Chứng từ</th><th rowSpan={3}>Diễn giải</th><th rowSpan={3}>Tài khoản đối ứng</th><th colSpan={cols.length + 1}>Ghi Nợ Tài khoản {l.accountCode}</th></tr>
+          <tr><th rowSpan={2}>Số hiệu</th><th rowSpan={2}>Ngày, tháng</th><th rowSpan={2}>Tổng số tiền</th>{cols.length > 0 && <th colSpan={cols.length}>Chia ra</th>}</tr>
+          <tr>{cols.map(c => <th key={c}>{c === 'khác' ? 'TK khác' : `TK ${c}`}</th>)}</tr>
+          {letters(['A', 'B', 'C', 'D', 'E', ...Array.from({ length: cols.length + 1 }, (_, i) => String(i + 1))])}
+        </thead>
+        <tbody>
+          <tr><td /><td /><td /><td>- Số dư đầu kỳ</td><td /><td className="num">{m(l.openingBalance)}</td>{empty}</tr>
+          <tr><td /><td /><td /><td>- Số phát sinh trong kỳ</td><td /><td />{empty}</tr>
+          {b.debit.map((r, i) => <tr key={i}><td>{dmy(r.postingDate)}</td><td>{r.voucherNumber}</td><td>{dmy(r.voucherDate ?? r.postingDate)}</td><td>{r.description}</td>
+            <td className="center">{r.counterAccounts}</td><td className="num">{formatMoney(r.debit)}</td>{cols.map(c => <td key={c} className="num">{b.column(r) === c ? formatMoney(r.debit) : ''}</td>)}</tr>)}
+          <tr><td /><td /><td /><td><b>- Cộng số phát sinh trong kỳ</b></td><td /><td className="num"><b>{formatMoney(l.totalDebit)}</b></td>{cols.map(c => <td key={c} className="num"><b>{formatMoney(b.total(c))}</b></td>)}</tr>
+          {[...creditBy.entries()].map(([k, v]) => <tr key={k}><td /><td /><td /><td>- Ghi Có TK {l.accountCode}</td><td className="center">{k}</td><td className="num">{formatMoney(v)}</td>{empty}</tr>)}
+          <tr><td /><td /><td /><td><b>- Số dư cuối kỳ</b></td><td /><td className="num"><b>{m(l.closingBalance)}</b></td>{empty}</tr>
+        </tbody>
+      </table>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+/** Mẫu số S37-DN — Thẻ tính giá thành sản phẩm, dịch vụ: opening WIP, costs of the period by cost element (counter account), cost of output, closing WIP. */
+export function CostCardPrint({ company, address, product, wip, actualCost, closingWip, from, to }:
+  { company: string; address: string; product: string; wip: LedgerData; actualCost: string; closingWip: string; from: string; to: string }) {
+  const b = costBreakdown(wip.rows, 7)
+  const cols = [...b.fixed, ...(b.hasOther ? ['khác'] : [])]
+  const empty = cols.map(c => <td key={c} />)
+  return (
+    <PrintSheet landscape>
+      <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo="S37-DN" />
+      <h1>THẺ TÍNH GIÁ THÀNH SẢN PHẨM, DỊCH VỤ</h1>
+      <div className="center"><b>Tháng {from.slice(5, 7)} năm {from.slice(0, 4)}<br />Tên sản phẩm, dịch vụ: {product}</b></div>
+      <table>
+        <thead>
+          <tr><th rowSpan={2}>Chỉ tiêu</th><th rowSpan={2}>Tổng số tiền</th>{cols.length > 0 && <th colSpan={cols.length}>Chia ra theo khoản mục (TK đối ứng của TK {wip.accountCode})</th>}</tr>
+          <tr>{cols.map(c => <th key={c}>{c === 'khác' ? 'Khác' : `TK ${c}`}</th>)}</tr>
+          {letters(['A', ...Array.from({ length: cols.length + 1 }, (_, i) => String(i + 1))])}
+        </thead>
+        <tbody>
+          <tr><td>1. Chi phí SXKD dở dang đầu kỳ</td><td className="num">{formatMoney(wip.openingBalance)}</td>{empty}</tr>
+          <tr><td>2. Chi phí SXKD phát sinh trong kỳ</td><td className="num">{formatMoney(addMoney(b.debit.map(r => r.debit)))}</td>{cols.map(c => <td key={c} className="num">{formatMoney(b.total(c))}</td>)}</tr>
+          <tr><td>3. Giá thành sản phẩm, dịch vụ trong kỳ</td><td className="num">{formatMoney(actualCost)}</td>{empty}</tr>
+          <tr><td>4. Chi phí SXKD dở dang cuối kỳ</td><td className="num">{formatMoney(closingWip)}</td>{empty}</tr>
+        </tbody>
+      </table>
+      <p><i>Dở dang đầu kỳ, giá thành và dở dang cuối kỳ chưa chia theo khoản mục (phần mềm theo dõi chi phí dở dang theo tổng số).</i></p>
+      <BookFoot date={to} />
+    </PrintSheet>
+  )
+}
+
+/**
+ * Mẫu số S22-DN — Sổ theo dõi TSCĐ và CCDC tại nơi sử dụng: one table per place of use, assets in use during the year (each card is one
+ * unit: quantity 1, price = cost); decrease columns filled for those written off.
+ */
+export function AssetsInUsePrint({ company, address, assets, year: y }: { company: string; address: string; assets: FixedAssetLine[]; year: string }) {
+  const inYear = assets.filter(a => a.inServiceDate <= `${y}-12-31` && (!a.disposalDate || a.disposalDate >= `${y}-01-01`))
+  const places = [...new Set(inYear.map(a => a.usedBy?.trim() || ''))].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)))
+  return (
+    <PrintSheet landscape>
+      {places.map((place, gi) => {
+        const rows = inYear.filter(a => (a.usedBy?.trim() || '') === place)
+        return (
+          <div key={place || '-'} style={gi > 0 ? { breakBefore: 'page' } : undefined}>
+            <FormHeader company={company} second={<>Địa chỉ: {address || '......................'}</>} formNo="S22-DN" />
+            <h1>SỔ THEO DÕI TÀI SẢN CỐ ĐỊNH VÀ CÔNG CỤ, DỤNG CỤ TẠI NƠI SỬ DỤNG</h1>
+            <div className="center"><i>Năm {y}</i><br /><b>Tên đơn vị (phòng, ban hoặc người sử dụng): {place || '(chưa ghi nơi sử dụng)'}</b></div>
+            <table>
+              <thead>
+                <tr><th colSpan={7}>Ghi tăng tài sản cố định và công cụ, dụng cụ</th><th colSpan={5}>Ghi giảm tài sản cố định và công cụ, dụng cụ</th><th rowSpan={3}>Ghi chú</th></tr>
+                <tr><th colSpan={2}>Chứng từ</th><th rowSpan={2}>Tên, nhãn hiệu, quy cách tài sản cố định và công cụ, dụng cụ</th><th rowSpan={2}>Đơn vị tính</th><th rowSpan={2}>Số lượng</th>
+                  <th rowSpan={2}>Đơn giá</th><th rowSpan={2}>Số tiền</th><th colSpan={2}>Chứng từ</th><th rowSpan={2}>Lý do</th><th rowSpan={2}>Số lượng</th><th rowSpan={2}>Số tiền</th></tr>
+                <tr><th>Số hiệu</th><th>Ngày, tháng</th><th>Số hiệu</th><th>Ngày, tháng</th></tr>
+                {letters(['A', 'B', 'C', 'D', '1', '2', '3 = 1x2', 'E', 'G', 'H', '4', '5', 'I'])}
+              </thead>
+              <tbody>
+                {rows.map(a => {
+                  const out = !!a.disposalDate && a.disposalDate <= `${y}-12-31`
+                  return <tr key={a.code}><td>{a.sourceVoucher ?? ''}</td><td>{a.sourceDate ? dmy(a.sourceDate) : ''}</td><td>{a.code} – {a.name}</td><td className="center">cái</td><td className="num">1</td>
+                    <td className="num">{formatMoney(a.originalCost)}</td><td className="num">{formatMoney(a.originalCost)}</td>
+                    <td>{out ? a.disposalVoucher ?? '' : ''}</td><td>{out ? dmy(a.disposalDate!) : ''}</td><td>{out ? a.disposalReason ?? '' : ''}</td>
+                    <td className="num">{out ? '1' : ''}</td><td className="num">{out ? formatMoney(a.originalCost) : ''}</td><td>TK {a.assetAccountCode}</td></tr>
+                })}
+              </tbody>
+            </table>
+            <BookFoot date={`${y}-12-31`} />
+          </div>
+        )
+      })}
     </PrintSheet>
   )
 }

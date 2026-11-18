@@ -91,6 +91,11 @@ public class AssetTests
         var disposalNumber = (await s.Db.Vouchers.AsNoTracking().SingleAsync(v => v.Id == disposalVoucher)).Number;
         Assert.NotNull(reg.SourceVoucher);
         Assert.Equal((disposalNumber, "Thanh lý theo biên bản 01"), (reg.DisposalVoucher, reg.DisposalReason));
+        // Nơi sử dụng (S22-DN): changeable on a disposed card too, logged, needs asset.manage.
+        await s.Assets.SetUsedByAsync(h.Approver, asset.Id, "  Phân xưởng dăm  ");
+        Assert.Equal("Phân xưởng dăm", (await s.Assets.RegisterAsync(h.Auditor, new(2026, 3, 31))).Single().UsedBy);
+        Assert.True(await s.Db.AuditLogs.AnyAsync(a => a.Action == "asset.used_by" && a.EntityId == asset.Id.ToString()));
+        Assert.Equal(ErrorCodes.Forbidden, (await Assert.ThrowsAsync<DomainException>(() => s.Assets.SetUsedByAsync(h.Auditor, asset.Id, "x"))).Code);
         Assert.Equal(ErrorCodes.InvalidStateTransition, await CodeOf(() => s.Engine.ReverseAsync(h.Approver, disposalVoucher, new(2026, 3, 31), "x")));
 
         await s.Assets.ReverseDisposalAsync(h.Approver, asset.Id, "Biên bản thanh lý bị hủy");

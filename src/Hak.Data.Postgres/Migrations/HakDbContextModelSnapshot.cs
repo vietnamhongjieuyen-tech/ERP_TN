@@ -299,6 +299,11 @@ namespace Hak.Data.Postgres.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
+                    b.Property<string>("UsedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("used_by");
+
                     b.Property<int>("UsefulLifeMonths")
                         .HasColumnType("integer")
                         .HasColumnName("useful_life_months");

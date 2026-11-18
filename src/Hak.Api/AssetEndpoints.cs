@@ -2,6 +2,7 @@ using Hak.Application.Assets;
 
 namespace Hak.Api;
 
+public sealed record UsedByRequest(string? UsedBy);
 public sealed record DisposeAssetRequest(DateOnly Date, Guid ResidualAccountId, string Description);
 
 public static class AssetEndpoints
@@ -15,6 +16,8 @@ public static class AssetEndpoints
         api.MapPost("/{id:guid}/activate", async (HttpContext http, Guid id, AssetService s) => Results.Ok(await s.ActivateAsync(await http.SessionAsync(), id)));
         api.MapPost("/{id:guid}/cancel", async (HttpContext http, Guid id, ReasonRequest r, AssetService s) =>
         { await s.CancelDraftAsync(await http.SessionAsync(), id, r.Reason); return Results.NoContent(); });
+        api.MapPut("/{id:guid}/used-by", async (HttpContext http, Guid id, UsedByRequest r, AssetService s) =>
+        { await s.SetUsedByAsync(await http.SessionAsync(), id, r.UsedBy); return Results.NoContent(); });
         api.MapPost("/{id:guid}/dispose", async (HttpContext http, Guid id, DisposeAssetRequest r, AssetService s) =>
             Results.Ok(await s.DisposeAsync(await http.SessionAsync(), id, r.Date, r.ResidualAccountId, r.Description)));
         api.MapPost("/{id:guid}/dispose/reverse", async (HttpContext http, Guid id, ReasonRequest r, AssetService s) =>

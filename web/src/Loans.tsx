@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { MoneyInput } from './MoneyInput'
 import { askConfirm, askText } from './dialogs'
 import { get, post, type Period } from './api'
-import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, useAction, useCatalog } from './common'
+import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, useAction, useCatalog, usePrintBook } from './common'
+import { LoanBookPrint, type LedgerData, type LoanInfo } from './books'
+import { useCompanyInfo } from './forms'
 import { formatMoney, parseMoney, parseRate, today } from './money'
 import { DateInput } from './DateInput'
 
@@ -31,6 +33,18 @@ export function LoansView() {
   const [fxRates, setFxRates] = useState<Record<string, string>>({})
   const [info, setInfo] = useState('')
   const { busy, error, run } = useAction()
+  const company = useCompanyInfo()
+  const [book, setBook] = usePrintBook<'S34'>()
+  const [loanBook, setLoanBook] = useState<{ ledger: LedgerData; loan: LoanInfo; from: string } | null>(null)
+  // Sổ chi tiết tiền vay (S34-DN): the principal account's ledger for the lender, from the start of the year of the chosen date.
+  const printLoan = (r: LoanRow) => run(async () => {
+    const accountId = accounts.find(a => a.code === r.accountCode)?.id, partner = partners.find(p => p.code === r.lenderCode)
+    if (!accountId || !partner) throw new Error('Không tìm thấy tài khoản / bên cho vay của khế ước.')
+    const from = asOf.slice(0, 4) + '-01-01'
+    const ledger = await get<LedgerData>(`/reports/account-ledger?${new URLSearchParams({ accountId, partnerId: partner.id, from, to: asOf })}`)
+    setLoanBook({ ledger, from, loan: { code: r.code, description: r.description, lender: `${partner.code} – ${partner.name}`, ratePercent: r.currentRatePercent, maturityDate: r.maturityDate } })
+    setBook('S34')
+  })
 
   const load = useCallback(() => run(async () => {
     setRows(await get<LoanRow[]>(`/loans?asOf=${asOf}`))
@@ -67,6 +81,7 @@ export function LoansView() {
           ...['Hạn mức', 'Đã giải ngân', 'Đã trả', 'Dư nợ', 'Dư nợ nguyên tệ', 'Lãi suất %'].map(h => ({ header: h, numeric: true })), { header: 'Đáo hạn' }, { header: 'Đến hạn ≤ 12 tháng' }, { header: 'Lãi đã trích', numeric: true }]}
           rows={rows.map(r => [r.code, r.description, r.lenderCode, r.accountCode, r.currency ?? 'VND', STATUS_VI[r.status], r.contractAmount, r.drawn, r.repaid, r.outstanding, r.outstandingForeign, r.currentRatePercent, r.maturityDate, r.dueWithin12Months ? 'Có' : '', r.interestAccrued])} />
       </div>
+      {loanBook && book === 'S34' && <LoanBookPrint company={company.name} address={company.address} ledger={loanBook.ledger} loan={loanBook.loan} from={loanBook.from} to={asOf} />}
       <p className="muted">Giải ngân / trả nợ hạch toán bằng chứng từ thông thường (Nợ tiền / Có TK vay chi tiết bên cho vay) rồi gắn vào khế ước. Lãi tính theo dư nợ từng ngày × lãi suất từng ngày ÷ số ngày cơ sở; ngày giải ngân tính lãi, ngày trả nợ không tính [CẦN XÁC MINH theo hợp đồng].</p>
       <ErrorBox error={error} />
       {info && !error && <div className="msg ok">{info}</div>}
@@ -84,6 +99,7 @@ export function LoansView() {
             <td className="num">{formatMoney(r.outstanding)}{r.outstandingForeign != null && <div className="muted">{formatMoney(r.outstandingForeign)} {r.currency}</div>}</td>
             <td className="num">{formatMoney(r.currentRatePercent)}</td><td>{r.maturityDate}</td><td className="num">{formatMoney(r.interestAccrued)}</td>
             <td style={{ display: 'flex', gap: 6 }}>
+              {r.status !== 'Draft' && r.status !== 'Cancelled' && <button disabled={busy} title="Mẫu số S34-DN, Phụ lục III TT 99/2025 (từ đầu năm đến ngày đang chọn)" onClick={() => printLoan(r)}>In S34-DN</button>}
               {r.status === 'Draft' && <>
                 <button disabled={busy} onClick={() => act(() => post(`/loans/${r.id}/activate`), `Đã duyệt khế ước ${r.code}.`)}>Duyệt</button>
                 <button disabled={busy} onClick={async () => { const reason = await askText('Lý do hủy khế ước:'); if (reason) act(() => post(`/loans/${r.id}/cancel`, { reason }), `Đã hủy ${r.code}.`) }}>Hủy</button>

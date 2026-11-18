@@ -139,7 +139,8 @@ public sealed class LedgerImmutabilityInterceptor : SaveChangesInterceptor
                                                        && (Domain.Assets.AssetStatus)entry.OriginalValues[nameof(Domain.Assets.LongTermAsset.Status)]! != Domain.Assets.AssetStatus.Draft:
                     if (entry.Properties.Any(p => p.IsModified && !Equals(p.OriginalValue, p.CurrentValue) && p.Metadata.Name is not (
                             nameof(Domain.Assets.LongTermAsset.Status) or nameof(Domain.Assets.LongTermAsset.DisposalDate)
-                            or nameof(Domain.Assets.LongTermAsset.DisposalVoucherId) or nameof(Domain.Assets.LongTermAsset.RowVersion))))
+                            or nameof(Domain.Assets.LongTermAsset.DisposalVoucherId) or nameof(Domain.Assets.LongTermAsset.RowVersion)
+                            or nameof(Domain.Assets.LongTermAsset.UsedBy))))   // nơi sử dụng: informational, no effect on the figures
                         throw Immutable($"Tài sản {a.Code} đã ghi tăng, thông số khấu hao không được sửa.");
                     break;
 

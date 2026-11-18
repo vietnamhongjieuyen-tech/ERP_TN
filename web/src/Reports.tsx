@@ -3,7 +3,7 @@ import { MoneyInput } from './MoneyInput'
 import { goTo, takeParams } from './nav'
 import { get, post, type OpenItem, type TrialBalanceRow } from './api'
 import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog, usePrintBook } from './common'
-import { BankBookPrint, CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint } from './books'
+import { BankBookPrint, CashBookPrint, CashDetailBookPrint, CostBookPrint, ForeignLedgerPrint, ledgerCurrency, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint, SpecialJournalPrint, TrialBalancePrint, type SpecialJournal } from './books'
 import { useCompanyInfo } from './forms'
 import { addMoney, formatMoney, parseMoney, parseRate, today } from './money'
 import { ConfirmationDialog } from './Confirmation'
@@ -16,8 +16,11 @@ export function TrialBalanceView() {
   const [to, setTo] = useState(today())
   const [rollup, setRollup] = useState(true)
   const [data, setData] = useState<{ isBalanced: boolean; rows: TrialBalanceRow[]; groups: TrialBalanceRow[]; totals: Record<string, string> } | null>(null)
+  const [shown, setShown] = useState({ from, to })
+  const company = useCompanyInfo()
+  const [book, setBook] = usePrintBook<'S06'>()
   const { busy, error, run } = useAction()
-  const load = () => run(async () => setData(await get(`/reports/trial-balance?from=${from}&to=${to}&rollup=${rollup}`)))
+  const load = () => run(async () => { setData(await get(`/reports/trial-balance?from=${from}&to=${to}&rollup=${rollup}`)); setShown({ from, to }) })
   const t = data?.totals
   // Parent (summary) accounts interleaved with their children by account code; they never enter the totals.
   const lines = data ? [...data.rows, ...(data.groups ?? [])].sort((a, b) => (a.accountCode < b.accountCode ? -1 : a.accountCode > b.accountCode ? 1 : (b.isGroup ? 1 : 0) - (a.isGroup ? 1 : 0))) : []
@@ -34,7 +37,9 @@ export function TrialBalanceView() {
           columns={[{ header: 'TK' }, { header: 'Tên tài khoản', width: 40 }, ...['Dư đầu Nợ', 'Dư đầu Có', 'PS Nợ', 'PS Có', 'Dư cuối Nợ', 'Dư cuối Có'].map(h => ({ header: h, numeric: true }))]}
           rows={[...lines.map(r => [r.accountCode, '  '.repeat(r.level ?? 0) + r.accountName, ...amounts(r)]),
             ...(t ? [['Cộng', '', t.totalOpeningDebit, t.totalOpeningCredit, t.totalPeriodDebit, t.totalPeriodCredit, t.totalClosingDebit, t.totalClosingCredit]] : [])]} />
+        <button disabled={!data} title="Mẫu số S06-DN, Phụ lục III TT 99/2025" onClick={() => setBook('S06')}>In (S06-DN)</button>
       </div>
+      {data && t && book === 'S06' && <TrialBalancePrint company={company.name} address={company.address} lines={lines} totals={t} from={shown.from} to={shown.to} />}
       <ErrorBox error={error} />
       {data && (
         <>
@@ -58,8 +63,8 @@ export function TrialBalanceView() {
   )
 }
 
-interface LedgerRow { voucherId: string; postingDate: string; voucherDate?: string | null; voucherType: string; voucherNumber: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string }
-interface Ledger { accountCode: string; accountName: string; openingBalance: string; rows: LedgerRow[]; totalDebit: string; totalCredit: string; closingBalance: string }
+interface LedgerRow { voucherId: string; postingDate: string; voucherDate?: string | null; voucherType: string; voucherNumber: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string; foreignCurrency?: string | null; foreignAmount?: string | null }
+interface Ledger { accountCode: string; accountName: string; openingBalance: string; rows: LedgerRow[]; totalDebit: string; totalCredit: string; closingBalance: string; foreignClosing?: { currency: string; closing: string }[] }
 
 const signed = (v: string) => (v.startsWith('-') ? `${formatMoney(v.slice(1))} Có` : v === '0' ? '0' : `${formatMoney(v)} Nợ`)
 
@@ -72,7 +77,7 @@ export function AccountLedgerView() {
   const [to, setTo] = useState(boot?.to ?? today())
   const [data, setData] = useState<Ledger | null>(null)
   const company = useCompanyInfo()
-  const [book, setBook] = usePrintBook<'S03b' | 'S07' | 'S08' | 'S31' | 'S38'>()
+  const [book, setBook] = usePrintBook<'S03b' | 'S07' | 'S07a' | 'S08' | 'S31' | 'S32' | 'S33' | 'S36' | 'S38'>()
   const acc = accounts.find(a => a.id === accountId)
   // The detail book that fits the account: cash book, payment ledger of a customer / supplier account, or the general detail ledger.
   const detail: 'S07' | 'S08' | 'S31' | 'S38' = acc?.cashKind === 'Cash' ? 'S07' : acc?.cashKind === 'Bank' ? 'S08' : acc && acc.openItemNature !== 'None' ? 'S31' : 'S38'
@@ -100,8 +105,16 @@ export function AccountLedgerView() {
             ['', '', '', 'Cộng phát sinh / số dư cuối kỳ', '', data.totalDebit, data.totalCredit, data.closingBalance]] : []} />
         <button disabled={!data || !!partnerId} title={partnerId ? 'Sổ Cái in cho cả tài khoản: bỏ chọn đối tượng' : 'Mẫu số S03b-DN, Phụ lục III TT 99/2025'} onClick={() => setBook('S03b')}>In Sổ Cái (S03b-DN)</button>
         <button disabled={!data} title="Mẫu theo Phụ lục III TT 99/2025" onClick={() => setBook(detail)}>In {DETAIL_VI[detail]}</button>
+        {data && ledgerCurrency(data) && (detail === 'S31' || detail === 'S38') && <button title="Mẫu S32-DN (131, 331) / S33-DN (các TK thanh toán khác), Phụ lục III TT 99/2025"
+          onClick={() => setBook(detail === 'S31' ? 'S32' : 'S33')}>In sổ ngoại tệ ({detail === 'S31' ? 'S32' : 'S33'}-DN)</button>}
+        {detail === 'S38' && <button disabled={!data} title="Mẫu số S36-DN, Phụ lục III TT 99/2025 (TK chi phí: phần Chia ra theo TK đối ứng)" onClick={() => setBook('S36')}>In sổ chi phí (S36-DN)</button>}
+        {detail === 'S07' && <button disabled={!data} title="Mẫu số S07a-DN, Phụ lục III TT 99/2025 (có TK đối ứng)" onClick={() => setBook('S07a')}>In sổ chi tiết quỹ (S07a-DN)</button>}
       </div>
       {data && book === 'S03b' && <GeneralLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
+      {data && (book === 'S32' || book === 'S33') && <ForeignLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} form={book}
+        partner={partners.find(p => p.id === partnerId)?.name ?? null} />}
+      {data && book === 'S36' && <CostBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
+      {data && book === 'S07a' && <CashDetailBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
       {data && book === 'S07' && <CashBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
       {data && book === 'S08' && <BankBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} bankName={acc?.bankName} bankAccountNo={acc?.bankAccountNo} />}
       {data && (book === 'S31' || book === 'S38') && <DetailLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} form={book}
@@ -299,7 +312,15 @@ export function GeneralJournalView() {
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<JournalRow[] | null>(null)
   const company = useCompanyInfo()
-  const [book, setBook] = usePrintBook<'S03a'>()
+  const [book, setBook] = usePrintBook<'S03a' | 'special'>()
+  const [shown, setShown] = useState({ from, to })
+  const { accounts } = useCatalog()
+  // Nhật ký đặc biệt: the account the journal is kept for (cash / bank, payable, receivable); empty = every account of that kind.
+  const [special, setSpecial] = useState<SpecialJournal>('S03a1')
+  const [focus, setFocus] = useState('')
+  const kindOf = (a: (typeof accounts)[number]) => special === 'S03a1' || special === 'S03a2' ? a.cashKind !== 'None' : special === 'S03a3' ? a.openItemNature === 'Payable' : a.openItemNature === 'Receivable'
+  const candidates = accounts.filter(a => a.isPostable && kindOf(a))
+  const focusCodes = focus ? [focus] : candidates.map(a => a.code)
   const { busy, error, run } = useAction()
   return (
     <>
@@ -307,14 +328,23 @@ export function GeneralJournalView() {
         <h2>Sổ Nhật ký chung</h2>
         <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
         <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
-        <button className="primary" disabled={busy} onClick={() => run(async () => setRows(await get<JournalRow[]>(`/reports/general-journal?from=${from}&to=${to}`)))}>Xem</button>
+        <button className="primary" disabled={busy} onClick={() => run(async () => { setRows(await get<JournalRow[]>(`/reports/general-journal?from=${from}&to=${to}`)); setShown({ from, to }) })}>Xem</button>
         <ExportButton fileName={`So_nhat_ky_chung_${from}_${to}`} sheet="Nhật ký chung" disabled={!rows}
           columns={[{ header: 'Ngày' }, { header: 'Số CT' }, { header: 'Loại' }, { header: 'Diễn giải', width: 40 }, { header: 'TK' }, { header: 'Đối tượng' },
             { header: 'Nợ', numeric: true }, { header: 'Có', numeric: true }]}
           rows={(rows ?? []).map(r => [r.postingDate, r.voucherNumber, TYPE_VI[r.voucherType] ?? r.voucherType, r.description, r.accountCode, r.partnerCode, r.debit, r.credit])} />
         <button disabled={!rows} title="Mẫu số S03a-DN, Phụ lục III TT 99/2025" onClick={() => setBook('S03a')}>In sổ (S03a-DN)</button>
       </div>
-      {rows && book === 'S03a' && <JournalBookPrint company={company.name} address={company.address} rows={rows} from={from} to={to} />}
+      <div className="toolbar">
+        <label>Nhật ký đặc biệt<select value={special} onChange={e => { setSpecial(e.target.value as SpecialJournal); setFocus('') }}>
+          <option value="S03a1">S03a1-DN Nhật ký thu tiền</option><option value="S03a2">S03a2-DN Nhật ký chi tiền</option>
+          <option value="S03a3">S03a3-DN Nhật ký mua hàng</option><option value="S03a4">S03a4-DN Nhật ký bán hàng</option></select></label>
+        <label>Tài khoản<select value={focus} onChange={e => setFocus(e.target.value)}><option value="">Tất cả ({candidates.map(a => a.code).join(', ') || 'chưa có'})</option>
+          {candidates.map(a => <option key={a.id} value={a.code}>{a.code} – {a.name}</option>)}</select></label>
+        <button disabled={!rows || !focusCodes.length} title="Mẫu theo Phụ lục III TT 99/2025; cột TK đối ứng: các TK dùng nhiều nhất trong kỳ" onClick={() => setBook('special')}>In nhật ký đặc biệt</button>
+      </div>
+      {rows && book === 'S03a' && <JournalBookPrint company={company.name} address={company.address} rows={rows} from={shown.from} to={shown.to} />}
+      {rows && book === 'special' && <SpecialJournalPrint company={company.name} address={company.address} form={special} lines={rows} focusAccounts={focusCodes} from={shown.from} to={shown.to} />}
       <ErrorBox error={error} />
       {rows && <div className="scroll"><table className="grid">
         <thead><tr><th>Ngày</th><th>Số CT</th><th>Loại</th><th>Diễn giải</th><th>TK</th><th>Đối tượng</th><th className="num">Nợ</th><th className="num">Có</th></tr></thead>

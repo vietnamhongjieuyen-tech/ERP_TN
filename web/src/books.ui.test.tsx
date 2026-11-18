@@ -1,7 +1,7 @@
 // Printed books (TT 99/2025 Phụ lục III): totals, month blocks of the general ledger, Nợ / Có balance columns.
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { BankBookPrint, FixedAssetBookPrint, FixedAssetCardPrint, CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint, MaterialLedgerPrint, StockCardPrint, SalesBookPrint, StockSummaryPrint, type LedgerData, type StockCardLine } from './books'
+import { AssetsInUsePrint, CostBookPrint, CostCardPrint, CashDetailBookPrint, ForeignLedgerPrint, LoanBookPrint, specialJournalRows, SpecialJournalPrint, TrialBalancePrint, BankBookPrint, FixedAssetBookPrint, FixedAssetCardPrint, CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint, MaterialLedgerPrint, StockCardPrint, SalesBookPrint, StockSummaryPrint, type LedgerData, type StockCardLine } from './books'
 
 afterEach(() => cleanup())
 const sheet = () => document.querySelector('.print-sheet') as HTMLElement
@@ -141,5 +141,110 @@ describe('Sổ theo Phụ lục III', () => {
     expect(rowText('HDM-7')).toContain('120.000.000')
     expect(rowText('HDM-7')).toMatch(/20264\.000\.0004\.000\.000$/)
     expect(rowText('2027')).toMatch(/20272\.000\.0006\.000\.000$/)
+  })
+
+  it('S06-DN: month heading, summary accounts in bold, totals', () => {
+    render(<TrialBalancePrint company="Công ty thử" address="" from="2026-04-01" to="2026-04-30" totals={{ totalOpeningDebit: '100', totalOpeningCredit: '100',
+      totalPeriodDebit: '50', totalPeriodCredit: '50', totalClosingDebit: '120', totalClosingCredit: '120' }} lines={[
+      { accountCode: '111', accountName: 'Tiền mặt', isGroup: true, openingDebit: '100', openingCredit: '0', periodDebit: '50', periodCredit: '30', closingDebit: '120', closingCredit: '0' },
+      { accountCode: '1111', accountName: 'Tiền Việt Nam', level: 1, openingDebit: '100', openingCredit: '0', periodDebit: '50', periodCredit: '30', closingDebit: '120', closingCredit: '0' }]} />)
+    expect(sheet().textContent).toContain('Tháng 04 năm 2026')
+    expect(sheet().textContent).toContain('Số dư đầu tháng')
+    expect((rowText('Tiền mặt') ?? '')).toContain('1005030120')
+    expect([...sheet().querySelectorAll('tr')].find(r => r.textContent?.includes('Tiền mặt'))!.getAttribute('style')).toContain('font-weight')
+    expect(rowText('Tổng cộng')).toContain('100100505012')
+  })
+
+  const journal = [
+    { voucherId: 'a', postingDate: '2026-05-02', voucherNumber: 'PT-1', lineNo: 1, accountCode: '1111', debit: '1100', credit: '0', description: 'Thu bán lẻ' },
+    { voucherId: 'a', postingDate: '2026-05-02', voucherNumber: 'PT-1', lineNo: 2, accountCode: '511', debit: '0', credit: '1000', description: 'Thu bán lẻ' },
+    { voucherId: 'a', postingDate: '2026-05-02', voucherNumber: 'PT-1', lineNo: 3, accountCode: '3331', debit: '0', credit: '100', description: 'Thu bán lẻ' },
+    { voucherId: 'b', postingDate: '2026-05-03', voucherNumber: 'PT-2', lineNo: 1, accountCode: '1111', debit: '500', credit: '0', description: 'Khách trả nợ' },
+    { voucherId: 'b', postingDate: '2026-05-03', voucherNumber: 'PT-2', lineNo: 2, accountCode: '131', debit: '0', credit: '500', description: 'Khách trả nợ' },
+    { voucherId: 'c', postingDate: '2026-05-04', voucherNumber: 'PC-1', lineNo: 1, accountCode: '642', debit: '200', credit: '0', description: 'Chi phí' },
+    { voucherId: 'c', postingDate: '2026-05-04', voucherNumber: 'PC-1', lineNo: 2, accountCode: '1111', debit: '0', credit: '200', description: 'Chi phí' },
+  ]
+
+  it('special journals: one row per voucher on the focus side, counter accounts as columns, the rest under "khác"', () => {
+    const { rows, fixed } = specialJournalRows(journal, ['1111'], 'S03a1', 2)
+    expect(rows.map(r => r.focus)).toEqual(['1100', '500'])                 // the payment PC-1 is not a receipt
+    expect(fixed).toEqual(['131', '3331'])                                   // most used first two (ties by code), then sorted
+    render(<SpecialJournalPrint company="Công ty thử" address="" form="S03a2" lines={journal} focusAccounts={['1111']} from="2026-05-01" to="2026-05-31" />)
+    expect(sheet().textContent).toContain('SỔ NHẬT KÝ CHI TIỀN')
+    expect(sheet().textContent).toContain('Ghi Có TK 1111')
+    expect(rowText('PC-1')).toContain('200')
+    expect(sheet().textContent).not.toContain('PT-1')
+  })
+
+  it('S07a-DN: counter account and Nợ / Có columns with the running cash balance', () => {
+    render(<CashDetailBookPrint company="Công ty thử" address="" from="2026-04-01" to="2026-04-30" ledger={{
+      accountCode: '1111', accountName: 'Tiền Việt Nam', openingBalance: '1000', totalDebit: '200', totalCredit: '300', closingBalance: '900',
+      rows: [{ postingDate: '2026-04-03', voucherNumber: 'PC-1', voucherType: 'CP', description: 'Chi', counterAccounts: '642', debit: '0', credit: '300', runningBalance: '700' },
+        { postingDate: '2026-04-04', voucherNumber: 'PT-1', voucherType: 'CR', description: 'Thu', counterAccounts: '131', debit: '200', credit: '0', runningBalance: '900' }] }} />)
+    expect(sheet().textContent).toContain('SỔ KẾ TOÁN CHI TIẾT QUỸ TIỀN MẶT')
+    expect(rowText('PC-1')).toContain('642300700')
+    expect(rowText('Số tồn cuối kỳ')).toContain('900')
+  })
+
+  it('S34-DN: lender, contract, rate, due date on drawdowns', () => {
+    render(<LoanBookPrint company="Công ty thử" address="" from="2026-01-01" to="2026-06-30" loan={{ code: 'KU-01', description: 'Vay vốn lưu động', lender: 'VCB – NH cho vay', ratePercent: '7.5', maturityDate: '2026-12-31' }} ledger={{
+      accountCode: '3411', accountName: 'Vay ngắn hạn', openingBalance: '0', totalDebit: '100', totalCredit: '1000', closingBalance: '-900',
+      rows: [{ postingDate: '2026-02-01', voucherNumber: 'BC-1', voucherType: 'GJ', description: 'Giải ngân', counterAccounts: '1121', debit: '0', credit: '1000', runningBalance: '-1000' },
+        { postingDate: '2026-05-01', voucherNumber: 'BN-1', voucherType: 'GJ', description: 'Trả gốc', counterAccounts: '1121', debit: '100', credit: '0', runningBalance: '-900' }] }} />)
+    expect(sheet().textContent).toContain('Tỷ lệ lãi vay: 7,5%/năm')
+    expect(rowText('Giải ngân')).toContain('31/12/2026')
+    expect(rowText('Trả gốc')).not.toContain('31/12/2026')
+    expect(rowText('Số dư cuối kỳ')).toMatch(/900$/)
+  })
+
+  it('S32-DN: foreign amounts and rates, foreign opening worked back from the closing, revaluation only in VND', () => {
+    render(<ForeignLedgerPrint company="Công ty thử" address="" from="2026-03-01" to="2026-03-31" partner="KH01" form="S32" ledger={{
+      accountCode: '1312', accountName: 'Phải thu USD', openingBalance: '25000000', totalDebit: '26000000', totalCredit: '25500000', closingBalance: '25500000',
+      foreignClosing: [{ currency: 'USD', closing: '1000' }],
+      rows: [{ postingDate: '2026-03-05', voucherNumber: 'SI-9', voucherType: 'SI', description: 'Bán USD', counterAccounts: '511', debit: '26000000', credit: '0', runningBalance: '51000000', foreignCurrency: 'USD', foreignAmount: '1000' },
+        { postingDate: '2026-03-20', voucherNumber: 'BC-9', voucherType: 'BR', description: 'Thu USD', counterAccounts: '1122', debit: '0', credit: '25500000', runningBalance: '25500000', foreignCurrency: 'USD', foreignAmount: '1000' }] }} />)
+    expect(sheet().textContent).toContain('Loại ngoại tệ: USD')
+    expect(rowText('Số dư đầu kỳ')).toContain('1.00025.000.000')          // 2,000 − 1,000 + 1,000 → opening 1,000 USD
+    expect(rowText('Bán USD')).toContain('26.000')                         // rate 26,000
+    expect(rowText('Bán USD')).toContain('2.00051.000.000')                // running 2,000 USD
+    expect(rowText('Số dư cuối kỳ')).toContain('1.00025.500.000')
+  })
+
+  const wipLedger = { accountCode: '154', accountName: 'Chi phí SX dở dang', openingBalance: '300', totalDebit: '1500', totalCredit: '1400', closingBalance: '400',
+    rows: [
+      { postingDate: '2026-06-03', voucherNumber: 'XK-5', voucherType: 'II', description: 'Xuất gỗ', counterAccounts: '152', debit: '1000', credit: '0', runningBalance: '1300' },
+      { postingDate: '2026-06-30', voucherNumber: 'CLS-1', voucherType: 'CLS', description: 'Kết chuyển lương', counterAccounts: '622', debit: '400', credit: '0', runningBalance: '1700' },
+      { postingDate: '2026-06-30', voucherNumber: 'CLS-2', voucherType: 'CLS', description: 'Chi phí chung', counterAccounts: '627, 214', debit: '100', credit: '0', runningBalance: '1800' },
+      { postingDate: '2026-06-30', voucherNumber: 'NK-7', voucherType: 'IR', description: 'Nhập thành phẩm', counterAccounts: '155', debit: '0', credit: '1400', runningBalance: '400' }] }
+
+  it('S36-DN: debits split by counter account, lines with several counters under "khác", credits listed', () => {
+    render(<CostBookPrint company="Công ty thử" address="" from="2026-06-01" to="2026-06-30" ledger={wipLedger} />)
+    expect(sheet().textContent).toContain('Ghi Nợ Tài khoản 154')
+    expect(rowText('Xuất gỗ')).toMatch(/1\.0001\.000$/)                     // TK 152 column (first)
+    expect(rowText('Chi phí chung')).toMatch(/100100$/)                      // the "khác" column (last)
+    expect(rowText('Cộng số phát sinh trong kỳ')).toContain('1.5001.000400100')
+    expect(rowText('Ghi Có TK 154')).toContain('1551.400')
+  })
+
+  it('S37-DN: opening WIP + costs of the period − cost of output = closing WIP', () => {
+    render(<CostCardPrint company="Công ty thử" address="" product="SX-DAM – Sản xuất dăm" wip={wipLedger} actualCost="1400" closingWip="400" from="2026-06-01" to="2026-06-30" />)
+    expect(sheet().textContent).toContain('Tháng 06 năm 2026')
+    expect(rowText('dở dang đầu kỳ')).toContain('300')
+    expect(rowText('phát sinh trong kỳ')).toContain('1.5001.000400100')
+    expect(rowText('Giá thành sản phẩm')).toContain('1.400')
+    expect(rowText('dở dang cuối kỳ')).toContain('400')
+  })
+
+  it('S22-DN: one table per place of use, assets in use during the year, write-offs in the decrease columns', () => {
+    render(<AssetsInUsePrint company="Công ty thử" address="" year="2026" assets={[
+      { ...machine, usedBy: 'Phân xưởng dăm' },
+      { ...machine, code: 'CC01', name: 'Máy khoan', originalCost: '3000000', usedBy: 'Phân xưởng dăm', disposalDate: '2026-09-30', disposalVoucher: 'FAD-2', disposalReason: 'Hỏng' },
+      { ...machine, code: 'TS09', name: 'Máy cũ', disposalDate: '2025-06-30' },               // written off last year: not in 2026
+      { ...machine, code: 'VP01', name: 'Máy tính', originalCost: '15000000', usedBy: null }]} />)
+    expect([...sheet().querySelectorAll('h1')].length).toBe(2)
+    expect(sheet().textContent).toContain('Phân xưởng dăm')
+    expect(sheet().textContent).toContain('(chưa ghi nơi sử dụng)')
+    expect(sheet().textContent).not.toContain('Máy cũ')
+    expect(rowText('Máy khoan')).toMatch(/FAD-230\/09\/2026Hỏng13\.000\.000/)
   })
 })

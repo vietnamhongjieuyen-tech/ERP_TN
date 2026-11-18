@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
-import { get, post, type Period } from './api'
+import { get, post, put, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, useAction, useCatalog, usePrintBook } from './common'
-import { FixedAssetBookPrint, FixedAssetCardPrint } from './books'
+import { AssetsInUsePrint, FixedAssetBookPrint, FixedAssetCardPrint } from './books'
 import { useCompanyInfo } from './forms'
 import { addMoney, formatMoney, parseMoney, today } from './money'
 import { DateInput } from './DateInput'
@@ -11,7 +11,7 @@ import { DateInput } from './DateInput'
 interface RegisterRow {
   id: string; code: string; name: string; class: 'FixedAsset' | 'Tool'; status: 'Draft' | 'Active' | 'Disposed' | 'Cancelled'
   assetAccountCode: string; inServiceDate: string; scheduleStartDate: string; usefulLifeMonths: number; originalCost: string; accumulated: string; netBookValue: string; disposalDate: string | null
-  residualValue?: string; sourceVoucher?: string | null; sourceDate?: string | null; disposalVoucher?: string | null; disposalReason?: string | null
+  residualValue?: string; sourceVoucher?: string | null; sourceDate?: string | null; disposalVoucher?: string | null; disposalReason?: string | null; usedBy?: string | null
 }
 interface Candidate { journalLineId: string; voucherNumber: string; postingDate: string; accountCode: string; description: string | null; lineAmount: string; assigned: string }
 interface Run { id: string; periodStart: string; periodEnd: string; status: 'Active' | 'Reversed'; voucherId: string | null }
@@ -41,7 +41,7 @@ export function AssetsView() {
   const [info, setInfo] = useState('')
   const { busy, error, run } = useAction()
   const company = useCompanyInfo()
-  const [book, setBook] = usePrintBook<'S21' | 'S23'>()
+  const [book, setBook] = usePrintBook<'S21' | 'S22' | 'S23'>()
   const fixedAssets = rows.filter(r => r.class === 'FixedAsset' && r.status !== 'Draft')
   const detailRow = detail ? rows.find(r => r.id === detail.asset.id) : undefined
 
@@ -72,7 +72,9 @@ export function AssetsView() {
           { header: 'Số tháng', numeric: true }, { header: 'Nguyên giá', numeric: true }, { header: 'Hao mòn / đã phân bổ', numeric: true }, { header: 'Còn lại', numeric: true }, { header: 'Ngày ghi giảm' }]}
           rows={rows.map(r => [r.code, r.name, CLASS_VI[r.class], STATUS_VI[r.status], r.assetAccountCode, r.inServiceDate, String(r.usefulLifeMonths), r.originalCost, r.accumulated, r.netBookValue, r.disposalDate])} />
         <button disabled={!fixedAssets.length} title="Mẫu số S21-DN, Phụ lục III TT 99/2025 (TSCĐ đã ghi tăng; mỗi TK một bảng)" onClick={() => setBook('S21')}>In sổ TSCĐ (S21-DN)</button>
+        <button disabled={!rows.some(r => r.status !== 'Draft' && r.status !== 'Cancelled')} title="Mẫu số S22-DN, Phụ lục III TT 99/2025 (TSCĐ và CCDC theo nơi sử dụng)" onClick={() => setBook('S22')}>In sổ theo nơi sử dụng (S22-DN)</button>
       </div>
+      {book === 'S22' && <AssetsInUsePrint company={company.name} address={company.address} assets={rows.filter(r => r.status !== 'Draft' && r.status !== 'Cancelled')} year={asOf.slice(0, 4)} />}
       {book === 'S21' && <FixedAssetBookPrint company={company.name} address={company.address} assets={fixedAssets} year={asOf.slice(0, 4)} />}
       {book === 'S23' && detail && detailRow && <FixedAssetCardPrint company={company.name} address={company.address} date={asOf} card={{
         asset: detailRow, openingAccumulated: detail.asset.openingAccumulated,
@@ -88,12 +90,16 @@ export function AssetsView() {
           <th className="num">Nguyên giá</th><th className="num">Hao mòn / đã phân bổ</th><th className="num">Còn lại</th><th>Thao tác</th></tr></thead>
         <tbody>{rows.map(r => (
           <tr key={r.id}>
-            <td>{r.code}</td><td>{r.name}</td><td>{CLASS_VI[r.class]}</td>
+            <td>{r.code}</td><td>{r.name}{r.usedBy ? <div className="muted">{r.usedBy}</div> : null}</td><td>{CLASS_VI[r.class]}</td>
             <td><span className={`badge ${r.status}`}>{STATUS_VI[r.status]}{r.disposalDate ? ` ${r.disposalDate}` : ''}</span></td>
             <td>{r.assetAccountCode}</td><td>{r.inServiceDate}</td><td>{r.usefulLifeMonths}</td>
             <td className="num">{formatMoney(r.originalCost)}</td><td className="num">{formatMoney(r.accumulated)}</td><td className="num">{formatMoney(r.netBookValue)}</td>
             <td style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => run(async () => setDetail(await get<Detail>(`/assets/${r.id}`)))}>Chi tiết</button>
+              {r.status !== 'Cancelled' && <button disabled={busy} title="Phòng, ban hoặc người sử dụng (sổ S22-DN)" onClick={async () => {
+                const v = await askText('Nơi sử dụng (phòng, ban hoặc người sử dụng; để trống = bỏ):', r.usedBy ?? '')
+                if (v !== null) act(() => put(`/assets/${r.id}/used-by`, { usedBy: v.trim() || null }), `Đã cập nhật nơi sử dụng ${r.code}.`)
+              }}>Nơi sử dụng</button>}
               {r.status === 'Draft' && <>
                 <button disabled={busy} onClick={() => act(() => post(`/assets/${r.id}/activate`), `Đã ghi tăng ${r.code}.`)}>Ghi tăng</button>
                 <button disabled={busy} onClick={async () => { const reason = await askText('Lý do hủy thẻ:'); if (reason) act(() => post(`/assets/${r.id}/cancel`, { reason }), `Đã hủy thẻ ${r.code}.`) }}>Hủy</button>
