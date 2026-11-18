@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askConfirm, askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, useAction, useCatalog } from './common'
@@ -125,7 +126,7 @@ export function LoansView() {
             <option value="">— chọn kỳ —</option>
             {periods.filter(p => p.status === 'Open').map(p => <option key={p.id} value={p.id}>{p.startDate.slice(0, 7)}</option>)}
           </select>
-          {foreignCurrencies.map(c => <label key={c}>Tỷ giá {c} <input inputMode="decimal" value={fxRates[c] ?? ''} onChange={e => setFxRates(x => ({ ...x, [c]: e.target.value }))} /></label>)}
+          {foreignCurrencies.map(c => <label key={c}>Tỷ giá {c} <MoneyInput kind="rate" value={fxRates[c] ?? ''} onChange={e => setFxRates(x => ({ ...x, [c]: e.target.value }))} /></label>)}
           <button className="primary" disabled={busy} onClick={accrue}>Trích lãi</button>
         </div>
         <table className="grid"><thead><tr><th>Kỳ</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
@@ -196,7 +197,7 @@ function NewLoan({ accounts, partners, onDone }: { accounts: ReturnType<typeof u
         <label>TK chi phí lãi <AccountSelect accounts={accounts} value={f.interestExpenseAccountId} onChange={v => set('interestExpenseAccountId', v)} ariaLabel="TK chi phí lãi" /></label>
         <label>TK lãi phải trả <AccountSelect accounts={accounts} value={f.accruedInterestAccountId} onChange={v => set('accruedInterestAccountId', v)} ariaLabel="TK lãi phải trả" /></label>
         <label>Loại tiền (để trống = VND) <input value={f.currency} onChange={e => set('currency', e.target.value.toUpperCase())} maxLength={3} /></label>
-        <label>Hạn mức / số tiền vay <input inputMode="decimal" value={f.contractAmount} onChange={e => set('contractAmount', e.target.value)} /></label>
+        <label>Hạn mức / số tiền vay <MoneyInput value={f.contractAmount} onChange={e => set('contractAmount', e.target.value)} /></label>
         <label>Ngày bắt đầu <DateInput value={f.startDate} onChange={e => set('startDate', e.target.value)} /></label>
         <label>Ngày đáo hạn <DateInput value={f.maturityDate} onChange={e => set('maturityDate', e.target.value)} /></label>
         <label>Lãi suất %/năm <input inputMode="decimal" value={f.annualRatePercent} onChange={e => set('annualRatePercent', e.target.value)} /></label>

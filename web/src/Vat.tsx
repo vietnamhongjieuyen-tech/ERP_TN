@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { parseEInvoiceXml, type EInvoice } from './einvoicexml'
 import { readZip } from './sheetread'
 import { askText } from './dialogs'
@@ -177,7 +178,7 @@ function Declarations() {
           <tbody>{lines.map((l, i) => <tr key={i}>
             <td><input aria-label="Mã chỉ tiêu" size={8} value={l.code} onChange={e => upd(i, { code: e.target.value })} /></td>
             <td><input aria-label="Tên chỉ tiêu" value={l.label} onChange={e => upd(i, { label: e.target.value })} /></td>
-            <td><input className="num" aria-label="Số đã kê khai" value={l.amount} onChange={e => upd(i, { amount: e.target.value })} /></td>
+            <td><MoneyInput aria-label="Số đã kê khai" value={l.amount} onChange={e => upd(i, { amount: e.target.value })} /></td>
             <td><select aria-label="So với" value={l.measure} onChange={e => upd(i, { measure: e.target.value })}>{Object.entries(MEASURE_VI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
             <td><input className="num" aria-label="Thuế suất" size={4} value={l.rate} placeholder="tất cả" onChange={e => upd(i, { rate: e.target.value })} /></td>
             <td><button aria-label="Xóa dòng" onClick={() => setLines(ls => ls.filter((_, j) => j !== i))}>✕</button></td></tr>)}</tbody>

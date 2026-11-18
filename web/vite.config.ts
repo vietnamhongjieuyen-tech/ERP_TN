@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    proxy: { '/api': 'http://127.0.0.1:5080' },
+    proxy: { '/api': process.env.HAK_API_URL ?? 'http://127.0.0.1:5080' },   // HAK_API_URL: end-to-end tests run their own API
   },
 })

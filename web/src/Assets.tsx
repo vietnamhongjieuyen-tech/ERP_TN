@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, useAction, useCatalog } from './common'
@@ -219,12 +220,12 @@ function NewAsset({ accounts, onDone }: { accounts: ReturnType<typeof useCatalog
         <label>TK chi phí <AccountSelect accounts={accounts} value={f.expenseAccountId} onChange={v => set('expenseAccountId', v)} ariaLabel="TK chi phí" /></label>
         <label>Ngày đưa vào sử dụng <DateInput value={f.inServiceDate} onChange={e => set('inServiceDate', e.target.value)} /></label>
         <label>Thời gian sử dụng (tháng) <input inputMode="numeric" value={f.usefulLifeMonths} onChange={e => set('usefulLifeMonths', e.target.value)} /></label>
-        <label>Giá trị thu hồi ước tính <input inputMode="decimal" value={f.residualValue} onChange={e => set('residualValue', e.target.value)} /></label>
+        <label>Giá trị thu hồi ước tính <MoneyInput value={f.residualValue} onChange={e => set('residualValue', e.target.value)} /></label>
         <label>Tính tháng đầu/cuối <select value={f.proration} onChange={e => set('proration', e.target.value)}>
           <option value="FullMonth">Tròn tháng (tính tháng tăng, không tính tháng giảm)</option><option value="Daily">Theo số ngày sử dụng</option></select></label>
         <label><input type="checkbox" checked={f.takenOver} onChange={e => set('takenOver', e.target.checked)} /> Chuyển từ hệ thống cũ (đã khấu hao một phần)</label>
         {f.takenOver && <>
-          <label>Hao mòn lũy kế đến ngày chuyển <input inputMode="decimal" value={f.openingAccumulated} onChange={e => set('openingAccumulated', e.target.value)} /></label>
+          <label>Hao mòn lũy kế đến ngày chuyển <MoneyInput value={f.openingAccumulated} onChange={e => set('openingAccumulated', e.target.value)} /></label>
           <label>Số tháng còn lại <input inputMode="numeric" value={f.remainingLifeMonths} onChange={e => set('remainingLifeMonths', e.target.value)} /></label>
           <label>Bắt đầu khấu hao trên hệ thống mới <DateInput value={f.scheduleStartDate} onChange={e => set('scheduleStartDate', e.target.value)} /></label>
         </>}
@@ -236,7 +237,7 @@ function NewAsset({ accounts, onDone }: { accounts: ReturnType<typeof useCatalog
           <td><input type="checkbox" aria-label={`Chọn ${c.voucherNumber}`} checked={c.journalLineId in picked} onChange={e => setPicked(p => {
             const n = { ...p }; if (e.target.checked) n[c.journalLineId] = remaining(c); else delete n[c.journalLineId]; return n })} /></td>
           <td>{c.voucherNumber}</td><td>{c.postingDate}</td><td>{c.description}</td><td className="num">{formatMoney(c.lineAmount)}</td><td className="num">{formatMoney(c.assigned)}</td>
-          <td className="num">{c.journalLineId in picked && <input inputMode="decimal" value={picked[c.journalLineId]} aria-label="Số tiền gán"
+          <td className="num">{c.journalLineId in picked && <MoneyInput value={picked[c.journalLineId]} aria-label="Số tiền gán"
             onChange={e => setPicked(p => ({ ...p, [c.journalLineId]: e.target.value }))} />}</td>
         </tr>)}</tbody></table>}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

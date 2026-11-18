@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askConfirm, askDate, askText } from './dialogs'
 import { get, post, saveOnce } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog, useRequestKey } from './common'
@@ -94,7 +95,7 @@ export function TradeView() {
           <label>Ngày hạch toán<DateInput value={head.postingDate} onChange={e => setHead(h => ({ ...h, postingDate: e.target.value }))} /></label>
           <label>Hạn thanh toán<DateInput value={head.dueDate} onChange={e => setHead(h => ({ ...h, dueDate: e.target.value }))} /></label>
           <label>Nguyên tệ<select value={head.currency} onChange={e => setHead(h => ({ ...h, currency: e.target.value }))}><option value="">VND</option><option>USD</option><option>EUR</option><option>CNY</option><option>JPY</option></select></label>
-          {head.currency && <label>Tỷ giá<input className="num" value={head.rate} onChange={e => setHead(h => ({ ...h, rate: e.target.value }))} /></label>}
+          {head.currency && <label>Tỷ giá<MoneyInput value={head.rate} onChange={e => setHead(h => ({ ...h, rate: e.target.value }))} /></label>}
           <label style={{ flex: 1, minWidth: 200 }}>Diễn giải<input value={head.description} onChange={e => setHead(h => ({ ...h, description: e.target.value }))} /></label>
         </div>
         <table className="grid">
@@ -107,7 +108,7 @@ export function TradeView() {
                 <option value="Bdmt">BDMT</option><option value="Quantity">Số lượng (MT/ĐVT)</option></select></td>
               <td><input className="num" aria-label="Số lượng" size={6} disabled={!!l.candidate} value={l.qty} onChange={e => upd(i, { qty: e.target.value })} /></td>
               <td>{!l.candidate && <AccountSelect accounts={accounts} value={l.accountId} onChange={v => upd(i, { accountId: v })} ariaLabel="TK" />}</td>
-              <td><input className="num" aria-label="Đơn giá" size={10} value={l.price} onChange={e => upd(i, { price: e.target.value })} /></td>
+              <td><MoneyInput aria-label="Đơn giá" size={10} value={l.price} onChange={e => upd(i, { price: e.target.value })} /></td>
               <td><input className="num" aria-label="Thuế suất" size={4} value={l.vat} placeholder="KCT" onChange={e => upd(i, { vat: e.target.value })} /></td>
               <td><input aria-label="Diễn giải dòng" value={l.description} onChange={e => upd(i, { description: e.target.value })} /></td>
               {codeOptions.length > 0 && <td>{(kind === 'Sales' || !l.candidate) && <SearchSelect options={codeOptions} value={l.analysisCodeId ?? ''} onChange={id => upd(i, { analysisCodeId: id })} ariaLabel="Mã phân tích" placeholder="—" width={150} />}</td>}
@@ -207,7 +208,7 @@ function Adjust({ invoice, onDone }: { invoice: Invoice; onDone: (msg?: string) 
           <label>SL trả lại (MT)<input className="num" value={qty} onChange={e => setQty(e.target.value)} /></label>
           <button style={{ alignSelf: 'flex-end' }} disabled={busy} onClick={makeReceipt}>{purchase ? '1. Lập phiếu xuất trả NCC' : '1. Lập phiếu nhập trả lại'}</button>
           <label>{purchase ? 'Phiếu xuất trả' : 'Phiếu nhập trả lại'}<select value={receiptId} onChange={e => setReceiptId(e.target.value)}><option value="">— chọn —</option>{receipts.map(r => <option key={r.id} value={r.id}>{r.number} · {r.postingDate}</option>)}</select></label>
-        </> : <label>Số tiền ({invoice.currency ?? 'VND'})<input className="num" value={amount} onChange={e => setAmount(e.target.value)} /></label>}
+        </> : <label>Số tiền ({invoice.currency ?? 'VND'})<MoneyInput value={amount} onChange={e => setAmount(e.target.value)} /></label>}
         <label>Ký hiệu HĐ<input value={series} onChange={e => setSeries(e.target.value)} /></label>
         <label>Số HĐ điều chỉnh<input value={no} onChange={e => setNo(e.target.value)} /></label>
         <button className="primary" style={{ alignSelf: 'flex-end' }} disabled={busy || !no || (purpose === 'Return' && !receiptId)} onClick={makeInvoice}>{purpose === 'Return' ? '2. ' : ''}Lập HĐ điều chỉnh</button>

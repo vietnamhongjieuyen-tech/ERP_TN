@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
 import { get, post, type OpenItem } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
@@ -70,8 +71,8 @@ export function FxView() {
         {currencies.length === 0 && <p className="muted">Không còn số dư nguyên tệ cần tỷ giá; chạy đánh giá lại vẫn xử lý phần quy đổi còn sót trên số dư nguyên tệ bằng 0.</p>}
         <div className="form-grid">
           {currencies.map(c => <div key={c}>
-            <label>{c} – tỷ giá cho số dư Nợ (tài sản) <input inputMode="decimal" value={rates[c]?.debit ?? ''} onChange={e => setRates(x => ({ ...x, [c]: { debit: e.target.value, credit: x[c]?.credit ?? '' } }))} /></label>
-            <label>{c} – tỷ giá cho số dư Có (nợ phải trả) <input inputMode="decimal" placeholder="để trống = như trên" value={rates[c]?.credit ?? ''} onChange={e => setRates(x => ({ ...x, [c]: { debit: x[c]?.debit ?? '', credit: e.target.value } }))} /></label>
+            <label>{c} – tỷ giá cho số dư Nợ (tài sản) <MoneyInput kind="rate" value={rates[c]?.debit ?? ''} onChange={e => setRates(x => ({ ...x, [c]: { debit: e.target.value, credit: x[c]?.credit ?? '' } }))} /></label>
+            <label>{c} – tỷ giá cho số dư Có (nợ phải trả) <MoneyInput kind="rate" placeholder="để trống = như trên" value={rates[c]?.credit ?? ''} onChange={e => setRates(x => ({ ...x, [c]: { debit: x[c]?.debit ?? '', credit: e.target.value } }))} /></label>
           </div>)}
           <label>Nguồn tỷ giá <input value={source} onChange={e => setSource(e.target.value)} placeholder="Ngân hàng …, ngày giờ niêm yết" /></label>
         </div>
@@ -137,7 +138,7 @@ function FxPaymentPanel({ date, onDone }: { date: string; onDone: (msg: string) 
         <label>Đối tượng <PartnerSelect partners={partners} value={partnerId} onChange={setPartnerId} /></label>
         <label>TK tiền <AccountSelect accounts={accounts} value={cashAccountId} onChange={setCashAccountId} filter={a => a.cashKind !== 'None'} ariaLabel="TK tiền" /></label>
         <label title="Thu tiền: ghi theo tỷ giá này. Chi tiền: TK tiền ghi theo tỷ giá ghi sổ bình quân gia quyền di động của TK, tỷ giá này không dùng.">
-          Tỷ giá thanh toán (khi thu) <input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} /></label>
+          Tỷ giá thanh toán (khi thu) <MoneyInput kind="rate" value={rate} onChange={e => setRate(e.target.value)} /></label>
         <label>Diễn giải <input value={description} onChange={e => setDescription(e.target.value)} /></label>
       </div>
       {accountId && partnerId && items.length === 0 && <p className="muted">Đối tượng không có hóa đơn ngoại tệ còn mở.</p>}
@@ -147,7 +148,7 @@ function FxPaymentPanel({ date, onDone }: { date: string; onDone: (msg: string) 
             const n = { ...p }; if (e.target.checked) n[i.journalLineId] = i.openForeign ?? ''; else delete n[i.journalLineId]; return n }) }} /></td>
           <td>{i.voucherNumber}</td><td>{i.dueDate}</td><td>{i.foreignCurrency}</td>
           <td className="num">{formatMoney(i.openForeign)}</td><td className="num">{formatMoney(i.open)}</td>
-          <td className="num">{i.journalLineId in picked && <input inputMode="decimal" aria-label="Nguyên tệ thanh toán" value={picked[i.journalLineId]}
+          <td className="num">{i.journalLineId in picked && <MoneyInput aria-label="Nguyên tệ thanh toán" value={picked[i.journalLineId]}
             onChange={e => { setPreview(null); setPicked(p => ({ ...p, [i.journalLineId]: e.target.value })) }} />}</td>
         </tr>)}</tbody></table>}
       {preview && <div className="msg ok">{formatMoney(preview.foreignTotal)} {preview.currency}: tiền {formatMoney(preview.cashAmount)}, giá trị ghi sổ {formatMoney(preview.bookAmount)} →

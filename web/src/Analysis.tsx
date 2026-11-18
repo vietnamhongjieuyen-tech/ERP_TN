@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { get, post, put, session } from './api'
 import { askConfirm, askText } from './dialogs'
 import { ErrorBox, ExportButton, useAction } from './common'
@@ -94,7 +95,7 @@ export function AnalysisSetup() {
         <p className="muted">Chứng từ có tổng tiền lớn hơn hạn mức chỉ được duyệt bởi người có quyền "duyệt vượt hạn mức" (mặc định: Kế toán trưởng, Giám đốc).
           Để trống = không áp dụng. Thay đổi hạn mức cần quyền quản trị cấu hình và được ghi nhật ký.</p>
         <div className="form-row">
-          <label>Hạn mức (đồng)<input className="num" value={limit} onChange={e => setLimit(e.target.value)} placeholder="không áp dụng" /></label>
+          <label>Hạn mức (đồng)<MoneyInput value={limit} onChange={e => setLimit(e.target.value)} placeholder="không áp dụng" /></label>
           <button style={{ alignSelf: 'flex-end' }} disabled={busy} onClick={() => run(async () => {
             const v = limit.trim() === '' ? null : parseMoney(limit)
             if (limit.trim() !== '' && !v) { setError(new Error('Hạn mức không hợp lệ.')); return }

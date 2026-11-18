@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { htmlTableRows, parseStatementRows } from './bankfile'
 import { adviceDetails, statementRowsFromPdf } from './pdftable'
 import { UncPrint, uncLayoutOf, type UncLayout } from './UncPrint'
@@ -77,7 +78,7 @@ function PaymentOrders() {
         <div className="form-row">
           <label>Tài khoản chi<AccountSelect accounts={accounts} value={form.bankAccountId} onChange={v => setForm(f => ({ ...f, bankAccountId: v }))} filter={a => a.cashKind === 'Bank'} /></label>
           <label>Nhà cung cấp<PartnerSelect partners={partners} value={form.partnerId} onChange={v => setForm(f => ({ ...f, partnerId: v }))} /></label>
-          <label>Số tiền<input className="num" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} onBlur={() => { const p = parseMoney(form.amount); if (p) setForm(f => ({ ...f, amount: formatMoney(p) })) }} /></label>
+          <label>Số tiền<MoneyInput value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></label>
           <label>Ngày đề nghị<DateInput value={form.requestedDate} onChange={e => setForm(f => ({ ...f, requestedDate: e.target.value }))} /></label>
           <label>Số TK thụ hưởng<input value={form.beneficiaryAccountNo} onChange={e => setForm(f => ({ ...f, beneficiaryAccountNo: e.target.value }))} /></label>
           <label>Ngân hàng thụ hưởng<input value={form.beneficiaryBank} onChange={e => setForm(f => ({ ...f, beneficiaryBank: e.target.value }))} /></label>
@@ -230,8 +231,8 @@ function Reconciliation() {
         <div className="form-row">
           <label>Từ ngày<DateInput value={hdr.fromDate} onChange={e => setHdr(h => ({ ...h, fromDate: e.target.value }))} /></label>
           <label>Đến ngày<DateInput value={hdr.toDate} onChange={e => setHdr(h => ({ ...h, toDate: e.target.value }))} /></label>
-          <label>Số dư đầu<input className="num" value={hdr.opening} onChange={e => setHdr(h => ({ ...h, opening: e.target.value }))} /></label>
-          <label>Số dư cuối<input className="num" value={hdr.closing} onChange={e => setHdr(h => ({ ...h, closing: e.target.value }))} /></label>
+          <label>Số dư đầu<MoneyInput kind={parseSigned} value={hdr.opening} onChange={e => setHdr(h => ({ ...h, opening: e.target.value }))} /></label>
+          <label>Số dư cuối<MoneyInput kind={parseSigned} value={hdr.closing} onChange={e => setHdr(h => ({ ...h, closing: e.target.value }))} /></label>
           <label>Tên file<input value={hdr.sourceName} onChange={e => setHdr(h => ({ ...h, sourceName: e.target.value }))} /></label>
         </div>
         <textarea aria-label="Nội dung sao kê" rows={6} style={{ width: '100%' }} value={csv} onChange={e => setCsv(e.target.value)} placeholder="2026-03-06;-12.000.000;FT26065ABC123;TT hoa don" />

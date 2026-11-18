@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askDate, askText } from './dialogs'
 import { get, post, saveOnce, session, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog, useRequestKey } from './common'
@@ -116,7 +117,7 @@ function StockDocs() {
             <tr key={i}><td>{i + 1}</td>
               <td><select aria-label="Vật tư" value={l.itemId} onChange={e => upd(i, { itemId: e.target.value })}><option value="">— chọn —</option>{items.map(it => <option key={it.id} value={it.id}>{it.code} – {it.name} ({it.unit})</option>)}</select></td>
               <td><input className="num" aria-label="Số lượng" value={l.quantity} onChange={e => upd(i, { quantity: e.target.value })} /></td>
-              {type === 'Receipt' && <td><input className="num" aria-label="Giá trị" value={l.amount} onChange={e => upd(i, { amount: e.target.value })} onBlur={() => { const p = parseMoney(l.amount); if (p) upd(i, { amount: formatMoney(p) }) }} /></td>}
+              {type === 'Receipt' && <td><MoneyInput aria-label="Giá trị" value={l.amount} onChange={e => upd(i, { amount: e.target.value })} /></td>}
               {type !== 'Transfer' && <td><AccountSelect accounts={accounts} value={l.counterAccountId} onChange={v => upd(i, { counterAccountId: v })} ariaLabel="TK đối ứng" /></td>}
               {type !== 'Transfer' && <td><select aria-label="Theo đơn hàng" value={l.orderLine} onChange={e => upd(i, { orderLine: e.target.value })}><option value="">—</option>{orderLines.filter(o => !l.itemId || o.itemId === l.itemId).map(o => <option key={o.key} value={o.key}>{o.label}</option>)}</select></td>}
               {type === 'Issue' && codeOptions.length > 0 && <td><SearchSelect options={codeOptions} value={l.analysisCodeId ?? ''} onChange={id => upd(i, { analysisCodeId: id })} ariaLabel="Mã phân tích" placeholder="—" width={150} /></td>}

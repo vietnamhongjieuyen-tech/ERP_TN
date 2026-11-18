@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { takeParams } from './nav'
 import { Attachments } from './Attachments'
 import { SearchSelect } from './combo'
@@ -491,9 +492,8 @@ function VoucherForm({ voucher, seed, onDone, oneStep }: { voucher: Voucher | nu
                 <td><select value={l.side} onChange={e => update(i, { side: e.target.value as 'D' | 'C' })} aria-label="Nợ/Có"><option value="D">Nợ</option><option value="C">Có</option></select></td>
                 <td><AccountSelect accounts={accounts} value={l.accountId} onChange={id => update(i, { accountId: id })} ariaLabel="Tài khoản" /></td>
                 <td><PartnerSelect partners={partners} value={l.partnerId} onChange={id => update(i, { partnerId: id })} /></td>
-                <td><input className="num" value={l.amount} aria-label="Số tiền" aria-invalid={l.amount !== '' && parsed[i] == null}
-                  onChange={e => update(i, { amount: e.target.value })}
-                  onBlur={() => { const p = parseMoney(l.amount); if (p) update(i, { amount: formatMoney(p) }) }} /></td>
+                <td><MoneyInput value={l.amount} aria-label="Số tiền" aria-invalid={l.amount !== '' && parsed[i] == null}
+                  onChange={e => update(i, { amount: e.target.value })} /></td>
                 <td><input value={l.description} placeholder={description} onChange={e => update(i, { description: e.target.value })} aria-label="Diễn giải dòng" /></td>
                 {showCodes && <td><SearchSelect options={codeOptions} value={l.analysisCodeId ?? ''} onChange={id => update(i, { analysisCodeId: id })} ariaLabel="Mã phân tích" placeholder="—" width={150} /></td>}
                 <td>{isCash(l.accountId) && <select value={l.cashFlowCode} onChange={e => update(i, { cashFlowCode: e.target.value })} aria-label="Mã luồng tiền">

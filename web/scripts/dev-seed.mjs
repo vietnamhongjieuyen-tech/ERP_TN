@@ -142,7 +142,7 @@ await call('POST', `/vouchers/${usdSale.id}/submit`, {}, e, company)
 await as('POST', `/vouchers/${usdSale.id}/approve`)
 await as('POST', `/vouchers/${usdSale.id}/post`)
 
-writeFileSync(new URL('../.dev-credentials.json', import.meta.url), JSON.stringify({ api: BASE, company: 'DEV01', users: creds }, null, 2))
+writeFileSync(process.env.HAK_CREDENTIALS_FILE ?? new URL('../.dev-credentials.json', import.meta.url), JSON.stringify({ api: BASE, company: 'DEV01', users: creds }, null, 2))
 console.log('Đã seed công ty DEV01. Mật khẩu ghi trong web/.dev-credentials.json (không commit).')
 
 // A bank loan drawdown (not yet linked to a contract), for the loan screen.

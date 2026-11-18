@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, useAction, useCatalog } from './common'
@@ -59,7 +60,7 @@ export function ProductionView() {
             {items.map(i => <option key={i.id} value={i.id}>{i.code} – {i.name}</option>)}</select></label>
           <label>TK dở dang <AccountSelect accounts={accounts} value={form.wipAccountId} onChange={v => setForm(f => ({ ...f, wipAccountId: v }))}
             filter={a => a.cashKind === 'None' && a.openItemNature === 'None'} ariaLabel="TK dở dang" /></label>
-          <label>Giá kế hoạch / đơn vị <input inputMode="decimal" value={form.plannedUnitCost} onChange={e => setForm(f => ({ ...f, plannedUnitCost: e.target.value }))} /></label>
+          <label>Giá kế hoạch / đơn vị <MoneyInput value={form.plannedUnitCost} onChange={e => setForm(f => ({ ...f, plannedUnitCost: e.target.value }))} /></label>
           <button disabled={busy || !form.code || !form.itemId || !form.wipAccountId} onClick={() => run(async () => {
             const planned = parseMoney(form.plannedUnitCost || '0'); if (planned == null) throw new Error('Giá kế hoạch không hợp lệ.')
             await post('/production/cost-objects', { ...form, plannedUnitCost: planned }); setForm({ code: '', name: '', itemId: '', wipAccountId: '', plannedUnitCost: '' }); await load()
@@ -74,7 +75,7 @@ export function ProductionView() {
             {objects.map(o => <option key={o.id} value={o.id}>{o.code} – {o.name}</option>)}</select></label>
           <label>Kỳ <select value={pick.periodId} onChange={e => { setPreview(null); setPick(p => ({ ...p, periodId: e.target.value })) }}><option value="">— chọn —</option>
             {periods.filter(p => p.status === 'Open').map(p => <option key={p.id} value={p.id}>{p.startDate.slice(0, 7)}</option>)}</select></label>
-          <label>Dở dang cuối kỳ <input inputMode="decimal" value={pick.closingWip} onChange={e => { setPreview(null); setPick(p => ({ ...p, closingWip: e.target.value })) }} /></label>
+          <label>Dở dang cuối kỳ <MoneyInput value={pick.closingWip} onChange={e => { setPreview(null); setPick(p => ({ ...p, closingWip: e.target.value })) }} /></label>
           <label>Căn cứ đánh giá dở dang <input value={pick.note} onChange={e => setPick(p => ({ ...p, note: e.target.value }))} placeholder="Biên bản kiểm kê dở dang…" /></label>
           <button disabled={busy || !pick.costObjectId || !pick.periodId} onClick={() => run(async () => setPreview(await post<Preview>('/production/cost-runs/preview', body())))}>Xem trước</button>
           <button className="primary" disabled={busy || !preview} onClick={() => run(async () => {

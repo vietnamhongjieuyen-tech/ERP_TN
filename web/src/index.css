@@ -49,7 +49,7 @@ input.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* DateInput: dd/MM/yyyy text field + calendar button; the native picker stays hidden behind the button. */
 .date-input { display: inline-flex; position: relative; align-items: stretch; max-width: 100%; }
 .date-input > input[type=text] { width: 11ch; border-top-right-radius: 0; border-bottom-right-radius: 0; font-variant-numeric: tabular-nums; }
-.date-input > input[aria-invalid] { border-color: var(--danger); }
+.date-input > input[aria-invalid], input[aria-invalid="true"] { border-color: var(--danger); }
 .date-input > .date-pick { padding: 0 6px; border-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; color: var(--muted); }
 .date-input > .date-native { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
 label > .date-input > input { color: var(--text); font-size: 14px; }

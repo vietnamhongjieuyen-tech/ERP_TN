@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import type { AnalysisCode } from './Analysis'
 import { CashCountDialog } from './CashCount'
 import { useUnsaved } from './leave'
@@ -124,8 +125,7 @@ export function CashDocsView() {
             {lines.map((l, i) => (
               <tr key={i}>
                 <td>{i + 1}</td>
-                <td><input className="num" aria-label="Số tiền" value={l.amount} onChange={e => upd(i, { amount: e.target.value })}
-                  onBlur={() => { const p = parseMoney(l.amount); if (p) upd(i, { amount: formatMoney(p) }) }} /></td>
+                <td><MoneyInput aria-label="Số tiền" value={l.amount} onChange={e => upd(i, { amount: e.target.value })} /></td>
                 {ev.needsCounter && <td><AccountSelect accounts={accounts} value={l.counterAccountId} onChange={id => upd(i, { counterAccountId: id })}
                   filter={a => (counterLine?.constraint === 'CASH_EQUIVALENT' ? a.cashKind !== 'None' : counterLine?.constraint === 'NOT_CASH_EQUIVALENT' ? a.cashKind === 'None' : true)} ariaLabel="TK đối ứng" /></td>}
                 {needs.settle && <td>

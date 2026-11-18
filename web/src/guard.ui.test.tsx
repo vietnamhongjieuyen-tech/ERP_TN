@@ -7,6 +7,7 @@ import { Modal } from './common'
 import { DialogHost } from './dialogs'
 import { confirmLeave, unsavedScreens, useUnsaved } from './leave'
 import { DateInput } from './DateInput'
+import { MoneyInput } from './MoneyInput'
 
 afterEach(() => cleanup())
 
@@ -61,7 +62,7 @@ describe('Lưu khi mất kết nối', () => {
     const keys: string[] = []
     let calls = 0
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
-      keys.push((init?.headers as Record<string, string>)['Idempotency-Key'])
+      keys.push(((init?.headers ?? {}) as Record<string, string>)['Idempotency-Key'])
       if (++calls === 1) throw new TypeError('Failed to fetch')
       return Response.json({ id: 'v1' })
     }))
@@ -99,5 +100,38 @@ describe('Ô ngày dd/MM/yyyy', () => {
     expect(screen.getByRole('status').textContent).toBe('2027-02-01')   // before min: refused
     fireEvent.focus(box()); fireEvent.change(box(), { target: { value: '' } }); fireEvent.blur(box())
     expect(screen.getByRole('status').textContent).toBe('')
+  })
+})
+describe('Ô số tiền dùng chung', () => {
+  function Harness({ kind }: { kind?: 'money' | 'rate' }) {
+    const [v, setV] = useState('')
+    return <><MoneyInput aria-label="Số tiền" kind={kind} value={v} onChange={e => setV(e.target.value)} /><output>{v}</output></>
+  }
+  const box = () => screen.getByRole('textbox', { name: 'Số tiền' }) as HTMLInputElement
+
+  it('groups digits on leaving the field and keeps the decimal part exactly', () => {
+    render(<Harness />)
+    fireEvent.change(box(), { target: { value: '1234567,5' } })
+    expect(box().getAttribute('aria-invalid')).toBeNull()   // not judged while typing
+    fireEvent.blur(box())
+    expect(box().value).toBe('1.234.567,5')
+    fireEvent.change(box(), { target: { value: '12345678901234567,1234' } }); fireEvent.blur(box())
+    expect(box().value).toBe('12.345.678.901.234.567,1234')   // beyond Number precision, still exact
+    expect(box().inputMode).toBe('decimal')
+  })
+
+  it('marks text that is not an amount and leaves it as typed', () => {
+    render(<Harness />)
+    fireEvent.change(box(), { target: { value: '1,5,0' } }); fireEvent.blur(box())
+    expect(box().value).toBe('1,5,0')
+    expect(box().getAttribute('aria-invalid')).toBe('true')
+    fireEvent.change(box(), { target: { value: '' } }); fireEvent.blur(box())
+    expect(box().getAttribute('aria-invalid')).toBeNull()
+  })
+
+  it('takes 6 decimals for an exchange rate', () => {
+    render(<Harness kind="rate" />)
+    fireEvent.change(box(), { target: { value: '25432,123456' } }); fireEvent.blur(box())
+    expect(box().value).toBe('25.432,123456')
   })
 })

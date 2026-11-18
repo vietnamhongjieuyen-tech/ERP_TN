@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "node --test src/**/*.test.ts && vitest run",
     "test:ui": "vitest run",
-    "seed:dev": "node scripts/dev-seed.mjs"
+    "seed:dev": "node scripts/dev-seed.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "^1.0.0",

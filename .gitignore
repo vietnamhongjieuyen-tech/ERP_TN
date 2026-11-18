@@ -20,3 +20,7 @@ out/
 
 # OCR engine and language data copied from node_modules by web/scripts/copy-ocr-assets.mjs
 web/public/ocr/
+
+# Playwright end-to-end results
+web/test-results/
+web/playwright-report/

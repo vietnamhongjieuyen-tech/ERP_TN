@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
 import { get, post, saveOnce } from './api'
 import { ErrorBox, PartnerSelect, useAction, useCatalog, useRequestKey } from './common'
@@ -74,7 +75,7 @@ export function OrdersView() {
               <td><select aria-label="Vật tư" value={l.itemId} onChange={e => upd(i, { itemId: e.target.value })}><option value="">— chọn —</option>{items.map(it => <option key={it.id} value={it.id}>{it.code} – {it.name} ({it.unit})</option>)}</select></td>
               <td><input className="num" aria-label="Số lượng" value={l.qty} onChange={e => upd(i, { qty: e.target.value })} /></td>
               <td><select aria-label="Giá theo" value={items.find(it => it.id === l.itemId)?.tracksDryness ? l.basis : 'Quantity'} disabled={!items.find(it => it.id === l.itemId)?.tracksDryness} onChange={e => upd(i, { basis: e.target.value as LineDraft['basis'] })}><option value="Bdmt">BDMT</option><option value="Quantity">Số lượng</option></select></td>
-              <td><input className="num" aria-label="Đơn giá" value={l.price} onChange={e => upd(i, { price: e.target.value })} /></td>
+              <td><MoneyInput aria-label="Đơn giá" value={l.price} onChange={e => upd(i, { price: e.target.value })} /></td>
               <td><input className="num" aria-label="Thuế suất" size={4} value={l.vat} placeholder="KCT" onChange={e => upd(i, { vat: e.target.value })} /></td>
               <td><button aria-label="Xóa dòng" onClick={() => setLines(ls => ls.filter((_, j) => j !== i))}>✕</button></td></tr>))}
           </tbody>

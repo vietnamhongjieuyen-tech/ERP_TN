@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { goTo, takeParams } from './nav'
 import { get, post, type OpenItem, type TrialBalanceRow } from './api'
 import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, printSheet, TYPE_VI, useAction, useCatalog } from './common'
@@ -268,8 +269,8 @@ function AllocateDialog({ debit, credit, asOf, onClose, onDone }: { debit: OpenI
     <p>Bên Nợ: <b>{debit.voucherNumber}</b> ngày {debit.postingDate}, còn {formatMoney(debit.open)}<br />
       Bên Có: <b>{credit.voucherNumber}</b> ngày {credit.postingDate}, còn {formatMoney(credit.open)}</p>
     <div className="form-row">
-      <label>Số tiền<input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" /></label>
-      {foreign && <label>Nguyên tệ ({foreign})<input value={foreignAmount} onChange={e => setForeignAmount(e.target.value)} inputMode="decimal" /></label>}
+      <label>Số tiền<MoneyInput value={amount} onChange={e => setAmount(e.target.value)} /></label>
+      {foreign && <label>Nguyên tệ ({foreign})<MoneyInput kind="rate" value={foreignAmount} onChange={e => setForeignAmount(e.target.value)} /></label>}
       <label>Ngày phân bổ<DateInput value={date} min={later} onChange={e => setDate(e.target.value)} /></label>
     </div>
     <p className="muted">Không vượt số còn lại của mỗi bên; ngày phân bổ không trước ngày hạch toán của hai chứng từ và phải thuộc kỳ chưa khóa. Phân bổ không sinh bút toán, chỉ ghi nhận chứng từ nào thanh toán cho chứng từ nào.</p>

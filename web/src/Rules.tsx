@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MoneyInput } from './MoneyInput'
 import { get, post } from './api'
 import { askConfirm } from './dialogs'
 import { AccountSelect, ErrorBox, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
@@ -271,7 +272,7 @@ function RuleEditor({ base, roles, mappings, onClose, onSaved }: { base: Partial
           <label>TK tiền mẫu<AccountSelect accounts={accounts} value={sample.mainAccountId} onChange={v => setSample(s => ({ ...s, mainAccountId: v }))} filter={a => a.cashKind !== 'None'} /></label>
           {needs.counter && <label>TK đối ứng mẫu<AccountSelect accounts={accounts} value={sample.counterAccountId} onChange={v => setSample(s => ({ ...s, counterAccountId: v }))} /></label>}
           {needs.partner && <label>Đối tượng mẫu<PartnerSelect partners={partners} value={sample.partnerId} onChange={v => setSample(s => ({ ...s, partnerId: v }))} /></label>}
-          <label>Số tiền<input className="num" value={sample.amount} onChange={e => setSample(s => ({ ...s, amount: e.target.value }))} /></label>
+          <label>Số tiền<MoneyInput value={sample.amount} onChange={e => setSample(s => ({ ...s, amount: e.target.value }))} /></label>
         </div>
         {'lines' in preview && preview.lines
           ? <table className="grid"><tbody>{preview.lines.map((l, i) => <tr key={i}><td>{l.side === 'D' ? 'Nợ' : 'Có'}</td><td>{l.account_code}</td><td>{l.partner_code ?? ''}</td><td className="num">{formatMoney(l.amount)}</td></tr>)}</tbody></table>
