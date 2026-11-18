@@ -1,4 +1,4 @@
-TK cũ (FAST),TK TT99,TK chi tiết đề xuất,Tên TK chi tiết đề xuất,Nhãn BC,Căn cứ / ghi chú,Cần chị xác nhận
+﻿TK cũ (FAST),TK TT99,TK chi tiết đề xuất,Tên TK chi tiết đề xuất,Nhãn BC,Căn cứ / ghi chú,Cần chị xác nhận
 1111,111,,,,TT99 bỏ cấp 2 của 111 (Phụ lục II-A: 111 không có TK cấp 2); số dư chuyển thẳng vào 111,
 1121.01,112,112.01,Tiền gửi không kỳ hạn – ngân hàng 01,,TT99 đổi tên 112 'Tiền gửi không kỳ hạn' và bỏ 1121/1122; Điều 29 k1: chuyển chi tiết 112 theo yêu cầu quản lý → giữ chi tiết theo ngân hàng,
 131,131,,,,Giữ nguyên; theo dõi theo khách hàng (lưỡng tính),
@@ -17,9 +17,9 @@ TK cũ (FAST),TK TT99,TK chi tiết đề xuất,Tên TK chi tiết đề xuất
 3383,3383,,,,Giữ nguyên,
 3384,3384,,,,Giữ nguyên,
 3386,3386,,,,Giữ nguyên,
-338811,3388,,,,TT99 3388 không có cấp 3. Điều 29 k1: nếu là cổ tức / lợi nhuận phải trả thì chuyển sang 332; nếu là vốn nhận góp BCC thì xem lại theo TT99,x
+338811,3411,,,,"Đối chiếu 18/11/2026: số phát sinh là tiền mượn của cá nhân (theo đối tượng), có thu khi mượn và chi khi trả → bản chất khoản đi vay: TT99 TK 3411 ""Các khoản đi vay"" theo đối tượng (B01 Mã 321, phần trên 12 tháng gắn nhãn DH → Mã 339; B03 tiền nhận Mã 33, tiền trả Mã 34). Nếu là cổ tức / lợi nhuận phải trả thì 332; khoản phải trả khác thì 3388",
 3524,3525,,,,TT99 đánh số lại: 'Dự phòng phải trả khác' là 3525 (Phụ lục II-A),
-4111,4111,,,,Công ty TNHH ghi vốn thực góp theo Điều lệ vào 4111 (Phụ lục II hướng dẫn TK 4111); 41111 / 41112 chỉ dùng cho công ty cổ phần → trong HAK đặt 4111 là TK chi tiết,x
+4111,4111,,,,Công ty TNHH ghi vốn thực góp theo Điều lệ vào 4111 (Phụ lục II hướng dẫn TK 4111); 41111 / 41112 chỉ dùng cho công ty cổ phần → trong HAK đặt 4111 là TK chi tiết (đối chiếu 18/11/2026),
 4211,4211,,,,Giữ nguyên (TT99 đổi tên: lũy kế đến cuối năm trước),
 4212,4212,,,,Giữ nguyên; đầu năm kết chuyển 4212 → 4211 (đã có chứng từ trong FAST năm 2026),
 5113,511,,,DV,TT99 511 không có cấp 2; nhãn DV để B09 VII.1 tách doanh thu dịch vụ,

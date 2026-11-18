@@ -1,5 +1,7 @@
 # Thông tư 99/2025/TT-BTC — Chế độ kế toán doanh nghiệp
 
+**Hồ sơ đối chiếu (18/11/2026):** xem `HO-SO-DOI-CHIEU.md` — tự kiểm tra 12 mẫu với danh mục TK (`tools/audit.py`, không lỗi), 5 test TT99 đạt, bảng kiểm 465 chỉ tiêu `ho-so-doi-chieu-chi-tieu.csv` để KTT ghi kết quả.
+
 **Trạng thái trong HAK:** đã trích Phụ lục II-A từ văn bản gốc và đối chiếu từng trang với bản PDF ký số. **CHƯA được xác minh** bởi người có thẩm quyền ký. Trong phần mềm, phiên bản chế độ luôn ở trạng thái "CHƯA xác minh" cho tới khi kế toán trưởng bấm *Xác minh* và ghi rõ người ký.
 
 ## Nguồn (người dùng cung cấp ngày 16/10/2026)
