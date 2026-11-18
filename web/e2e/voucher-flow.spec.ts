@@ -60,3 +60,20 @@ test('kế toán lập, kế toán trưởng duyệt và ghi sổ; số tiền l
   await page.getByRole('button', { name: 'Xem', exact: true }).click()
   await expect(page.getByRole('row', { name: /EXP/ }).first()).toContainText('1.234.567')
 })
+
+test('in Sổ tiền gửi S08-DN từ sổ chi tiết của tài khoản ngân hàng', async ({ page }) => {
+  // Capture what would go to the printer instead of opening the print dialog.
+  await page.addInitScript(() => {
+    window.print = () => { (window as unknown as { printed: string }).printed = document.querySelector('.print-sheet')?.textContent ?? '' }
+  })
+  await login(page, 'ktt')
+  await open(page, 'Sổ chi tiết / Sổ quỹ')
+  const account = page.getByRole('combobox', { name: 'Tài khoản' })
+  await account.fill('Tiền gửi ngân hàng (thử)'); await account.press('Enter')
+  await page.getByRole('button', { name: 'Xem', exact: true }).click()
+  await page.getByRole('button', { name: 'In Sổ tiền gửi (S08-DN)' }).click()
+  const printed = await page.waitForFunction(() => (window as unknown as { printed?: string }).printed).then(h => h.jsonValue() as Promise<string>)
+  expect(printed).toContain('SỔ TIỀN GỬI KHÔNG KỲ HẠN')
+  expect(printed).toContain('Mẫu số S08-DN')
+  expect(printed).toContain('1.000.000.000')            // the loan drawdown of the sample data
+})

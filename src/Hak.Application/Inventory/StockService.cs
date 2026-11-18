@@ -25,7 +25,7 @@ public sealed record InventorySummaryRow(Guid WarehouseId, string WarehouseCode,
     decimal ClosingQty, decimal ClosingValue, decimal PendingOutQty);
 
 public sealed record StockCardRow(DateOnly Date, string DocumentNumber, string? Description, decimal InQty, decimal OutQty, decimal? Value,
-    decimal BalanceQty, decimal? BalanceValue);
+    decimal BalanceQty, decimal? BalanceValue, DateOnly? DocumentDate = null, string? CounterAccount = null);
 
 public sealed record InventoryReconcileRow(Guid AccountId, string AccountCode, decimal StockValue, decimal LedgerBalance, decimal Difference, decimal PendingIssueQty);
 
@@ -597,7 +597,9 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
                            join d in db.StockDocuments on m.DocumentId equals d.Id
                            where m.CompanyId == ctx.CompanyId && m.WarehouseId == warehouseId && m.ItemId == itemId && m.MovementDate <= to
                            orderby m.Sequence
-                           select new { m, d.Number, d.Description }).AsNoTracking().ToListAsync();
+                           select new { m, d.Number, d.Description, d.DocumentDate }).AsNoTracking().ToListAsync();
+        var counterIds = moves.Where(x => x.m.CounterAccountId != null).Select(x => x.m.CounterAccountId!.Value).Distinct().ToList();
+        var counterCodes = await db.Accounts.AsNoTracking().Where(a => counterIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Code);
         var values = await ActiveValuesAsync(moves.Select(x => x.m.Id).ToList());
         var adjs = await db.StockValueAdjustments.AsNoTracking()
             .Where(a => a.CompanyId == ctx.CompanyId && a.WarehouseId == warehouseId && a.ItemId == itemId && a.AdjustmentDate <= to).ToListAsync();
@@ -619,7 +621,8 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
             val = val is null || !has ? null : val + v;
             if (x.m.MovementDate >= from)
                 rows.Add(new StockCardRow(x.m.MovementDate, x.Number, x.Description, x.m.Quantity > 0 ? x.m.Quantity : 0, x.m.Quantity < 0 ? -x.m.Quantity : 0,
-                    has ? Math.Abs(v) : null, qty, val));
+                    has ? Math.Abs(v) : null, qty, val, x.DocumentDate,
+                    x.m.CounterAccountId is { } ca && counterCodes.TryGetValue(ca, out var code) ? code : null));
         }
         return rows;
     }

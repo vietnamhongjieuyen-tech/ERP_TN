@@ -1,11 +1,18 @@
 // End-to-end tests: a real API on a NEW empty database in a temporary folder + the Vite dev server, driven by Chromium.
 // Never touches the database of an installed HAK. Run: npm run e2e (needs `npx playwright install chromium` once).
 import { defineConfig } from '@playwright/test'
-import { existsSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // The config is loaded again in every worker: the folder made by the first load is passed on through the environment.
+if (!process.env.HAK_E2E_DIR) {
+  // First load: remove the folders of earlier runs (older than an hour, so a run still going elsewhere keeps its own).
+  for (const name of readdirSync(tmpdir()).filter(n => n.startsWith('hak-e2e-'))) {
+    const old = join(tmpdir(), name)
+    try { if (Date.now() - statSync(old).mtimeMs > 3_600_000) rmSync(old, { recursive: true, force: true }) } catch { /* in use: next time */ }
+  }
+}
 const dir = process.env.HAK_E2E_DIR ?? (process.env.HAK_E2E_DIR = mkdtempSync(join(tmpdir(), 'hak-e2e-')))
 const userDotnet = join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'dotnet', 'dotnet.exe')
 const dotnet = process.env.HAK_DOTNET ?? (existsSync(userDotnet) ? userDotnet : 'dotnet')

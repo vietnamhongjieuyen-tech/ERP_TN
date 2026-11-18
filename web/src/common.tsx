@@ -24,6 +24,13 @@ export function printSheet() {
   try { window.print() } finally { document.body.classList.remove('print-sheet-mode') }
 }
 
+/** Mounts the chosen printed book, prints it once it is rendered, then unmounts it (only one print sheet at a time). */
+export function usePrintBook<T extends string>() {
+  const [book, setBook] = useState<T | null>(null)
+  useEffect(() => { if (book) { printSheet(); setBook(null) } }, [book])
+  return [book, setBook] as const
+}
+
 // Open modals: only the top one answers Esc / Tab / Enter (a confirmation opened over a form must not also close the form).
 // Top = deepest nesting (a modal rendered inside another's content), then the most recently opened (a dialog opened later
 // from elsewhere, e.g. askConfirm). Depth matters because effects of nested components run child-first.

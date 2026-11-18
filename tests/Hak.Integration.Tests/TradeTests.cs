@@ -482,4 +482,33 @@ public class TradeTests
         Assert.Equal(1_240_000m + 50_000m - 10_000m + 920_000m, await fx.Bal("COGS"));
         Assert.Equal(0m, Assert.Single(await fx.S.Stock.ReconcileAsync(fx.H.Auditor, D(12, 31))).Difference);
     }
+
+    [Fact]
+    public async Task SalesBook_RevenueQuantityPrice_DiscountAsDeduction_CostFromCoveredIssues()
+    {
+        using var fx = await SetupAsync();
+        await PostedReceiptAsync(fx, 100, 5_000_000, D(3, 1), fx.Add);                 // 50,000 / kg
+        var issue = await PostedIssueAsync(fx, 40, D(3, 2), fx.Add);                     // cost 2,000,000
+        InvoiceInput Sale(string no, decimal q, decimal price) => new(InvoiceKind.Sales, fx.H.Partner["KH01"], "1C26TBB", no, D(3, 3), D(3, 4), "Bán phụ gia",
+            [new InvoiceLineInput(price, issue.Id, 1, StockQuantity: q, VatRate: 10)]);
+        var a = await fx.Inv.PostAsync(fx.H.Approver, (await fx.Inv.CreateAsync(fx.H.Preparer, Sale("0000101", 30, 80_000))).Id);
+        await fx.Inv.PostAsync(fx.H.Approver, (await fx.Inv.CreateAsync(fx.H.Preparer, Sale("0000102", 10, 90_000))).Id);
+        var disc = await fx.Inv.CreateAdjustmentAsync(fx.H.Preparer, new AdjustmentInput(a.Id, InvoicePurpose.Discount, "1C26TBB", "0000103", D(3, 20), D(3, 20),
+            "Chiết khấu", [new AdjustmentLineInput(1, Amount: 100_000)]));
+        await fx.Inv.PostAsync(fx.H.Approver, disc.Id);
+        var issue2 = await PostedIssueAsync(fx, 5, D(3, 6), fx.Add);
+        await fx.Inv.CreateAsync(fx.H.Preparer, new InvoiceInput(InvoiceKind.Sales, fx.H.Partner["KH01"], "1C26TBB", "0000104", D(3, 6), D(3, 6), "Nháp",
+            [new InvoiceLineInput(1, issue2.Id, 1, VatRate: 10)]));                       // draft: not in the book
+
+        var book = await fx.Inv.SalesBookAsync(fx.H.Auditor, fx.Add, D(3, 1), D(3, 31));
+        Assert.Equal(3, book.Rows.Count);
+        var first = book.Rows[0];
+        Assert.Equal((30m, 80_000m, 2_400_000m, "1C26TBB0000101", "AR"), (first.Quantity!.Value, first.UnitPrice!.Value, first.Revenue, first.InvoiceRef, first.CounterAccount));
+        Assert.Equal(100_000m, book.Rows[2].Deduction);
+        Assert.Equal((40m, 3_300_000m, 100_000m, 3_200_000m), (book.TotalQuantity, book.TotalRevenue, book.TotalDeduction, book.NetRevenue));
+        Assert.True(book.CostComplete);
+        Assert.Equal((2_000_000m, 1_200_000m), (book.CostOfSales, book.GrossProfit));    // 30 + 10 kg of the 40 kg issue
+        Assert.Empty((await fx.Inv.SalesBookAsync(fx.H.Auditor, fx.Dam, D(3, 1), D(3, 31))).Rows);
+        Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => fx.Inv.SalesBookAsync(fx.H.Preparer with { Permissions = new HashSet<string>() }, fx.Add, D(3, 1), D(3, 31))));
+    }
 }

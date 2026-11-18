@@ -86,6 +86,11 @@ public class AssetTests
 
         // The disposal voucher belongs to the asset module.
         var disposalVoucher = (await s.Db.LongTermAssets.AsNoTracking().SingleAsync(a => a.Id == asset.Id)).DisposalVoucherId!.Value;
+        // Sổ TSCĐ (S21-DN): increase voucher of the cost line, decrease voucher and reason.
+        var reg = (await s.Assets.RegisterAsync(h.Auditor, new(2026, 3, 31))).Single();
+        var disposalNumber = (await s.Db.Vouchers.AsNoTracking().SingleAsync(v => v.Id == disposalVoucher)).Number;
+        Assert.NotNull(reg.SourceVoucher);
+        Assert.Equal((disposalNumber, "Thanh lý theo biên bản 01"), (reg.DisposalVoucher, reg.DisposalReason));
         Assert.Equal(ErrorCodes.InvalidStateTransition, await CodeOf(() => s.Engine.ReverseAsync(h.Approver, disposalVoucher, new(2026, 3, 31), "x")));
 
         await s.Assets.ReverseDisposalAsync(h.Approver, asset.Id, "Biên bản thanh lý bị hủy");

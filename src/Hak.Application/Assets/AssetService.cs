@@ -20,7 +20,8 @@ public sealed record AssetInput(string Code, string Name, AssetClass Class, Guid
     decimal OpeningAccumulated = 0, int? RemainingLifeMonths = null, DateOnly? ScheduleStartDate = null, string? Note = null);
 
 public sealed record AssetRegisterRow(Guid Id, string Code, string Name, AssetClass Class, AssetStatus Status, string AssetAccountCode,
-    DateOnly InServiceDate, DateOnly ScheduleStartDate, int UsefulLifeMonths, decimal OriginalCost, decimal Accumulated, decimal NetBookValue, DateOnly? DisposalDate);
+    DateOnly InServiceDate, DateOnly ScheduleStartDate, int UsefulLifeMonths, decimal OriginalCost, decimal Accumulated, decimal NetBookValue, DateOnly? DisposalDate,
+    decimal ResidualValue = 0, string? SourceVoucher = null, DateOnly? SourceDate = null, string? DisposalVoucher = null, string? DisposalReason = null);
 
 public sealed record AssetScheduleRow(DateOnly PeriodEnd, decimal Planned, decimal Cumulative, decimal? Booked);
 
@@ -378,11 +379,25 @@ public sealed class AssetService(HakDbContext db, AccountingEngine engine, Audit
             .OrderBy(a => a.Code).ToListAsync();
         var accounts = await db.Accounts.AsNoTracking().Where(a => a.CompanyId == ctx.CompanyId).ToDictionaryAsync(a => a.Id, a => a.Code);
         var entries = await ActiveEntriesAsync(ctx.CompanyId);
+        // Ghi tăng: the voucher of the first cost line; ghi giảm: the disposal voucher (S21-DN).
+        var assetIds = assets.Select(a => a.Id).ToList();
+        var firstSources = (await (from s in db.AssetCostSources
+                                   join l in db.JournalLines on s.JournalLineId equals l.Id
+                                   join e in db.JournalEntries on l.JournalEntryId equals e.Id
+                                   where assetIds.Contains(s.AssetId)
+                                   select new { s.AssetId, e.VoucherNumber, l.PostingDate }).AsNoTracking().ToListAsync())
+            .GroupBy(x => x.AssetId).ToDictionary(g => g.Key, g => g.OrderBy(x => x.PostingDate).First());
+        var disposalIds = assets.Where(a => a.DisposalVoucherId != null).Select(a => a.DisposalVoucherId!.Value).ToList();
+        var disposals = await db.Vouchers.AsNoTracking().Where(v => disposalIds.Contains(v.Id)).ToDictionaryAsync(v => v.Id, v => new { v.Number, v.Description });
         return assets.Select(a =>
         {
             var acc = a.Status == AssetStatus.Draft ? 0 : a.OpeningAccumulated + entries.Where(e => e.AssetId == a.Id && e.PeriodEnd <= asOf).Sum(e => e.Amount);
+            var src = firstSources.GetValueOrDefault(a.Id);
+            var disposal = a.DisposalVoucherId is { } dv ? disposals.GetValueOrDefault(dv) : null;
             return new AssetRegisterRow(a.Id, a.Code, a.Name, a.Class, a.Status, accounts[a.AssetAccountId], a.InServiceDate, a.ScheduleStartDate, a.UsefulLifeMonths,
-                a.OriginalCost, acc, a.OriginalCost - acc, a.DisposalDate);
+                a.OriginalCost, acc, a.OriginalCost - acc, a.DisposalDate, a.ResidualValue,
+                src?.VoucherNumber, src?.PostingDate, disposal?.Number,
+                disposal?.Description is { } text && text.StartsWith($"Ghi giảm {a.Code} – ", StringComparison.Ordinal) ? text[($"Ghi giảm {a.Code} – ".Length)..] : disposal?.Description);
         }).ToList();
     }
 

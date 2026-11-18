@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { MoneyInput } from './MoneyInput'
 import { askText } from './dialogs'
 import { get, post, type Period } from './api'
-import { AccountSelect, ErrorBox, ExportButton, useAction, useCatalog } from './common'
+import { AccountSelect, ErrorBox, ExportButton, useAction, useCatalog, usePrintBook } from './common'
+import { FixedAssetBookPrint, FixedAssetCardPrint } from './books'
+import { useCompanyInfo } from './forms'
 import { addMoney, formatMoney, parseMoney, today } from './money'
 import { DateInput } from './DateInput'
 
 interface RegisterRow {
   id: string; code: string; name: string; class: 'FixedAsset' | 'Tool'; status: 'Draft' | 'Active' | 'Disposed' | 'Cancelled'
   assetAccountCode: string; inServiceDate: string; scheduleStartDate: string; usefulLifeMonths: number; originalCost: string; accumulated: string; netBookValue: string; disposalDate: string | null
+  residualValue?: string; sourceVoucher?: string | null; sourceDate?: string | null; disposalVoucher?: string | null; disposalReason?: string | null
 }
 interface Candidate { journalLineId: string; voucherNumber: string; postingDate: string; accountCode: string; description: string | null; lineAmount: string; assigned: string }
 interface Run { id: string; periodStart: string; periodEnd: string; status: 'Active' | 'Reversed'; voucherId: string | null }
@@ -37,6 +40,10 @@ export function AssetsView() {
   const [disposing, setDisposing] = useState<RegisterRow | null>(null)
   const [info, setInfo] = useState('')
   const { busy, error, run } = useAction()
+  const company = useCompanyInfo()
+  const [book, setBook] = usePrintBook<'S21' | 'S23'>()
+  const fixedAssets = rows.filter(r => r.class === 'FixedAsset' && r.status !== 'Draft')
+  const detailRow = detail ? rows.find(r => r.id === detail.asset.id) : undefined
 
   const load = useCallback(() => run(async () => {
     setRows(await get<RegisterRow[]>(`/assets?asOf=${asOf}`))
@@ -64,7 +71,12 @@ export function AssetsView() {
         <ExportButton fileName={'So_TSCD_' + asOf} sheet="Sổ tài sản" columns={[{ header: 'Mã' }, { header: 'Tên', width: 30 }, { header: 'Loại' }, { header: 'Trạng thái' }, { header: 'TK' }, { header: 'Ngày sử dụng' },
           { header: 'Số tháng', numeric: true }, { header: 'Nguyên giá', numeric: true }, { header: 'Hao mòn / đã phân bổ', numeric: true }, { header: 'Còn lại', numeric: true }, { header: 'Ngày ghi giảm' }]}
           rows={rows.map(r => [r.code, r.name, CLASS_VI[r.class], STATUS_VI[r.status], r.assetAccountCode, r.inServiceDate, String(r.usefulLifeMonths), r.originalCost, r.accumulated, r.netBookValue, r.disposalDate])} />
+        <button disabled={!fixedAssets.length} title="Mẫu số S21-DN, Phụ lục III TT 99/2025 (TSCĐ đã ghi tăng; mỗi TK một bảng)" onClick={() => setBook('S21')}>In sổ TSCĐ (S21-DN)</button>
       </div>
+      {book === 'S21' && <FixedAssetBookPrint company={company.name} address={company.address} assets={fixedAssets} year={asOf.slice(0, 4)} />}
+      {book === 'S23' && detail && detailRow && <FixedAssetCardPrint company={company.name} address={company.address} date={asOf} card={{
+        asset: detailRow, openingAccumulated: detail.asset.openingAccumulated,
+        sources: detail.sources, booked: detail.schedule.filter(x => x.booked != null).map(x => ({ periodEnd: x.periodEnd, amount: x.booked! })) }} />}
       <p className="muted">Nguyên giá lấy từ bút toán đã ghi sổ (hóa đơn mua, chứng từ, số dư đầu) nên sổ tài sản luôn khớp sổ cái. Phương pháp đường thẳng; cách tính tháng đầu/cuối là cấu hình [CẦN XÁC MINH căn cứ pháp lý].</p>
       <ErrorBox error={error} />
       {info && !error && <div className="msg ok">{info}</div>}
@@ -104,7 +116,9 @@ export function AssetsView() {
 
       {detail && (
         <section className="panel">
-          <div className="toolbar"><h3>{detail.asset.code} – {detail.asset.name}</h3><button onClick={() => setDetail(null)}>Đóng</button></div>
+          <div className="toolbar"><h3>{detail.asset.code} – {detail.asset.name}</h3>
+            {detailRow?.class === 'FixedAsset' && <button title="Mẫu số S23-DN, Phụ lục III TT 99/2025" onClick={() => setBook('S23')}>In thẻ TSCĐ (S23-DN)</button>}
+            <button onClick={() => setDetail(null)}>Đóng</button></div>
           <p className="muted">Bắt đầu khấu hao {detail.asset.scheduleStartDate}; tính tháng đầu/cuối: {detail.asset.proration === 'Daily' ? 'theo ngày' : 'tròn tháng'}
             {detail.asset.remainingLifeMonths ? `; chuyển từ hệ thống cũ: hao mòn đầu ${formatMoney(detail.asset.openingAccumulated)}, còn ${detail.asset.remainingLifeMonths} tháng` : ''}</p>
           <h4>Nguồn nguyên giá</h4>

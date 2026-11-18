@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { MoneyInput } from './MoneyInput'
 import { askDate, askText } from './dialogs'
 import { get, post, saveOnce, session, type Period } from './api'
-import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog, useRequestKey } from './common'
+import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog, usePrintBook, useRequestKey } from './common'
+import { MaterialLedgerPrint, SalesBookPrint, StockCardPrint, StockSummaryPrint, type SalesBookData, type StockBookInfo, type StockCardLine } from './books'
 import { useUnsaved } from './leave'
-import { FORM_FOOT, FormHeader } from './forms'
+import { FORM_FOOT, FormHeader, useCompanyInfo } from './forms'
 import { addMoney, amountInWords, divideMoney, formatMoney, parseMoney, today } from './money'
 import type { Order } from './Orders'
 import { useAnalysisOptions } from './Analysis'
@@ -12,7 +13,7 @@ import { SearchSelect } from './combo'
 import { DateInput } from './DateInput'
 
 interface Warehouse { id: string; code: string; name: string; policies: { method: string; effectiveFrom: string }[] }
-interface Item { id: string; code: string; name: string; unit: string }
+interface Item { id: string; code: string; name: string; unit: string; inventoryAccountId?: string }
 interface StockDoc { id: string; number: string; type: string; warehouseId: string; toWarehouseId: string | null; postingDate: string; description: string; status: string; voucherId: string | null; lines: { lineNo: number; itemId: string; quantity: string; amount: string | null }[] }
 
 const METHOD_VI: Record<string, string> = { Fifo: 'Nhập trước xuất trước', MovingAverage: 'Bình quân tức thời', MonthlyAverage: 'Bình quân cuối tháng' }
@@ -31,8 +32,8 @@ function useStockCatalog() {
 }
 
 export function InventoryView() {
-  const [tab, setTab] = useState<'docs' | 'summary' | 'card' | 'costing' | 'bdmt'>('docs')
-  const tabs = { docs: 'Phiếu kho', summary: 'Nhập – xuất – tồn', card: 'Thẻ kho', costing: 'Tính giá cuối tháng', bdmt: 'MT / BDMT' } as const
+  const [tab, setTab] = useState<'docs' | 'summary' | 'card' | 'sales' | 'costing' | 'bdmt'>('docs')
+  const tabs = { docs: 'Phiếu kho', summary: 'Nhập – xuất – tồn', card: 'Thẻ kho', sales: 'Sổ chi tiết bán hàng', costing: 'Tính giá cuối tháng', bdmt: 'MT / BDMT' } as const
   return (
     <>
       <div className="toolbar">
@@ -42,6 +43,7 @@ export function InventoryView() {
       {tab === 'docs' && <StockDocs />}
       {tab === 'summary' && <Summary />}
       {tab === 'card' && <StockCard />}
+      {tab === 'sales' && <SalesBook />}
       {tab === 'costing' && <Costing />}
       {tab === 'bdmt' && <Bdmt />}
     </>
@@ -204,9 +206,24 @@ function Summary() {
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<SummaryRow[] | null>(null)
   const [recon, setRecon] = useState<{ accountCode: string; difference: string; pendingIssueQty: string }[]>([])
+  const [period, setPeriod] = useState({ from, to })   // the dates the rows on screen were loaded for
   const { busy, error, run } = useAction()
+  const company = useCompanyInfo()
+  const { accounts } = useCatalog()
+  const { items } = useStockCatalog()
+  const [book, setBook] = usePrintBook<'S11'>()
+  // S11-DN is kept per inventory account: group the rows by the account of each item.
+  const byAccount = (rows ?? []).reduce<{ account: string; rows: SummaryRow[] }[]>((acc, r) => {
+    const it = items.find(i => i.code === r.itemCode)
+    const a = accounts.find(x => x.id === it?.inventoryAccountId)
+    const key = a ? `${a.code} – ${a.name}` : '(chưa rõ tài khoản)'
+    const g = acc.find(x => x.account === key) ?? (acc.push({ account: key, rows: [] }), acc.at(-1)!)
+    g.rows.push(r)
+    return acc
+  }, []).sort((a, b) => a.account.localeCompare(b.account))
   const load = () => run(async () => {
     setRows(await get(`/reports/inventory-summary?from=${from}&to=${to}`))
+    setPeriod({ from, to })
     setRecon(await get(`/reports/inventory-reconciliation?asOf=${to}`))
   })
   const f = (v: string) => (v === '0' ? '' : formatMoney(v))
@@ -219,7 +236,9 @@ function Summary() {
         <ExportButton fileName={'NXT_' + from + '_' + to} sheet="Nhập xuất tồn" disabled={!rows}
           columns={[{ header: 'Kho' }, { header: 'Mã vật tư' }, { header: 'Tên vật tư', width: 30 }, { header: 'ĐVT' }, ...['Tồn đầu SL', 'Tồn đầu GT', 'Nhập SL', 'Nhập GT', 'Xuất SL', 'Xuất GT', 'Tồn cuối SL', 'Tồn cuối GT', 'Chờ tính giá'].map(h => ({ header: h, numeric: true }))]}
           rows={(rows ?? []).map(r => [r.warehouseCode, r.itemCode, r.itemName, r.unit, r.openingQty, r.openingValue, r.inQty, r.inValue, r.outQty, r.outValue, r.closingQty, r.closingValue, r.pendingOutQty])} />
+        <button disabled={!rows?.length} title="Mẫu số S11-DN, Phụ lục III TT 99/2025 (mỗi tài khoản một bảng)" onClick={() => setBook('S11')}>In bảng tổng hợp (S11-DN)</button>
       </div>
+      {book === 'S11' && <StockSummaryPrint company={company.name} address={company.address} groups={byAccount} from={period.from} to={period.to} />}
       <ErrorBox error={error} />
       {recon.map(r => <div key={r.accountCode} className={`msg ${r.difference === '0' ? 'ok' : 'error'}`}>
         TK {r.accountCode}: {r.difference === '0' ? 'sổ kho khớp sổ cái' : `sổ kho lệch sổ cái ${formatMoney(r.difference)}`}{r.pendingIssueQty !== '0' ? ` · ${formatMoney(r.pendingIssueQty)} đơn vị xuất chờ tính giá cuối tháng` : ''}</div>)}
@@ -232,7 +251,7 @@ function Summary() {
   )
 }
 
-interface CardRow { date: string; documentNumber: string; description: string | null; inQty: string; outQty: string; value: string | null; balanceQty: string; balanceValue: string | null }
+type CardRow = StockCardLine
 
 function StockCard() {
   const { warehouses, items } = useStockCatalog()
@@ -241,8 +260,17 @@ function StockCard() {
   const [from, setFrom] = useState(today().slice(0, 8) + '01')
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<CardRow[] | null>(null)
+  const [shown, setShown] = useState<StockBookInfo | null>(null)   // what the rows on screen are for (the pickers may have changed since)
   const { busy, error, run } = useAction()
-  const load = () => run(async () => setRows(await get(`/reports/stock-card?warehouseId=${warehouseId}&itemId=${itemId}&from=${from}&to=${to}`)))
+  const company = useCompanyInfo()
+  const { accounts } = useCatalog()
+  const [book, setBook] = usePrintBook<'S10' | 'S12'>()
+  const load = () => run(async () => {
+    setRows(await get(`/reports/stock-card?warehouseId=${warehouseId}&itemId=${itemId}&from=${from}&to=${to}`))
+    const w = warehouses.find(x => x.id === warehouseId), it = items.find(x => x.id === itemId)
+    setShown({ company: company.name, address: company.address, warehouse: w ? `${w.code} – ${w.name}` : '', itemCode: it?.code ?? '', itemName: it?.name ?? '', unit: it?.unit ?? '',
+      account: accounts.find(a => a.id === it?.inventoryAccountId)?.code ?? null, from, to })
+  })
   return (
     <>
       <div className="toolbar">
@@ -251,7 +279,11 @@ function StockCard() {
         <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
         <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button className="primary" onClick={load} disabled={busy || !warehouseId || !itemId}>Xem</button>
+        <button disabled={!rows?.length} title={rows && !rows.length ? 'Không phát sinh trong kỳ' : 'Mẫu số S12-DN, Phụ lục III TT 99/2025'} onClick={() => setBook('S12')}>In thẻ kho (S12-DN)</button>
+        <button disabled={!rows?.length} title={rows && !rows.length ? 'Không phát sinh trong kỳ' : 'Mẫu số S10-DN, Phụ lục III TT 99/2025'} onClick={() => setBook('S10')}>In sổ chi tiết vật tư (S10-DN)</button>
       </div>
+      {rows && shown && book === 'S12' && <StockCardPrint info={shown} rows={rows} />}
+      {rows && shown && book === 'S10' && <MaterialLedgerPrint info={shown} rows={rows} />}
       <ErrorBox error={error} />
       {rows && <table className="grid">
         <thead><tr><th>Ngày</th><th>Số phiếu</th><th>Diễn giải</th><th className="num">Nhập</th><th className="num">Xuất</th><th className="num">Giá trị</th><th className="num">Tồn SL</th><th className="num">Tồn GT</th></tr></thead>
@@ -260,6 +292,44 @@ function StockCard() {
           <td className="num">{r.value == null ? <span className="muted">chờ tính giá</span> : formatMoney(r.value)}</td>
           <td className="num">{formatMoney(r.balanceQty)}</td><td className="num">{r.balanceValue == null ? '—' : formatMoney(r.balanceValue)}</td></tr>)}</tbody>
       </table>}
+    </>
+  )
+}
+
+/** Sổ chi tiết bán hàng (S35-DN) of one item: posted sales invoices, returns / discounts as deductions, cost of the covered issues. */
+function SalesBook() {
+  const { items } = useStockCatalog()
+  const [itemId, setItemId] = useState('')
+  const [from, setFrom] = useState(today().slice(0, 5) + '01-01')
+  const [to, setTo] = useState(today())
+  const [data, setData] = useState<{ book: SalesBookData; from: string; to: string } | null>(null)
+  const company = useCompanyInfo()
+  const [print, setPrint] = usePrintBook<'S35'>()
+  const { busy, error, run } = useAction()
+  const load = () => run(async () => setData({ book: await get<SalesBookData>(`/reports/sales-book?itemId=${itemId}&from=${from}&to=${to}`), from, to }))
+  const b = data?.book
+  const f = (v: string | null) => (v == null || v === '0' ? '' : formatMoney(v))
+  return (
+    <>
+      <div className="toolbar">
+        <label>Vật tư / hàng hóa<select value={itemId} onChange={e => setItemId(e.target.value)}><option value="">— chọn —</option>{items.map(i => <option key={i.id} value={i.id}>{i.code} – {i.name}</option>)}</select></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
+        <button className="primary" onClick={load} disabled={busy || !itemId}>Xem</button>
+        <button disabled={!b} title="Mẫu số S35-DN, Phụ lục III TT 99/2025" onClick={() => setPrint('S35')}>In sổ (S35-DN)</button>
+      </div>
+      {data && print === 'S35' && <SalesBookPrint company={company.name} address={company.address} book={data.book} from={data.from} to={data.to} />}
+      <ErrorBox error={error} />
+      {b && !b.costComplete && <div className="msg error">Còn phiếu xuất chờ tính giá cuối tháng: giá vốn và lãi gộp chưa đầy đủ.</div>}
+      {b && <div className="scroll"><table className="grid">
+        <thead><tr><th>Ngày GS</th><th>Số CT</th><th>Hóa đơn</th><th>Diễn giải</th><th>TK ĐƯ</th><th className="num">Số lượng</th><th className="num">Đơn giá</th><th className="num">Thành tiền</th><th className="num">Giảm trừ</th></tr></thead>
+        <tbody>{b.rows.map((r, i) => <tr key={i}><td>{r.postingDate}</td><td>{r.number}</td><td>{r.invoiceRef}</td><td>{r.description}</td><td>{r.counterAccount}</td>
+          <td className="num">{f(r.quantity)}</td><td className="num">{f(r.unitPrice)}</td><td className="num">{f(r.revenue)}</td><td className="num">{f(r.deduction)}</td></tr>)}</tbody>
+        <tfoot>
+          <tr><td colSpan={5}><b>Cộng</b></td><td className="num">{f(b.totalQuantity)}</td><td /><td className="num">{f(b.totalRevenue)}</td><td className="num">{f(b.totalDeduction)}</td></tr>
+          <tr><td colSpan={7}>Doanh thu thuần / Giá vốn / Lãi gộp</td><td className="num" colSpan={2}>{formatMoney(b.netRevenue)} / {formatMoney(b.costOfSales)} / {formatMoney(b.grossProfit)}</td></tr>
+        </tfoot>
+      </table></div>}
     </>
   )
 }

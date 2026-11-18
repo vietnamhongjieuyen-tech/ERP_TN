@@ -72,5 +72,7 @@ public static class TradeEndpoints
         { await s.CancelDocumentAsync(await http.SessionAsync(), id, r.Reason); return Results.NoContent(); });
         api.MapGet("/reports/uninvoiced", async (HttpContext http, InvoiceKind kind, DateOnly asOf, InvoiceService s) =>
             Results.Ok(await s.UninvoicedAsync(await http.SessionAsync(), kind, asOf)));
+        api.MapGet("/reports/sales-book", async (HttpContext http, Guid itemId, DateOnly from, DateOnly to, InvoiceService s) =>
+            Results.Ok(await s.SalesBookAsync(await http.SessionAsync(), itemId, from, to)));
     }
 }

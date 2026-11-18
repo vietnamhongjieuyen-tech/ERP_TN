@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { MoneyInput } from './MoneyInput'
 import { goTo, takeParams } from './nav'
 import { get, post, type OpenItem, type TrialBalanceRow } from './api'
-import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, printSheet, TYPE_VI, useAction, useCatalog } from './common'
-import { CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint } from './books'
+import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog, usePrintBook } from './common'
+import { BankBookPrint, CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint } from './books'
 import { useCompanyInfo } from './forms'
 import { addMoney, formatMoney, parseMoney, parseRate, today } from './money'
 import { ConfirmationDialog } from './Confirmation'
@@ -72,11 +72,11 @@ export function AccountLedgerView() {
   const [to, setTo] = useState(boot?.to ?? today())
   const [data, setData] = useState<Ledger | null>(null)
   const company = useCompanyInfo()
-  const [book, setBook] = usePrintBook<'S03b' | 'S07' | 'S31' | 'S38'>()
+  const [book, setBook] = usePrintBook<'S03b' | 'S07' | 'S08' | 'S31' | 'S38'>()
   const acc = accounts.find(a => a.id === accountId)
   // The detail book that fits the account: cash book, payment ledger of a customer / supplier account, or the general detail ledger.
-  const detail: 'S07' | 'S31' | 'S38' = acc?.cashKind === 'Cash' ? 'S07' : acc && acc.openItemNature !== 'None' ? 'S31' : 'S38'
-  const DETAIL_VI = { S07: 'Sổ quỹ tiền mặt (S07-DN)', S31: 'Sổ chi tiết thanh toán (S31-DN)', S38: 'Sổ chi tiết (S38-DN)' }
+  const detail: 'S07' | 'S08' | 'S31' | 'S38' = acc?.cashKind === 'Cash' ? 'S07' : acc?.cashKind === 'Bank' ? 'S08' : acc && acc.openItemNature !== 'None' ? 'S31' : 'S38'
+  const DETAIL_VI = { S07: 'Sổ quỹ tiền mặt (S07-DN)', S08: 'Sổ tiền gửi (S08-DN)', S31: 'Sổ chi tiết thanh toán (S31-DN)', S38: 'Sổ chi tiết (S38-DN)' }
   const { busy, error, run } = useAction()
   const load = () => run(async () => {
     const q = new URLSearchParams({ accountId, from, to, ...(partnerId ? { partnerId } : {}) })
@@ -103,6 +103,7 @@ export function AccountLedgerView() {
       </div>
       {data && book === 'S03b' && <GeneralLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
       {data && book === 'S07' && <CashBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
+      {data && book === 'S08' && <BankBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} bankName={acc?.bankName} bankAccountNo={acc?.bankAccountNo} />}
       {data && (book === 'S31' || book === 'S38') && <DetailLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} form={book}
         partner={partners.find(p => p.id === partnerId)?.name ?? null} />}
       <ErrorBox error={error} />
@@ -291,13 +292,6 @@ function VoidAllocationDialog({ alloc, onClose, onDone }: { alloc: AllocationRow
 }
 
 interface JournalRow { voucherId: string; postingDate: string; voucherDate?: string | null; voucherType: string; voucherNumber: string; lineNo: number; accountCode: string; partnerCode: string | null; debit: string; credit: string; description: string | null }
-
-/** Mounts the chosen printed book, prints it once it is rendered, then unmounts it (only one print sheet at a time). */
-function usePrintBook<T extends string>() {
-  const [book, setBook] = useState<T | null>(null)
-  useEffect(() => { if (book) { printSheet(); setBook(null) } }, [book])
-  return [book, setBook] as const
-}
 
 /** Sổ Nhật ký chung: every posted line in date / voucher order. */
 export function GeneralJournalView() {
