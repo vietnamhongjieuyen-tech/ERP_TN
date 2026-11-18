@@ -95,6 +95,7 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
     public DbSet<VoucherTemplate> VoucherTemplates => Set<VoucherTemplate>();
     public DbSet<AnalysisCode> AnalysisCodes => Set<AnalysisCode>();
     public DbSet<VoucherAttachment> VoucherAttachments => Set<VoucherAttachment>();
+    public DbSet<Hak.Domain.Security.IdempotencyRecord> IdempotencyRecords => Set<Hak.Domain.Security.IdempotencyRecord>();
     public DbSet<ProductionCostRun> ProductionCostRuns => Set<ProductionCostRun>();
     public DbSet<Hak.Domain.Reports.ReportDefinition> ReportDefinitions => Set<Hak.Domain.Reports.ReportDefinition>();
     public DbSet<Hak.Domain.Reports.ReportSnapshot> ReportSnapshots => Set<Hak.Domain.Reports.ReportSnapshot>();
@@ -206,6 +207,15 @@ public sealed class HakDbContext(DbContextOptions<HakDbContext> options) : DbCon
             e.Property(x => x.VoucherType).HasMaxLength(10);
             e.Property(x => x.Description).HasMaxLength(500);
             e.HasOne<Company>().WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        b.Entity<Hak.Domain.Security.IdempotencyRecord>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.Key }).IsUnique();
+            e.HasIndex(x => x.CreatedAt);
+            e.Property(x => x.Key).HasMaxLength(100);
+            e.Property(x => x.Method).HasMaxLength(10);
+            e.Property(x => x.Path).HasMaxLength(300);
+            e.Property(x => x.RequestHash).HasMaxLength(64);
         });
         b.Entity<VoucherAttachment>(e =>
         {

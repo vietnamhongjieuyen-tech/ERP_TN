@@ -60,6 +60,10 @@ public class BackupTests
         var check = await svc.VerifyAsync(h.AdminId, backup.FileName, Pass);
         Assert.True(check.IsValid);
         Assert.Equal((1, 1), (check.Companies.Single().Vouchers, check.Companies.Single().JournalEntries));
+        var co = check.Companies.Single();
+        Assert.Equal((1_250_000m, 1_250_000m, true), (co.PostedDebit, co.PostedCredit, co.Balanced));
+        Assert.Equal((1, 1, 1_250_000m), (co.LiveVouchers, co.LiveJournalEntries, co.LivePostedDebit));
+        Assert.Equal((0, 0), (co.Attachments, co.AttachmentsDamaged));
         Assert.Null(check.RestoredPath);
         Assert.Equal(ErrorCodes.BackupInvalid, await CodeOf(() => svc.VerifyAsync(h.AdminId, backup.FileName, "mat-khau-sai-123")));
         Assert.Equal(ErrorCodes.ValidationFailed, await CodeOf(() => svc.VerifyAsync(h.AdminId, "..\\hak.db", Pass)));
@@ -67,6 +71,7 @@ public class BackupTests
         // Work continues after the backup; restoring gives the state at backup time in a separate file.
         await h.PostedAsync(s, h.Sale(2_000_000));
         var restored = await svc.VerifyAsync(h.AdminId, backup.FileName, Pass, restore: true);
+        Assert.Equal((1, 2), (restored.Companies.Single().Vouchers, restored.Companies.Single().LiveVouchers));   // live data moved on since the backup
         Assert.NotNull(restored.RestoredPath);
         Assert.NotEqual(Path.GetFullPath(h.DbPath), Path.GetFullPath(restored.RestoredPath!));
         await using (var copy = new HakDbContext(HakDb.SqliteOptions(restored.RestoredPath!)))

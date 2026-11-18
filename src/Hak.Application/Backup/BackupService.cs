@@ -17,13 +17,22 @@ public sealed class BackupOptions
 
 public sealed record BackupInfo(string FileName, long Size, DateTime CreatedAt, long DatabaseBytes, string DatabaseSha256, string Note);
 
-public sealed record CompanyChainCheck(Guid CompanyId, string CompanyCode, int Vouchers, int JournalEntries, long? BrokenAuditSeq);
+/// <summary>
+/// One company in a checked backup: counts and posted totals in the backup, the same figures in the live database (null when
+/// the company is not there), and the attachments whose stored SHA-256 no longer matches their content.
+/// </summary>
+public sealed record CompanyChainCheck(Guid CompanyId, string CompanyCode, int Vouchers, int JournalEntries, long? BrokenAuditSeq,
+    decimal PostedDebit = 0, decimal PostedCredit = 0, int Attachments = 0, int AttachmentsDamaged = 0,
+    int? LiveVouchers = null, int? LiveJournalEntries = null, decimal? LivePostedDebit = null)
+{
+    public bool Balanced => PostedDebit == PostedCredit;
+}
 
 /// <summary>Result of decrypting and checking a backup. RestoredPath is set only by a restore.</summary>
 public sealed record BackupVerification(string FileName, DateTime CreatedAt, string Integrity, bool SystemAuditChainOk, IReadOnlyList<CompanyChainCheck> Companies,
     string? RestoredPath)
 {
-    public bool IsValid => Integrity == "ok" && SystemAuditChainOk && Companies.All(c => c.BrokenAuditSeq is null);
+    public bool IsValid => Integrity == "ok" && SystemAuditChainOk && Companies.All(c => c.BrokenAuditSeq is null && c.Balanced && c.AttachmentsDamaged == 0);
 }
 
 /// <summary>
@@ -119,8 +128,23 @@ public sealed class BackupService(HakDbContext db, AuditService audit, IClock cl
                 var chain = new AuditService(copy, clock);
                 systemOk = await chain.VerifyChainAsync(Guid.Empty) is null;
                 foreach (var co in await copy.Companies.AsNoTracking().OrderBy(x => x.Code).ToListAsync())
+                {
+                    var (debit, credit) = await PostedTotalsAsync(copy, co.Id);
+                    // Attachments: the content must still hash to the SHA-256 recorded when it was uploaded.
+                    int attachments = 0, damaged = 0;
+                    foreach (var a in await copy.VoucherAttachments.AsNoTracking().Where(a => a.CompanyId == co.Id).Select(a => new { a.Sha256, a.Content }).ToListAsync())
+                    {
+                        attachments++;
+                        if (!string.Equals(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(a.Content)), a.Sha256, StringComparison.OrdinalIgnoreCase)) damaged++;
+                    }
+                    var live = await db.Companies.AsNoTracking().AnyAsync(c => c.Id == co.Id);
                     companies.Add(new CompanyChainCheck(co.Id, co.Code, await copy.Vouchers.CountAsync(v => v.CompanyId == co.Id),
-                        await copy.JournalEntries.CountAsync(e => e.CompanyId == co.Id), await chain.VerifyChainAsync(co.Id)));
+                        await copy.JournalEntries.CountAsync(e => e.CompanyId == co.Id), await chain.VerifyChainAsync(co.Id),
+                        debit, credit, attachments, damaged,
+                        live ? await db.Vouchers.CountAsync(v => v.CompanyId == co.Id) : null,
+                        live ? await db.JournalEntries.CountAsync(e => e.CompanyId == co.Id) : null,
+                        live ? (await PostedTotalsAsync(db, co.Id)).Debit : null));
+                }
             }
             SqliteConnection.ClearAllPools();
             string? restored = null;
@@ -143,6 +167,13 @@ public sealed class BackupService(HakDbContext db, AuditService audit, IClock cl
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /// <summary>Σ debit and Σ credit of every journal line of a company (amounts summed here: SQLite stores money as integers).</summary>
+    private static async Task<(decimal Debit, decimal Credit)> PostedTotalsAsync(HakDbContext ctx, Guid companyId)
+    {
+        var lines = await ctx.JournalLines.AsNoTracking().Where(l => l.CompanyId == companyId).Select(l => new { l.Side, l.Amount }).ToListAsync();
+        return (lines.Where(l => l.Side == Hak.Domain.Vouchers.Side.Debit).Sum(l => l.Amount), lines.Where(l => l.Side == Hak.Domain.Vouchers.Side.Credit).Sum(l => l.Amount));
+    }
 
     private string BackupPath(string fileName)
     {

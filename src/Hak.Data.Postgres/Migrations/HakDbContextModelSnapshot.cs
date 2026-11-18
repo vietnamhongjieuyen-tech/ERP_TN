@@ -3580,6 +3580,74 @@ namespace Hak.Data.Postgres.Migrations
                     b.ToTable("audit_logs");
                 });
 
+            modelBuilder.Entity("Hak.Domain.Security.IdempotencyRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("company_id");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("method");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("path");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResponseBody")
+                        .HasColumnType("text")
+                        .HasColumnName("response_body");
+
+                    b.Property<int?>("StatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("status_code");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_idempotency_records");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_idempotency_records_created_at");
+
+                    b.HasIndex("UserId", "Key")
+                        .IsUnique()
+                        .HasDatabaseName("ix_idempotency_records_user_id_key");
+
+                    b.ToTable("idempotency_records");
+                });
+
             modelBuilder.Entity("Hak.Domain.Security.LoginSession", b =>
                 {
                     b.Property<Guid>("Id")

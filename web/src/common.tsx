@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ApiError, get, post, session, type Account, type Partner } from './api'
+import { ApiError, get, newRequestKey, post, session, type Account, type Partner } from './api'
 import { SearchSelect } from './combo'
 import { catalogChanged } from './nav'
 import { downloadXlsx, type Cell, type Column } from './xlsx'
@@ -166,15 +166,25 @@ function QuickPartnerDialog({ typed, onClose, onCreated }: { typed: string; onCl
   )
 }
 
-/** Vietnamese names of permissions, for "cần quyền …" hints. */
-export const PERM_VI: Record<string, string> = {
-  'voucher.submit': 'gửi duyệt chứng từ', 'voucher.approve': 'duyệt chứng từ', 'voucher.post': 'ghi sổ', 'voucher.reverse': 'đảo bút toán',
-  'voucher.edit_draft': 'sửa / hủy chứng từ nháp', 'voucher.create': 'lập chứng từ', 'config.manage': 'quản trị cấu hình', 'payment_order.approve': 'duyệt lệnh chi',
+/** One key per save of a form: kept across retries and repeated "Lưu" until a save succeeds (see api.saveOnce). */
+export function useRequestKey() {
+  const ref = useRef<string | null>(null)
+  return { key: () => (ref.current ??= newRequestKey()), done: () => { ref.current = null } }
 }
 
-/** The user's permissions at the selected company (null while loading: buttons stay enabled and the server decides). */
-export function usePermissions(): Set<string> | null {
-  const [perms, setPerms] = useState<Set<string> | null>(null)
+/** Vietnamese names of permissions, for "cần quyền …" hints. */
+export const PERM_VI: Record<string, string> = {
+  'voucher.view': 'xem chứng từ', 'voucher.create': 'lập chứng từ', 'voucher.edit_draft': 'sửa / hủy chứng từ nháp', 'voucher.submit': 'gửi duyệt chứng từ',
+  'voucher.approve': 'duyệt chứng từ', 'voucher.approve_high': 'duyệt vượt hạn mức', 'voucher.post': 'ghi sổ', 'voucher.reverse': 'đảo bút toán',
+  'period.lock': 'khóa kỳ', 'period.reopen': 'mở lại kỳ', 'data.export': 'xuất dữ liệu', 'data.import': 'nhập dữ liệu', 'sensitive.view': 'xem dữ liệu nhạy cảm (lương…)',
+  'config.manage': 'quản trị cấu hình', 'catalog.manage': 'quản lý danh mục', 'report.view': 'xem báo cáo, sổ sách', 'audit.view': 'xem nhật ký kiểm toán',
+  'settlement.manage': 'phân bổ công nợ', 'cash.document': 'phiếu thu / chi tiền mặt', 'bank.document': 'chứng từ ngân hàng', 'payment_order.approve': 'duyệt lệnh chi',
+  'bank.reconcile': 'đối chiếu ngân hàng', 'stock.document': 'phiếu kho', 'invoice.document': 'hóa đơn mua / bán', 'asset.manage': 'tài sản / CCDC', 'loan.manage': 'khoản vay',
+}
+
+/** The user's permissions at the selected company: undefined while loading, null when unknown (the server then decides alone). */
+export function usePermissions(): Set<string> | null | undefined {
+  const [perms, setPerms] = useState<Set<string> | null | undefined>(undefined)
   useEffect(() => {
     get<{ id: string; permissions?: string[] }[]>('/me/companies')
       .then(cs => { const p = cs.find(c => c.id === session.companyId)?.permissions; setPerms(p ? new Set(p) : null) })

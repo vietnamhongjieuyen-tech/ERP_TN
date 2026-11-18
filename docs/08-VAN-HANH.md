@@ -100,6 +100,7 @@ API trên máy trạm chỉ nghe `127.0.0.1`. Không mở cổng API ra mạng.
 - **Kiểm tra** định kỳ (hằng tháng): giải mã, kiểm SHA-256, `integrity_check`, chuỗi nhật ký kiểm toán của mọi công ty.
 - **Khôi phục**: tạo tệp `restored-*.db` bên cạnh bản sao lưu (không ghi đè CSDL đang chạy). Sau đó: dừng phần mềm → đặt `Hak:DatabasePath` tới tệp khôi phục → khởi động → kiểm tra số liệu → giữ tệp cũ ít nhất đến khi xác nhận.
 - **Chuyển CSDL sang máy khác** (khôi phục trên máy mới, đổi máy chủ): khóa trao đổi dữ liệu (lương, chứng từ JSON) được bảo vệ bằng Windows DPAPI của máy cũ nên máy mới không đọc được. Vào **Lương → Khóa trao đổi**: ngừng dùng khóa cũ, cấp khóa mới và cấu hình lại ở hệ thống gửi. Số liệu kế toán không bị ảnh hưởng.
+- **Kiểm tra / diễn tập khôi phục**: nút "Kiểm tra" giải mã bản sao lưu và báo từng công ty: số chứng từ, bút toán, tổng phát sinh Nợ / Có (phải cân), số tệp đính kèm và tệp hỏng (so SHA-256 lưu lúc tải lên), chuỗi nhật ký — đặt cạnh số của dữ liệu đang chạy. Lịch sao lưu tự động kiểm tra như vậy ngay sau mỗi lần sao lưu, và so mã băm bản chép ngoài máy với bản gốc; chỉ xóa bản tự động cũ khi bản mới đã kiểm tra đạt. Diễn tập định kỳ (đề xuất mỗi quý): "Khôi phục ra file mới" → mở bằng bản thử nghiệm (đặt `Hak:DatabasePath`) → so bảng cân đối phát sinh, công nợ, tồn kho với bản đang chạy → ghi biên bản (ngày, người, thời gian khôi phục). Khóa trao đổi (nhập lương) được bọc bằng DPAPI theo máy: khôi phục sang máy khác phải cấp khóa mới.
 - Khi khởi động, phần mềm tự xóa bản chụp tạm chưa mã hóa (`.snapshot-*.db`, `.verify-*.db`) còn sót trong thư mục sao lưu do lần sao lưu trước bị ngắt giữa chừng (mất điện, tắt máy).
 
 ### PostgreSQL (LAN)
@@ -143,6 +144,8 @@ Máy đơn dùng bộ cài: chạy bộ cài bản mới (mục 1b), bộ cài t
 - Sổ cái, sổ kho, phân bổ, khấu hao… **không sửa/xóa được** (trigger CSDL). Sai sót xử lý bằng chứng từ đảo/điều chỉnh. Tuyệt đối không sửa trực tiếp trong CSDL.
 - Tệp đính kèm chứng từ lưu trong cơ sở dữ liệu (tối đa 10 MB mỗi tệp): dung lượng CSDL và bản sao lưu tăng theo; chỉ nhận PDF, ảnh, tệp văn phòng, XML, không nhận tệp chạy được hay trang web.
 - Nhận dạng chữ (OCR) sổ phụ chạy trong trình duyệt bằng tesseract.js (Apache-2.0) với dữ liệu tiếng Việt / tiếng Anh nằm sẵn trong thư mục `wwwroot/ocr` của gói cài: không cần mạng, không gửi ảnh ra ngoài.
+- **Chống tạo trùng khi mất phản hồi**: các màn lập chứng từ, phiếu thu/chi, phiếu kho, hóa đơn, đơn hàng gửi kèm khóa `Idempotency-Key` cho mỗi lần Lưu; mất kết nối thì tự gửi lại 2 lần cùng khóa, và bấm Lưu lại cũng dùng khóa đó, nên máy chủ trả kết quả lần đầu thay vì tạo bản thứ hai (bảng `idempotency_records`, giữ 7 ngày). Cùng khóa mà nội dung khác thì bị từ chối.
+- **Thư viện**: CI chặn bản build khi thư viện đóng gói vào chương trình (npm production, NuGet) có lỗ hổng mức cao; lỗ hổng chỉ trong công cụ phát triển (Vite/Vitest — picomatch, 18/11/2026 chưa có bản vá) được báo, không chặn, cập nhật khi có bản vá chính thức.
 - Nhật ký kiểm toán là chuỗi băm; xem tại **Quản trị → Nhật ký**; bản sao lưu kiểm tra lại toàn chuỗi.
 
 ## 8. Sự cố thường gặp

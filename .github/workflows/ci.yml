@@ -13,6 +13,12 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --no-restore -c Release
       - run: dotnet test --no-build -c Release --logger trx --results-directory TestResults
+      - name: NuGet packages with known vulnerabilities
+        shell: pwsh
+        run: |
+          $out = dotnet list package --vulnerable --include-transitive 2>&1 | Out-String
+          Write-Output $out
+          if ($out -match 'has the following vulnerable packages') { exit 1 }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -55,6 +61,11 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci
+      # Libraries shipped in the program must have no known high-severity vulnerability (blocks the build).
+      - run: npm audit --omit=dev --audit-level=high
+      # Development tooling (Vite, Vitest…): reported, not blocking; upgrade when an official fix is released.
+      - run: npm audit --audit-level=high
+        continue-on-error: true
       - run: npm run lint
       - run: npm test
       - run: npm run build

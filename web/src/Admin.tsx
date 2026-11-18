@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askText } from './dialogs'
 import { get, post } from './api'
-import { ErrorBox, useAction } from './common'
+import { ErrorBox, PERM_VI, useAction } from './common'
 import { formatMoney, today } from './money'
 import { downloadXlsx } from './xlsx'
 
@@ -12,7 +12,8 @@ interface RoleRow { code: string; name: string; permissions: string[] }
 interface Company { id: string; code: string; name: string }
 interface BackupInfo { fileName: string; size: number; createdAt: string; databaseBytes: number; databaseSha256: string; note: string }
 interface Verification { fileName: string; integrity: string; systemAuditChainOk: boolean; isValid: boolean; restoredPath: string | null
-  companies: { companyCode: string; vouchers: number; journalEntries: number; brokenAuditSeq: number | null }[] }
+  companies: { companyCode: string; vouchers: number; journalEntries: number; brokenAuditSeq: number | null; postedDebit: string; postedCredit: string; balanced: boolean
+    attachments: number; attachmentsDamaged: number; liveVouchers: number | null; liveJournalEntries: number | null; livePostedDebit: string | null }[] }
 interface AuditRow { seq: number; at: string; userName: string | null; device: string | null; action: string; entityType: string; entityId: string | null; result: string; dataJson: string | null; hash?: string }
 
 export function AdminView() {
@@ -203,10 +204,39 @@ function Users({ me, reload }: { me: Me; reload: number }) {
         <label>Vai trò <select value={grant.roleCode} onChange={e => setGrant(g => ({ ...g, roleCode: e.target.value }))}><option value="">—</option>{roles.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}</select></label>
         <button disabled={busy || !grant.userId || !grant.companyId || !grant.roleCode} onClick={() => act(() => post('/admin/grants', grant), 'Đã cấp vai trò.')}>Cấp</button>
       </div>
+      <EffectivePermissions users={users} roles={roles} companies={companies} />
       <details><summary>Quyền của từng vai trò mặc định</summary>
         <table className="grid"><tbody>{roles.map(r => <tr key={r.code}><td>{r.name}</td><td style={{ whiteSpace: 'normal' }}>{r.permissions.join(', ')}</td></tr>)}</tbody></table>
       </details>
     </section>
+  )
+}
+
+/** Quyền hiệu lực: what one person may do at one company — the union of the roles granted there, with the role each comes from. */
+function EffectivePermissions({ users, roles, companies }: { users: UserRow[]; roles: RoleRow[]; companies: Company[] }) {
+  const [userId, setUserId] = useState('')
+  const [companyId, setCompanyId] = useState('')
+  const user = users.find(u => u.id === userId)
+  const granted = user?.grants.filter(g => g.companyId === companyId) ?? []
+  const from = (perm: string) => granted.filter(g => roles.find(r => r.code === g.roleCode)?.permissions.includes(perm)).map(g => g.roleName)
+  const all = Object.keys(PERM_VI)
+  return (
+    <details>
+      <summary>Quyền hiệu lực của một người tại một công ty</summary>
+      <div className="form-row">
+        <label>Người dùng <select value={userId} onChange={e => setUserId(e.target.value)}><option value="">—</option>{users.map(u => <option key={u.id} value={u.id}>{u.userName}</option>)}</select></label>
+        <label>Công ty <select value={companyId} onChange={e => setCompanyId(e.target.value)}><option value="">—</option>{companies.map(c => <option key={c.id} value={c.id}>{c.code} – {c.name}</option>)}</select></label>
+      </div>
+      {user && companyId && <>
+        {!user.isActive && <div className="field-warn">Tài khoản đang bị khóa: không đăng nhập được, quyền bên dưới chưa có hiệu lực.</div>}
+        {granted.length === 0
+          ? <p className="muted">{user.userName} chưa có vai trò nào tại công ty này: không mở được sổ sách của công ty.</p>
+          : <table className="grid"><thead><tr><th>Quyền</th><th>Có</th><th>Từ vai trò</th></tr></thead>
+            <tbody>{all.map(p => { const src = from(p); return (
+              <tr key={p} className={src.length ? undefined : 'muted'}><td>{PERM_VI[p]}</td><td>{src.length ? '✓ Có' : '— Không'}</td><td>{src.join(', ')}</td></tr>) })}</tbody></table>}
+        <p className="muted">Người lập có tự duyệt / ghi sổ chứng từ của mình được hay không còn tùy chế độ phân quyền của công ty (Thiết lập → Mẫu, mã phân tích, hạn mức duyệt). Máy chủ kiểm tra quyền ở mọi thao tác; thay đổi vai trò có hiệu lực ở lần thao tác kế tiếp.</p>
+      </>}
+    </details>
   )
 }
 
@@ -243,7 +273,18 @@ function Backups() {
             <button disabled={busy} onClick={() => check(b.fileName, true)}>Khôi phục ra file mới</button></td></tr>)}</tbody></table>
       {result && <div className={`msg ${result.isValid ? 'ok' : 'error'}`}>
         {result.fileName}: toàn vẹn CSDL {result.integrity}; chuỗi nhật ký hệ thống {result.systemAuditChainOk ? 'nguyên vẹn' : 'BỊ HỎNG'}.
-        <ul>{result.companies.map(c => <li key={c.companyCode}>{c.companyCode}: {c.vouchers} chứng từ, {c.journalEntries} bút toán — chuỗi nhật ký {c.brokenAuditSeq == null ? 'nguyên vẹn' : `hỏng từ #${c.brokenAuditSeq}`}</li>)}</ul>
+        <table className="grid" style={{ marginTop: 6 }}>
+          <thead><tr><th>Công ty</th><th className="num">Chứng từ (bản sao lưu / hiện tại)</th><th className="num">Bút toán</th><th className="num">Tổng phát sinh Nợ (đ)</th><th>Nợ = Có</th><th className="num">Tệp đính kèm</th><th>Chuỗi nhật ký</th></tr></thead>
+          <tbody>{result.companies.map(c => <tr key={c.companyCode}>
+            <td>{c.companyCode}</td>
+            <td className="num">{c.vouchers}{c.liveVouchers != null && ` / ${c.liveVouchers}`}</td>
+            <td className="num">{c.journalEntries}{c.liveJournalEntries != null && ` / ${c.liveJournalEntries}`}</td>
+            <td className="num">{formatMoney(c.postedDebit)}{c.livePostedDebit != null && c.livePostedDebit !== c.postedDebit && <div className="muted">hiện tại {formatMoney(c.livePostedDebit)}</div>}</td>
+            <td>{c.balanced ? 'Cân' : <b>KHÔNG CÂN</b>}</td>
+            <td className="num">{c.attachments}{c.attachmentsDamaged > 0 && <b> — {c.attachmentsDamaged} hỏng</b>}</td>
+            <td>{c.brokenAuditSeq == null ? 'Nguyên vẹn' : <b>Hỏng từ #{c.brokenAuditSeq}</b>}</td></tr>)}</tbody>
+        </table>
+        <p className="muted">Số "hiện tại" là dữ liệu đang chạy: lớn hơn bản sao lưu là bình thường nếu đã nhập thêm sau lúc sao lưu. Diễn tập khôi phục: bấm "Khôi phục ra file mới", mở thử bằng bản thử nghiệm và so số dư, công nợ, tồn kho với bản đang chạy.</p>
         {result.restoredPath && <div>Đã khôi phục ra <code>{result.restoredPath}</code>. Dừng phần mềm, đặt <code>Hak:DatabasePath</code> trỏ tới file này rồi khởi động lại.</div>}
       </div>}
     </section>
@@ -251,7 +292,7 @@ function Backups() {
 }
 
 interface ScheduleInfo { enabled: boolean; hour: number; keep: number; copyTo: string | null; hasPassphrase: boolean; configuredBy: string | null
-  lastRunAt: string | null; lastFile: string | null; lastError: string | null; directory: string }
+  lastRunAt: string | null; lastFile: string | null; lastError: string | null; directory: string; lastVerified: boolean | null; lastCopyVerified: boolean | null }
 
 /** Daily automatic backup: hour, how many automatic copies to keep, an optional second folder (USB / NAS). */
 function BackupSchedule({ onRan }: { onRan: () => void }) {
@@ -269,7 +310,7 @@ function BackupSchedule({ onRan }: { onRan: () => void }) {
   return (
     <details className="panel" open={s.enabled || undefined} style={{ margin: '8px 0' }}>
       <summary><b>Lịch sao lưu tự động</b> — {s.enabled ? `hằng ngày từ ${s.hour}:00, giữ ${s.keep} bản` : 'đang tắt'}
-        {s.lastRunAt && <span className={s.lastError ? 'field-warn' : 'muted'}> · lần chạy gần nhất {new Date(s.lastRunAt).toLocaleString()}: {s.lastError ?? s.lastFile}</span>}</summary>
+        {s.lastRunAt && <span className={s.lastError ? 'field-warn' : 'muted'}> · lần chạy gần nhất {new Date(s.lastRunAt).toLocaleString()}: {s.lastError ?? s.lastFile}{!s.lastError && s.lastVerified ? ' — đã giải mã kiểm tra' : ''}{!s.lastError && s.lastCopyVerified ? ', bản chép ngoài khớp mã băm' : ''}</span>}</summary>
       <ErrorBox error={error} />
       {msg && !error && <div className="msg ok">{msg}</div>}
       <div className="form-row">

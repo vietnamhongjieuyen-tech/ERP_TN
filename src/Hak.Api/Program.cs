@@ -97,6 +97,7 @@ using (var scope = app.Services.CreateScope())
     var wrapped = await scope.ServiceProvider.GetRequiredService<ExchangeKeyService>().ProtectStoredSecretsAsync();
     if (wrapped > 0) app.Logger.LogInformation("Protected {Count} exchange key secret(s) at rest.", wrapped);
     var stale = Hak.Application.Backup.BackupService.DeleteStaleWorkFiles(scope.ServiceProvider.GetRequiredService<Hak.Application.Backup.BackupOptions>().Directory);
+    await IdempotencyMiddleware.PurgeAsync(db);
     if (stale > 0) app.Logger.LogWarning("Removed {Count} unencrypted work file(s) left in the backup folder by an interrupted backup.", stale);
 
     // Local administrator recovery (docs/08 §8): Hak.Api.exe --reset-admin-password <user>; the password is typed twice, never echoed.
@@ -148,6 +149,8 @@ if (File.Exists(Path.Combine(webRoot, "index.html")))
     });
 }
 
+// Outside the error mapper so a stored reply is the final one the client saw.
+app.UseMiddleware<IdempotencyMiddleware>();
 app.UseMiddleware<DomainExceptionMiddleware>();
 app.MapHakEndpoints();
 app.MapPhase2Endpoints();

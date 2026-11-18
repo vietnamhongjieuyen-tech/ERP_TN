@@ -57,6 +57,8 @@ public class BackupScheduleTests
         var after = await svc.GetAsync(h.AdminId);
         Assert.Equal(files[2], after.LastFile);
         Assert.Null(after.LastError);
+        Assert.True(after.LastVerified);
+        Assert.True(after.LastCopyVerified);
 
         // Turning it off keeps the passphrase; runs stop.
         await svc.SetAsync(h.AdminId, false, 18, 2, null, null);

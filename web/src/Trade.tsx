@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askConfirm, askDate, askText } from './dialogs'
-import { get, post } from './api'
-import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
+import { get, post, saveOnce } from './api'
+import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog, useRequestKey } from './common'
 import { useUnsaved } from './leave'
 import { formatMoney, parseMoney, today } from './money'
 import { useAnalysisOptions } from './Analysis'
@@ -29,6 +29,7 @@ export function TradeView() {
   const codeOptions = useAnalysisOptions()
   const [info, setInfo] = useState('')
   const [adjusting, setAdjusting] = useState<Invoice | null>(null)
+  const rk = useRequestKey()
   const { busy, error, setError, run } = useAction()
 
   const load = useCallback(() => run(async () => {
@@ -65,7 +66,8 @@ export function TradeView() {
       }),
     }
     try {
-      const inv = await post<Invoice>('/invoices', body)
+      const inv = await saveOnce<Invoice>('POST', '/invoices', body, rk.key())
+      rk.done()
       setInfo(`Đã lập ${inv.number} (Nháp): tiền hàng ${formatMoney(inv.total)}, thuế ${formatMoney(inv.vat)}. Người khác có quyền ghi sổ sẽ ghi sổ.`)
       setLines([empty()])
       await load()

@@ -11,7 +11,7 @@ namespace Hak.Application.Backup;
 
 /// <summary>What the administrator sees of the schedule (never the passphrase).</summary>
 public sealed record BackupScheduleInfo(bool Enabled, int Hour, int Keep, string? CopyTo, bool HasPassphrase, string? ConfiguredBy,
-    DateTime? LastRunAt, string? LastFile, string? LastError, string Directory);
+    DateTime? LastRunAt, string? LastFile, string? LastError, string Directory, bool? LastVerified = null, bool? LastCopyVerified = null);
 
 /// <summary>
 /// Sao lưu tự động theo lịch (SQLite, one-machine mode): once a day at or after the chosen hour, an encrypted backup named
@@ -40,6 +40,8 @@ public sealed class BackupScheduleService(HakDbContext db, BackupService backups
         public DateOnly? LastRunLocalDate { get; set; }
         public string? LastFile { get; set; }
         public string? LastError { get; set; }
+        public bool? LastVerified { get; set; }
+        public bool? LastCopyVerified { get; set; }
     }
 
     private string SettingsPath => Path.Combine(options.Directory, FileName);
@@ -94,21 +96,31 @@ public sealed class BackupScheduleService(HakDbContext db, BackupService backups
         s.LastRunAt = clock.UtcNow; s.LastRunLocalDate = today;
         try
         {
-            var info = await backups.CreateAsync(s.ConfiguredBy, Unprotect(s.Passphrase), "Sao lưu tự động", AutoPrefix);
-            s.LastFile = info.FileName; s.LastError = null;
+            var passphrase = Unprotect(s.Passphrase);
+            var info = await backups.CreateAsync(s.ConfiguredBy, passphrase, "Sao lưu tự động", AutoPrefix);
+            s.LastFile = info.FileName; s.LastError = null; s.LastVerified = null; s.LastCopyVerified = null;
+            // A backup counts only once it has been read back: decrypt, integrity check, audit chains, ledger totals, attachments.
+            var check = await backups.VerifyAsync(s.ConfiguredBy, info.FileName, passphrase);
+            s.LastVerified = check.IsValid;
+            if (!check.IsValid) s.LastError = $"Bản sao lưu {info.FileName} không qua kiểm tra (toàn vẹn {check.Integrity}).";
             if (s.CopyTo is not null)
             {
                 try
                 {
-                    File.Copy(Path.Combine(options.Directory, info.FileName), Path.Combine(s.CopyTo, info.FileName), overwrite: false);
-                    Prune(s.CopyTo, s.Keep);
+                    var source = Path.Combine(options.Directory, info.FileName);
+                    var target = Path.Combine(s.CopyTo, info.FileName);
+                    File.Copy(source, target, overwrite: false);
+                    // The off-machine copy must be byte-identical (USB / network drives can fail silently).
+                    s.LastCopyVerified = FileHash(source) == FileHash(target);
+                    if (s.LastCopyVerified == true) Prune(s.CopyTo, s.Keep);   // old copies go only after a good new one
+                    else s.LastError = $"Bản chép sang {s.CopyTo} khác bản gốc (mã băm không khớp); chưa xóa bản cũ ở đó.";
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     s.LastError = $"Đã sao lưu nhưng không chép được sang {s.CopyTo}: {ex.Message}";
                 }
             }
-            Prune(options.Directory, s.Keep);
+            if (s.LastVerified == true) Prune(options.Directory, s.Keep);   // never thin out good backups after a bad one
             return info.FileName;
         }
         catch (Exception ex) when (ex is DomainException or IOException or UnauthorizedAccessException or CryptographicException or Microsoft.Data.Sqlite.SqliteException)
@@ -130,6 +142,8 @@ public sealed class BackupScheduleService(HakDbContext db, BackupService backups
     }
 
     // ------------------------------------------------------------------ helpers
+
+    private static string FileHash(string path) { using var f = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(f)); }
 
     /// <summary>Keeps the newest <paramref name="keep"/> automatic backups in a folder (names sort by time).</summary>
     private static void Prune(string directory, int keep)
@@ -155,7 +169,8 @@ public sealed class BackupScheduleService(HakDbContext db, BackupService backups
     private async Task<BackupScheduleInfo> InfoAsync(Settings s)
     {
         var by = s.ConfiguredBy == Guid.Empty ? null : await db.Users.Where(u => u.Id == s.ConfiguredBy).Select(u => u.UserName).FirstOrDefaultAsync();
-        return new BackupScheduleInfo(s.Enabled, s.Hour, s.Keep, s.CopyTo, s.Passphrase is not null, by, s.LastRunAt, s.LastFile, s.LastError, options.Directory);
+        return new BackupScheduleInfo(s.Enabled, s.Hour, s.Keep, s.CopyTo, s.Passphrase is not null, by, s.LastRunAt, s.LastFile, s.LastError, options.Directory,
+            s.LastVerified, s.LastCopyVerified);
     }
 
     private async Task RequireSystemAdminAsync(Guid userId)

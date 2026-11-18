@@ -3,8 +3,8 @@ import type { AnalysisCode } from './Analysis'
 import { CashCountDialog } from './CashCount'
 import { useUnsaved } from './leave'
 import { SearchSelect } from './combo'
-import { get, post, type OpenItem, type Voucher } from './api'
-import { AccountSelect, ErrorBox, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
+import { get, saveOnce, type OpenItem, type Voucher } from './api'
+import { AccountSelect, ErrorBox, PartnerSelect, TYPE_VI, useAction, useCatalog, useRequestKey } from './common'
 import { formatMoney, parseMoney, today } from './money'
 import { EVENT_VI, ruleLines, ruleNeeds, type Rule, type RuleLine } from './Rules'
 
@@ -44,6 +44,7 @@ export function CashDocsView() {
   const [counting, setCounting] = useState(false)
   useUnsaved(lines.some(l => l.amount.trim() || l.description.trim() || l.counterAccountId), 'phiếu thu / chi')
   const { busy, error, setError, run } = useAction()
+  const rk = useRequestKey()
   const [codes, setCodes] = useState<AnalysisCode[]>([])
   useEffect(() => { get<AnalysisCode[]>('/analysis-codes').then(setCodes).catch(() => setCodes([])) }, [])
   const codeOptions = useMemo(() => codes.filter(c => c.isActive).map(c => ({ id: c.id, code: c.code, name: `${c.name} (${c.kind})` })), [codes])
@@ -77,12 +78,13 @@ export function CashDocsView() {
   const save = () => run(async () => {
     const amounts = lines.map(l => parseMoney(l.amount))
     if (amounts.some(a => a == null)) { setError(new Error('Có dòng số tiền không hợp lệ.')); return }
-    const v = await post<Voucher>('/documents', {
+    const v = await saveOnce<Voucher>('POST', '/documents', {
       documentType: type, businessEvent: event, voucherDate: date, postingDate: date, description,
       partnerId: partnerId || null, mainAccountId: mainAccountId || null,
       lines: lines.map((l, i) => ({ amount: amounts[i], counterAccountId: l.counterAccountId || null, settleJournalLineId: l.settle || null, description: l.description || null, dueDate: null,
         analysisCodeId: l.analysisCodeId || null })),
-    })
+    }, rk.key())
+    rk.done()
     setCreated(v)
     setLines([{ amount: '', counterAccountId: '', settle: '', description: '' }])
   })

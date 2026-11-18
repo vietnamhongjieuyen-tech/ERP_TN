@@ -1,7 +1,8 @@
 // Nested dialogs take keys only on the top one; leaving a screen with unsaved input asks first.
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { newRequestKey, saveOnce } from './api'
 import { Modal } from './common'
 import { DialogHost } from './dialogs'
 import { confirmLeave, unsavedScreens, useUnsaved } from './leave'
@@ -52,4 +53,20 @@ describe('Rời màn hình khi chưa lưu', () => {
     expect(await answer).toBe(true)
     await waitFor(() => expect(unsavedScreens()).toEqual([]))
   })
+})
+
+describe('Lưu khi mất kết nối', () => {
+  it('sends again with the same key when the server could not be reached', async () => {
+    const keys: string[] = []
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => {
+      keys.push((init?.headers as Record<string, string>)['Idempotency-Key'])
+      if (++calls === 1) throw new TypeError('Failed to fetch')
+      return Response.json({ id: 'v1' })
+    }))
+    const key = newRequestKey()
+    expect(key).toMatch(/^[0-9a-f]{32}$/)
+    expect(await saveOnce<{ id: string }>('POST', '/vouchers', { a: 1 }, key)).toEqual({ id: 'v1' })
+    expect(keys).toEqual([key, key])
+  }, 10_000)
 })

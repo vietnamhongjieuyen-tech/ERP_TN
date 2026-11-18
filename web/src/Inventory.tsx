@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askDate, askText } from './dialogs'
-import { get, post, session, type Period } from './api'
-import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog } from './common'
+import { get, post, saveOnce, session, type Period } from './api'
+import { AccountSelect, ErrorBox, ExportButton, PartnerSelect, PrintSheet, printSheet, useAction, useCatalog, useRequestKey } from './common'
 import { useUnsaved } from './leave'
 import { addMoney, amountInWords, divideMoney, formatMoney, parseMoney, today } from './money'
 import type { Order } from './Orders'
@@ -60,6 +60,7 @@ function StockDocs() {
   const [lines, setLines] = useState<LineDraft[]>([{ itemId: '', quantity: '', amount: '', counterAccountId: '', orderLine: '' }])
   useUnsaved(lines.some(l => l.itemId || l.quantity.trim() || l.amount.trim()), 'phiếu nhập / xuất kho')
   const [info, setInfo] = useState('')
+  const rk = useRequestKey()
   const { busy, error, setError, run } = useAction()
   const codeOptions = useAnalysisOptions()
   const [printing, setPrinting] = useState<StockDoc | null>(null)
@@ -79,13 +80,14 @@ function StockDocs() {
   const save = () => run(async () => {
     const parsed = lines.map(l => ({ q: parseMoney(l.quantity), a: type === 'Receipt' ? parseMoney(l.amount || '0') : null }))
     if (parsed.some(p => !p.q || (type === 'Receipt' && p.a == null))) { setError(new Error('Số lượng/giá trị không hợp lệ.')); return }
-    const d = await post<StockDoc>('/stock-documents', {
+    const d = await saveOnce<StockDoc>('POST', '/stock-documents', {
       type, warehouseId, toWarehouseId: type === 'Transfer' ? toWarehouseId : null, documentDate: date, postingDate: date, description,
       partnerId: partnerId || null,
       lines: lines.map((l, i) => ({ itemId: l.itemId, quantity: parsed[i].q, amount: parsed[i].a, counterAccountId: type === 'Transfer' ? null : l.counterAccountId || null, description: null,
         analysisCodeId: type === 'Issue' ? l.analysisCodeId || null : null,
         orderId: l.orderLine ? l.orderLine.split(':')[0] : null, orderLineNo: l.orderLine ? Number.parseInt(l.orderLine.split(':')[1], 10) : null })),
-    })
+    }, rk.key())
+    rk.done()
     setInfo(`Đã lập ${TYPE_VI[d.type]} ${d.number} (Nháp). Người khác có quyền ghi sổ sẽ ghi sổ phiếu.`)
     setLines([{ itemId: '', quantity: '', amount: '', counterAccountId: '', orderLine: '' }])
     await load()

@@ -136,5 +136,39 @@ public class ApiTests
             Assert.Equal(2, (int)(await Json(await ktt.GetAsync("/api/vouchers?text=" + Uri.EscapeDataString(typed))))["total"]!);
         Assert.Equal(0, (int)(await Json(await ktt.GetAsync("/api/vouchers?text=" + Uri.EscapeDataString("không có"))))["total"]!);
         Assert.Equal(1, (int)(await Json(await ktt.GetAsync("/api/vouchers?status=Posted")))["total"]!);
+
+        // Idempotency-Key: the reply was lost and "Lưu" is sent again — one voucher, the same reply; other content with the
+        // same key is refused; the key belongs to its user.
+        HttpRequestMessage Save(string amount, string key, HttpClient? _ = null)
+        {
+            var m = new HttpRequestMessage(HttpMethod.Post, "/api/vouchers")
+            {
+                Content = JsonContent.Create(new
+                {
+                    voucherType = "GJ", voucherDate = "2026-03-05", postingDate = "2026-03-05", description = "Gửi lại khi mất phản hồi",
+                    lines = new object[] { new { accountId = rev, side = "D", amount }, new { accountId = cash, side = "C", amount } },
+                }),
+            };
+            m.Headers.Add("Idempotency-Key", key);
+            return m;
+        }
+        var first = await lap.SendAsync(Save("77", "k-1"));
+        var firstBody = await first.Content.ReadAsStringAsync();
+        Assert.True(first.IsSuccessStatusCode, firstBody);
+        var again = await lap.SendAsync(Save("77", "k-1"));
+        Assert.Equal(first.StatusCode, again.StatusCode);
+        Assert.Equal("true", again.Headers.GetValues("Idempotent-Replay").Single());
+        Assert.Equal((string)JsonNode.Parse(firstBody)!["id"]!, (string)JsonNode.Parse(await again.Content.ReadAsStringAsync())!["id"]!);
+        Assert.Equal(4, (int)(await Json(await ktt.GetAsync("/api/vouchers?from=2026-03-01&to=2026-03-31")))["total"]!);   // not 5
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await lap.SendAsync(Save("78", "k-1"))).StatusCode);
+        Assert.True((await ktt.SendAsync(Save("77", "k-1"))).IsSuccessStatusCode);   // same key, other user: a new request
+        Assert.Equal(5, (int)(await Json(await ktt.GetAsync("/api/vouchers?from=2026-03-01&to=2026-03-31")))["total"]!);
+        // A failed request is not stored: after fixing nothing, the same key may run again (and fails again on its own).
+        var bad = new HttpRequestMessage(HttpMethod.Post, "/api/vouchers") { Content = JsonContent.Create(new { voucherType = "GJ", voucherDate = "2026-03-05", postingDate = "2026-03-05", description = "", lines = Array.Empty<object>() }) };
+        bad.Headers.Add("Idempotency-Key", "k-bad");
+        Assert.False((await lap.SendAsync(bad)).IsSuccessStatusCode);
+        var bad2 = new HttpRequestMessage(HttpMethod.Post, "/api/vouchers") { Content = JsonContent.Create(new { voucherType = "GJ", voucherDate = "2026-03-05", postingDate = "2026-03-05", description = "", lines = Array.Empty<object>() }) };
+        bad2.Headers.Add("Idempotency-Key", "k-bad");
+        Assert.False((await lap.SendAsync(bad2)).Headers.Contains("Idempotent-Replay"));
     }
 }

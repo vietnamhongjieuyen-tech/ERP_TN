@@ -58,12 +58,13 @@ export function DashboardView() {
             </tbody>
           </table>
         </div>}
-        {data.overdueReceivables !== null && <div className="panel">
+        {data.cash && <div className="panel">
           <strong>Công nợ quá hạn</strong>
           <table className="grid"><tbody>
-            <tr className="link" onClick={() => goTo('arap')}><td>Phải thu quá hạn</td><td className="num">{formatMoney(data.overdueReceivables)}</td></tr>
-            <tr className="link" onClick={() => goTo('arap')}><td>Phải trả quá hạn</td><td className="num">{formatMoney(data.overduePayables)}</td></tr>
+            <tr className="link" onClick={() => goTo('arap')}><td>Phải thu quá hạn</td><td className="num">{data.overdueReceivables === null ? <span className="muted" title="Chưa có tài khoản nào đánh dấu theo dõi công nợ phải thu theo hóa đơn (Thiết lập → Hệ thống tài khoản)">chưa khai báo</span> : formatMoney(data.overdueReceivables)}</td></tr>
+            <tr className="link" onClick={() => goTo('arap')}><td>Phải trả quá hạn</td><td className="num">{data.overduePayables === null ? <span className="muted" title="Chưa có tài khoản nào đánh dấu theo dõi công nợ phải trả theo hóa đơn (Thiết lập → Hệ thống tài khoản)">chưa khai báo</span> : formatMoney(data.overduePayables)}</td></tr>
           </tbody></table>
+          <p className="muted">Số liệu đến ngày {d(data.asOf)}, đơn vị: đồng; chỉ gồm chứng từ đã ghi sổ.</p>
           <p className="muted">Chi tiết theo đối tượng và tuổi nợ ở màn hình Công nợ.</p>
         </div>}
       </div>

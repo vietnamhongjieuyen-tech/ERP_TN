@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { askText } from './dialogs'
-import { get, post } from './api'
-import { ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
+import { get, post, saveOnce } from './api'
+import { ErrorBox, PartnerSelect, useAction, useCatalog, useRequestKey } from './common'
 import { useUnsaved } from './leave'
 import { formatMoney, parseMoney, today } from './money'
 
@@ -25,6 +25,7 @@ export function OrdersView() {
   const [detail, setDetail] = useState<Fulfil | null>(null)
   const [info, setInfo] = useState('')
   const { busy, error, setError, run } = useAction()
+  const rk = useRequestKey()
   useEffect(() => { get<Item[]>('/items').then(setItems).catch(() => setItems([])) }, [])
   const load = useCallback(() => run(async () => setList(await get<Order[]>(`/orders?kind=${kind}`))), [run, kind])
   useEffect(() => { load() }, [load])
@@ -35,11 +36,12 @@ export function OrdersView() {
     const parsed = lines.map(l => ({ ...l, q: parseMoney(l.qty), p: parseMoney(l.price), v: l.vat === '' ? null : parseMoney(l.vat) }))
     if (parsed.some(l => !l.itemId || !l.q || l.p == null)) { setError(new Error('Dòng đơn hàng thiếu vật tư, số lượng hoặc đơn giá.')); return }
     const item = (id: string) => items.find(i => i.id === id)
-    await post('/orders', {
+    await saveOnce('POST', '/orders', {
       kind, partnerId: head.partnerId, orderDate: head.orderDate, description: head.description, contractNo: head.contractNo || null,
       overDeliveryTolerancePercent: parseMoney(head.tolerance) ?? '0', currency: null, expectedDate: null,
       lines: parsed.map(l => ({ itemId: l.itemId, quantity: l.q, unitPrice: l.p, basis: item(l.itemId)?.tracksDryness ? l.basis : 'Quantity', vatRate: l.v, description: null })),
-    })
+    }, rk.key())
+    rk.done()
     setInfo('Đã lập đơn hàng (nháp). Người khác có quyền duyệt sẽ xác nhận đơn.')
     setLines([{ itemId: '', qty: '', basis: 'Bdmt', price: '', vat: '' }])
     await load()

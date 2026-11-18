@@ -4,8 +4,8 @@ import { Attachments } from './Attachments'
 import { SearchSelect } from './combo'
 import type { AnalysisCode } from './Analysis'
 import { askDate, askText } from './dialogs'
-import { get, post, put, session, type Voucher } from './api'
-import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PERM_VI, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog, usePermissions } from './common'
+import { get, post, put, saveOnce, session, type Voucher } from './api'
+import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PERM_VI, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog, usePermissions, useRequestKey } from './common'
 import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
 
 interface LineDraft { accountId: string; side: 'D' | 'C'; amount: string; partnerId: string; description: string; cashFlowCode: string; analysisCodeId?: string }
@@ -23,6 +23,7 @@ export function VouchersView() {
   // button and says why; busy disables every action so a slow reply cannot be sent twice.
   const perms = usePermissions()
   const gate = (...need: string[]) => {
+    if (perms === undefined) return { disabled: true, title: 'Đang tải quyền…' }   // no button usable for a moment before the check
     const missing = perms ? need.filter(p => !perms.has(p)) : []
     return { disabled: busy || missing.length > 0, title: missing.length ? `Cần quyền ${missing.map(p => PERM_VI[p] ?? p).join(', ')} tại công ty này` : undefined }
   }
@@ -359,6 +360,7 @@ function VoucherForm({ voucher, seed, onDone, oneStep }: { voucher: Voucher | nu
       setNote(`Đã lưu mẫu "${name}".`)
     })
   }
+  const rk = useRequestKey()
   const { busy, error, setError, run } = useAction()
   const panel = useRef<HTMLDivElement>(null)
   const focusNewLine = useRef(false)
@@ -414,7 +416,8 @@ function VoucherForm({ voucher, seed, onDone, oneStep }: { voucher: Voucher | nu
       lines: lines.map((l, i) => ({ accountId: l.accountId, side: l.side, amount: parsed[i], partnerId: l.partnerId || null, description: l.description || null,
         cashFlowCode: isCash(l.accountId) ? l.cashFlowCode || null : null, analysisCodeId: l.analysisCodeId || null })),
     }
-    const saved = voucher ? await put<Voucher>(`/vouchers/${voucher.id}?rowVersion=${voucher.rowVersion}`, body) : await post<Voucher>('/vouchers', body)
+    const saved = voucher ? await put<Voucher>(`/vouchers/${voucher.id}?rowVersion=${voucher.rowVersion}`, body) : await saveOnce<Voucher>('POST', '/vouchers', body, rk.key())
+    rk.done()
     writeDraft(key, null)
     onDone(saved, finish)
   })

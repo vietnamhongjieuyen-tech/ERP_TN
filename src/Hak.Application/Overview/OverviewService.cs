@@ -72,11 +72,11 @@ public sealed class OverviewService(HakDbContext db, LedgerQueryService ledger, 
             cash = cashAccounts.Select(a => new CashBalance(a.Id, a.Code, a.Name, a.CashKind.ToString(),
                 sums.Where(s => s.AccountId == a.Id).Sum(s => (int)s.Side * s.Total))).ToList();
 
-            overdueAr = 0; overdueAp = 0;
+            // null = no account tracks receivables / payables by invoice yet ("chưa khai báo"), not "nothing overdue".
             foreach (var acc in await db.Accounts.AsNoTracking().Where(a => a.CompanyId == ctx.CompanyId && a.OpenItemNature != OpenItemNature.None).ToListAsync())
             {
                 var overdue = (await settlement.AgingAsync(ctx, acc.Id, asOf)).Rows.Sum(r => r.Buckets.Sum());
-                if (acc.OpenItemNature == OpenItemNature.Receivable) overdueAr += overdue; else overdueAp += overdue;
+                if (acc.OpenItemNature == OpenItemNature.Receivable) overdueAr = (overdueAr ?? 0) + overdue; else overdueAp = (overdueAp ?? 0) + overdue;
             }
         }
         return new Dashboard(asOf, myDrafts, Count(VoucherStatus.Draft), Count(VoucherStatus.Submitted), Count(VoucherStatus.Approved), draftStock, unmatched,
