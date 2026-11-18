@@ -31,7 +31,7 @@ Doanh nghiệp đã quyết định áp dụng TT99 từ 01/01/2026 và chuyển
 | Tính đúng số liệu (test tự động) | `ImportTests.Tt99ChartOfAccounts_ImportsCleanly_WithItsHierarchy`, `ReportEngineTests.Tt99Statements_B01AndB02_ComputeFromTheChart_AndBalance`, `ReportEngineTests.Tt99CashFlow_IndirectMethod_ReconcilesWithDirectMethod`, `Tt99NotesTests.B09Templates_Validate_Run_AndTieOutToTheLedger`, `Tt99NotesTests.MultiColumnTemplates_RefuseWrongSlotCounts_AndRoundTrip` | 5/5 đạt. B01: 280 = 440. B03: gián tiếp = trực tiếp. B09 khớp sổ | Đạt |
 | Chuyển dữ liệu chế độ cũ → TT99 (`tools/migrate-fast/map-tt200-tt99.csv`) | Mỗi TK đích có trong Phụ lục II-A, là TK chi tiết hoặc có TK chi tiết doanh nghiệp mở (Điều 11 khoản 2); chạy lại chuyển đổi 2025–2026 | 39 dòng hợp lệ; số dư đầu năm cân; hai dòng chờ đã quyết (mục 4) | Chờ KTT ký |
 | Chứng từ kế toán (Phụ lục I) | Điều 9: mẫu Phụ lục I là **mẫu tham khảo**. Doanh nghiệp được tự thiết kế nhưng phải đủ nội dung theo Điều 16 Luật Kế toán và ban hành Quy chế hạch toán; nếu không tự thiết kế thì dùng mẫu Phụ lục I. Bố cục chép từ Công báo 1563+1564 | **Đã chuyển bản in sang mẫu Phụ lục I** (18/11/2026): Phiếu thu 01-TT, Phiếu chi 02-TT, Phiếu nhập kho 01-VT, Phiếu xuất kho 02-VT, Bảng kiểm kê quỹ 08a-TT. Ủy nhiệm chi in theo mẫu ngân hàng; biên bản đối chiếu công nợ là mẫu nội bộ (không có trong Phụ lục I) | Chờ KTT duyệt bản in |
-| Sổ kế toán (Phụ lục III) | — | Sổ chi tiết, sổ Nhật ký chung, bảng cân đối phát sinh trong HAK là mẫu màn hình / Excel, chưa dựng theo Phụ lục III | **Chưa đối chiếu** |
+| Sổ kế toán (Phụ lục III) | Điều 12: mẫu Phụ lục III là mẫu tham khảo (cùng nguyên tắc như chứng từ). Mẫu sổ trong Công báo 1575+1576 là ảnh, nên xuất PDF bằng Word, vẽ thành ảnh và xem từng trang | **Đã in theo mẫu** (18/11/2026): Sổ Nhật ký chung S03a-DN, Sổ Cái S03b-DN (theo tháng: cộng phát sinh, số dư cuối tháng, lũy kế từ đầu quý), Sổ quỹ tiền mặt S07-DN, Sổ chi tiết thanh toán với người mua / người bán S31-DN, Sổ chi tiết các tài khoản S38-DN (hai mẫu khổ ngang). Dữ liệu sổ có thêm ngày chứng từ. Các sổ khác (S08, S10–S12, S21–S23, S34–S37, S61…) chưa có bản in theo mẫu | Chờ KTT duyệt bản in |
 | Bản in BCTC trên giấy (khổ A4, lặp tiêu đề, đánh số trang, chữ ký) | — | In từ trình duyệt | **Chưa đối chiếu** |
 
 ## 3. Sai lệch phát hiện khi đối chiếu và đã sửa (18/11/2026)
@@ -66,8 +66,8 @@ Số liệu ảnh hưởng ghi trong tệp riêng, không công bố: `out/tt99-
 
 ## 6. Còn lại
 
-- Sổ kế toán theo Phụ lục III.
+- Sổ theo Phụ lục III ngoài 5 sổ đã làm: sổ tiền gửi S08-DN, sổ / thẻ kho S10–S12, sổ TSCĐ S21–S23, sổ tiền vay S34, sổ bán hàng S35, sổ chi phí S36, thẻ giá thành S37, sổ thuế GTGT S61….
 - Kiểm tra bản in BCTC trên giấy.
 - Trường hợp một hóa đơn điều chỉnh cho nhiều hóa đơn kèm bảng kê (TT 91 Điều 10).
 - Phân hệ chiết khấu thương mại.
-- Kiểm thử với tệp XML hóa đơn lập sau 01/07/2026: cần chị gửi vài tệp thật.
+- Đã kiểm tệp XML hóa đơn thật lập 17/11/2026 (cấu trúc PBan 2.1.0): đọc đúng (thêm test cùng cấu trúc với dữ liệu giả).

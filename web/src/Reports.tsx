@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { goTo, takeParams } from './nav'
 import { get, post, type OpenItem, type TrialBalanceRow } from './api'
-import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
+import { AccountSelect, ErrorBox, ExportButton, Modal, PartnerSelect, printSheet, TYPE_VI, useAction, useCatalog } from './common'
+import { CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint } from './books'
+import { useCompanyInfo } from './forms'
 import { addMoney, formatMoney, parseMoney, parseRate, today } from './money'
 import { ConfirmationDialog } from './Confirmation'
 
@@ -54,7 +56,7 @@ export function TrialBalanceView() {
   )
 }
 
-interface LedgerRow { voucherId: string; postingDate: string; voucherType: string; voucherNumber: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string }
+interface LedgerRow { voucherId: string; postingDate: string; voucherDate?: string | null; voucherType: string; voucherNumber: string; description: string | null; counterAccounts: string; debit: string; credit: string; runningBalance: string }
 interface Ledger { accountCode: string; accountName: string; openingBalance: string; rows: LedgerRow[]; totalDebit: string; totalCredit: string; closingBalance: string }
 
 const signed = (v: string) => (v.startsWith('-') ? `${formatMoney(v.slice(1))} Có` : v === '0' ? '0' : `${formatMoney(v)} Nợ`)
@@ -67,6 +69,12 @@ export function AccountLedgerView() {
   const [from, setFrom] = useState(boot?.from ?? firstOfMonth())
   const [to, setTo] = useState(boot?.to ?? today())
   const [data, setData] = useState<Ledger | null>(null)
+  const company = useCompanyInfo()
+  const [book, setBook] = usePrintBook<'S03b' | 'S07' | 'S31' | 'S38'>()
+  const acc = accounts.find(a => a.id === accountId)
+  // The detail book that fits the account: cash book, payment ledger of a customer / supplier account, or the general detail ledger.
+  const detail: 'S07' | 'S31' | 'S38' = acc?.cashKind === 'Cash' ? 'S07' : acc && acc.openItemNature !== 'None' ? 'S31' : 'S38'
+  const DETAIL_VI = { S07: 'Sổ quỹ tiền mặt (S07-DN)', S31: 'Sổ chi tiết thanh toán (S31-DN)', S38: 'Sổ chi tiết (S38-DN)' }
   const { busy, error, run } = useAction()
   const load = () => run(async () => {
     const q = new URLSearchParams({ accountId, from, to, ...(partnerId ? { partnerId } : {}) })
@@ -88,7 +96,13 @@ export function AccountLedgerView() {
           rows={data ? [['', '', '', 'Số dư đầu kỳ', '', '', '', data.openingBalance],
             ...data.rows.map(r => [r.postingDate, r.voucherNumber, TYPE_VI[r.voucherType] ?? r.voucherType, r.description, r.counterAccounts, r.debit, r.credit, r.runningBalance]),
             ['', '', '', 'Cộng phát sinh / số dư cuối kỳ', '', data.totalDebit, data.totalCredit, data.closingBalance]] : []} />
+        <button disabled={!data || !!partnerId} title={partnerId ? 'Sổ Cái in cho cả tài khoản: bỏ chọn đối tượng' : 'Mẫu số S03b-DN, Phụ lục III TT 99/2025'} onClick={() => setBook('S03b')}>In Sổ Cái (S03b-DN)</button>
+        <button disabled={!data} title="Mẫu theo Phụ lục III TT 99/2025" onClick={() => setBook(detail)}>In {DETAIL_VI[detail]}</button>
       </div>
+      {data && book === 'S03b' && <GeneralLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
+      {data && book === 'S07' && <CashBookPrint company={company.name} address={company.address} ledger={data} from={from} to={to} />}
+      {data && (book === 'S31' || book === 'S38') && <DetailLedgerPrint company={company.name} address={company.address} ledger={data} from={from} to={to} form={book}
+        partner={partners.find(p => p.id === partnerId)?.name ?? null} />}
       <ErrorBox error={error} />
       {data && (
         <div className="scroll">
@@ -274,13 +288,22 @@ function VoidAllocationDialog({ alloc, onClose, onDone }: { alloc: AllocationRow
   </Modal>
 }
 
-interface JournalRow { voucherId: string; postingDate: string; voucherType: string; voucherNumber: string; lineNo: number; accountCode: string; partnerCode: string | null; debit: string; credit: string; description: string | null }
+interface JournalRow { voucherId: string; postingDate: string; voucherDate?: string | null; voucherType: string; voucherNumber: string; lineNo: number; accountCode: string; partnerCode: string | null; debit: string; credit: string; description: string | null }
+
+/** Mounts the chosen printed book, prints it once it is rendered, then unmounts it (only one print sheet at a time). */
+function usePrintBook<T extends string>() {
+  const [book, setBook] = useState<T | null>(null)
+  useEffect(() => { if (book) { printSheet(); setBook(null) } }, [book])
+  return [book, setBook] as const
+}
 
 /** Sổ Nhật ký chung: every posted line in date / voucher order. */
 export function GeneralJournalView() {
   const [from, setFrom] = useState(firstOfMonth())
   const [to, setTo] = useState(today())
   const [rows, setRows] = useState<JournalRow[] | null>(null)
+  const company = useCompanyInfo()
+  const [book, setBook] = usePrintBook<'S03a'>()
   const { busy, error, run } = useAction()
   return (
     <>
@@ -293,7 +316,9 @@ export function GeneralJournalView() {
           columns={[{ header: 'Ngày' }, { header: 'Số CT' }, { header: 'Loại' }, { header: 'Diễn giải', width: 40 }, { header: 'TK' }, { header: 'Đối tượng' },
             { header: 'Nợ', numeric: true }, { header: 'Có', numeric: true }]}
           rows={(rows ?? []).map(r => [r.postingDate, r.voucherNumber, TYPE_VI[r.voucherType] ?? r.voucherType, r.description, r.accountCode, r.partnerCode, r.debit, r.credit])} />
+        <button disabled={!rows} title="Mẫu số S03a-DN, Phụ lục III TT 99/2025" onClick={() => setBook('S03a')}>In sổ (S03a-DN)</button>
       </div>
+      {rows && book === 'S03a' && <JournalBookPrint company={company.name} address={company.address} rows={rows} from={from} to={to} />}
       <ErrorBox error={error} />
       {rows && <div className="scroll"><table className="grid">
         <thead><tr><th>Ngày</th><th>Số CT</th><th>Loại</th><th>Diễn giải</th><th>TK</th><th>Đối tượng</th><th className="num">Nợ</th><th className="num">Có</th></tr></thead>

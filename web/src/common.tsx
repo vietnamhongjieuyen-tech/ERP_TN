@@ -14,8 +14,8 @@ export function ExportButton({ fileName, sheet, columns, rows, disabled }: { fil
 }
 
 /** A document laid out for paper, outside the app shell; shown only while printSheet() prints it. */
-export function PrintSheet({ children }: { children: ReactNode }) {
-  return createPortal(<div className="print-sheet">{children}</div>, document.body)
+export function PrintSheet({ children, landscape }: { children: ReactNode; landscape?: boolean }) {
+  return createPortal(<div className={landscape ? 'print-sheet landscape' : 'print-sheet'}>{children}</div>, document.body)
 }
 
 /** Prints only the PrintSheet content (window.print blocks until the print dialog closes). */

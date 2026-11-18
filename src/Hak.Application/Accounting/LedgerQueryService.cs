@@ -32,10 +32,11 @@ public sealed record TrialBalance(DateOnly From, DateOnly To, IReadOnlyList<Tria
 }
 
 public sealed record JournalBookRow(DateOnly PostingDate, string VoucherType, string VoucherNumber, Guid VoucherId, int LineNo,
-    string AccountCode, string? PartnerCode, decimal Debit, decimal Credit, string? Description);
+    string AccountCode, string? PartnerCode, decimal Debit, decimal Credit, string? Description, DateOnly? VoucherDate = null);
 
 public sealed record AccountLedgerRow(DateOnly PostingDate, string VoucherType, string VoucherNumber, Guid VoucherId, string? Description,
-    string CounterAccounts, decimal Debit, decimal Credit, decimal RunningBalance, string? ForeignCurrency = null, decimal? ForeignAmount = null);
+    string CounterAccounts, decimal Debit, decimal Credit, decimal RunningBalance, string? ForeignCurrency = null, decimal? ForeignAmount = null,
+    DateOnly? VoucherDate = null);
 
 /// <summary>Signed foreign-currency balance (debit positive) of the account at the end of the range.</summary>
 public sealed record ForeignBalance(string Currency, decimal Closing);
@@ -139,12 +140,15 @@ public sealed class LedgerQueryService(HakDbContext db)
                           join a in db.Accounts on l.AccountId equals a.Id
                           join p in db.BusinessPartners on l.PartnerId equals (Guid?)p.Id into pj
                           from p in pj.DefaultIfEmpty()
+                          join v in db.Vouchers on e.VoucherId equals v.Id into vj
+                          from v in vj.DefaultIfEmpty()
                           where l.CompanyId == ctx.CompanyId && l.PostingDate >= fromDate && l.PostingDate <= toDate
                           orderby l.PostingDate, e.VoucherNumber, l.LineNo
-                          select new { l.PostingDate, e.VoucherType, e.VoucherNumber, e.VoucherId, l.LineNo, a.Code, PartnerCode = p == null ? null : p.Code, l.Side, l.Amount, l.Description })
+                          select new { l.PostingDate, e.VoucherType, e.VoucherNumber, e.VoucherId, l.LineNo, a.Code, PartnerCode = p == null ? null : p.Code, l.Side, l.Amount, l.Description,
+                              VoucherDate = v == null ? (DateOnly?)null : v.VoucherDate })
             .AsNoTracking().ToListAsync();
         return rows.Select(r => new JournalBookRow(r.PostingDate, r.VoucherType, r.VoucherNumber, r.VoucherId, r.LineNo, r.Code, r.PartnerCode,
-            r.Side == Side.Debit ? r.Amount : 0, r.Side == Side.Credit ? r.Amount : 0, r.Description)).ToList();
+            r.Side == Side.Debit ? r.Amount : 0, r.Side == Side.Credit ? r.Amount : 0, r.Description, r.VoucherDate)).ToList();
     }
 
     /// <summary>
@@ -160,8 +164,10 @@ public sealed class LedgerQueryService(HakDbContext db)
 
         var q = from l in db.JournalLines
                 join e in db.JournalEntries on l.JournalEntryId equals e.Id
+                join v in db.Vouchers on e.VoucherId equals v.Id into vj
+                from v in vj.DefaultIfEmpty()
                 where l.CompanyId == ctx.CompanyId && l.AccountId == accountId && l.PostingDate >= fromDate && l.PostingDate <= toDate
-                select new { l, e.VoucherId, e.VoucherNumber, e.VoucherType };
+                select new { l, e.VoucherId, e.VoucherNumber, e.VoucherType, VoucherDate = v == null ? (DateOnly?)null : v.VoucherDate };
         if (partnerId is not null) q = q.Where(x => x.l.PartnerId == partnerId);
         var all = await q.AsNoTracking().ToListAsync();
         // Opening-balance vouchers inside the range are part of the opening balance, not rows of the book.
@@ -186,7 +192,7 @@ public sealed class LedgerQueryService(HakDbContext db)
             running += (int)x.l.Side * x.l.Amount;
             var counters = counterCodes.GetValueOrDefault((x.l.JournalEntryId, x.l.Side == Side.Debit ? Side.Credit : Side.Debit), "");
             rows.Add(new AccountLedgerRow(x.l.PostingDate, x.VoucherType, x.VoucherNumber, x.VoucherId, x.l.Description, counters,
-                x.l.Side == Side.Debit ? x.l.Amount : 0, x.l.Side == Side.Credit ? x.l.Amount : 0, running, x.l.ForeignCurrency, x.l.ForeignAmount));
+                x.l.Side == Side.Debit ? x.l.Amount : 0, x.l.Side == Side.Credit ? x.l.Amount : 0, running, x.l.ForeignCurrency, x.l.ForeignAmount, x.VoucherDate));
         }
 
         // Foreign balance at the end of the range: revaluation lines carry the currency code without a foreign amount, so the
