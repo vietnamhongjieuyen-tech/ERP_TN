@@ -52,10 +52,11 @@ test('kế toán lập, kế toán trưởng duyệt và ghi sổ; số tiền l
   await open(page, 'Chứng từ')
   await page.getByText(description).first().click()
   await page.getByRole('button', { name: 'Duyệt', exact: true }).click()
-  await expect(page.getByText('Đã duyệt', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('.detail-pane .badge')).toHaveText('Đã duyệt')
   await page.getByRole('button', { name: 'Ghi sổ', exact: true }).click()
-  await expect(page.getByText('Đã ghi sổ', { exact: true }).first()).toBeVisible()
+  await expect(page.locator('.detail-pane .badge')).toHaveText('Đã ghi sổ')
 
   await open(page, 'Cân đối phát sinh')
+  await page.getByRole('button', { name: 'Xem', exact: true }).click()
   await expect(page.getByRole('row', { name: /EXP/ }).first()).toContainText('1.234.567')
 })
