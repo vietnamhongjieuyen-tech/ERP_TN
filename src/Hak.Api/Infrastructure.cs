@@ -53,6 +53,14 @@ public sealed class DomainExceptionMiddleware(RequestDelegate next, ILogger<Doma
             };
             await ctx.Response.WriteAsJsonAsync(new { code = ex.Code, message = ex.Message, errors = ex.Errors });
         }
+        catch (Exception ex) when (ex is NullReferenceException or ArgumentNullException && !ctx.Response.HasStarted)
+        {
+            // A request body without a field the operation needs reaches the code as null. Nothing was written (every write runs in a
+            // transaction that this exception rolls back): answer as a bad request, and log it so the missing check can be added.
+            log.LogWarning(ex, "Request with a missing required value: {Path}", ctx.Request.Path);
+            ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await ctx.Response.WriteAsJsonAsync(new { code = ErrorCodes.ValidationFailed, message = "Thiếu dữ liệu bắt buộc trong yêu cầu (mã, tên, ngày… còn trống). Kiểm tra lại các ô đã nhập." });
+        }
         catch (BadHttpRequestException ex)
         {
             ctx.Response.StatusCode = StatusCodes.Status400BadRequest;

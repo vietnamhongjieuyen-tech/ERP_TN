@@ -4,6 +4,7 @@ import { get, post, saveOnce } from './api'
 import { ErrorBox, PartnerSelect, useAction, useCatalog, useRequestKey } from './common'
 import { useUnsaved } from './leave'
 import { formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 export interface Order { id: string; number: string; kind: string; partnerId: string; contractNo: string | null; orderDate: string; description: string; overDeliveryTolerancePercent: string; status: string; statusReason: string | null; lines: { lineNo: number; itemId: string; quantity: string; basis: string; unitPrice: string; vatRate: string | null }[] }
 interface Item { id: string; code: string; name: string; unit: string; tracksDryness: boolean }
@@ -61,7 +62,7 @@ export function OrdersView() {
         <div className="form-row">
           <label>{kind === 'Sales' ? 'Khách hàng' : 'Nhà cung cấp'}<PartnerSelect partners={partners} value={head.partnerId} onChange={v => setHead(h => ({ ...h, partnerId: v }))} /></label>
           <label>Số hợp đồng<input value={head.contractNo} onChange={e => setHead(h => ({ ...h, contractNo: e.target.value }))} /></label>
-          <label>Ngày đơn<input type="date" value={head.orderDate} onChange={e => setHead(h => ({ ...h, orderDate: e.target.value }))} /></label>
+          <label>Ngày đơn<DateInput value={head.orderDate} onChange={e => setHead(h => ({ ...h, orderDate: e.target.value }))} /></label>
           <label>Dung sai giao vượt %<input className="num" size={4} value={head.tolerance} onChange={e => setHead(h => ({ ...h, tolerance: e.target.value }))} /></label>
           <label style={{ flex: 1, minWidth: 200 }}>Diễn giải<input value={head.description} onChange={e => setHead(h => ({ ...h, description: e.target.value }))} /></label>
           <button className="primary" style={{ alignSelf: 'flex-end' }} disabled={busy} onClick={save}>Lưu đơn nháp</button>

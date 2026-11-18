@@ -105,6 +105,8 @@ public sealed class BankReconciliationService(HakDbContext db, AuditService audi
     public async Task<AutoMatchResult> AutoMatchAsync(SessionContext ctx, Guid statementId, int toleranceDays = 3)
     {
         ctx.Require(Permissions.BankReconcile);
+        if (!await db.BankStatements.AnyAsync(s => s.Id == statementId && s.CompanyId == ctx.CompanyId))
+            throw new DomainException(ErrorCodes.NotFound, "Sao kê không tồn tại.");
         return await db.InTransactionAsync(async () =>
         {
             var lines = await db.BankStatementLines.Where(l => l.CompanyId == ctx.CompanyId && l.StatementId == statementId && l.Status != StatementLineStatus.Matched)

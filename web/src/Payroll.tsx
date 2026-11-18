@@ -3,6 +3,7 @@ import { askText } from './dialogs'
 import { get, post, postRaw } from './api'
 import { ErrorBox, ExportButton, STATUS_VI, useAction } from './common'
 import { formatMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 interface Totals { employees: number; gross: string; socialInsurance: string; healthInsurance: string; unemploymentInsurance: string; personalIncomeTax: string; otherDeduction: string; net: string; employerContributions: string }
 interface ImportResult {
@@ -44,8 +45,8 @@ export function PayrollView() {
     <>
       <div className="toolbar">
         <h2>Lương — nhận bảng lương từ phần mềm tính lương</h2>
-        <label>Từ <input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến <input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ <DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến <DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button onClick={() => load()}>Tải lại</button>
       </div>
       <p className="muted">File JSON theo schema payroll 1.0, có chữ ký của phần mềm lương. HAK không tự tính bảo hiểm / thuế TNCN; chỉ kiểm tra lương gộp − khấu trừ = thực lĩnh, nhân viên có trong danh mục, rồi lập chứng từ nháp theo các vai trò TK PAYROLL_*.</p>

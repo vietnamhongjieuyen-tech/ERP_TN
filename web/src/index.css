@@ -46,6 +46,13 @@ button.danger { color: var(--danger); }
 button:disabled { opacity: .5; cursor: default; }
 input, select, textarea { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--text); }
 input.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* DateInput: dd/MM/yyyy text field + calendar button; the native picker stays hidden behind the button. */
+.date-input { display: inline-flex; position: relative; align-items: stretch; max-width: 100%; }
+.date-input > input[type=text] { width: 11ch; border-top-right-radius: 0; border-bottom-right-radius: 0; font-variant-numeric: tabular-nums; }
+.date-input > input[aria-invalid] { border-color: var(--danger); }
+.date-input > .date-pick { padding: 0 6px; border-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; color: var(--muted); }
+.date-input > .date-native { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+label > .date-input > input { color: var(--text); font-size: 14px; }
 label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 12px; }
 label > input, label > select { color: var(--text); font-size: 14px; }
 

@@ -44,7 +44,7 @@ public sealed record ClosingChecklist(PeriodSummary Period, IReadOnlyList<Checkl
 /// month-end checklist (every periodic run and reconciliation of one accounting period, in the order they are carried out).
 /// Nothing here posts or changes data.
 /// </summary>
-public sealed class OverviewService(HakDbContext db, LedgerQueryService ledger, SettlementService settlement)
+public sealed class OverviewService(HakDbContext db, LedgerQueryService ledger, SettlementService settlement, IntegrityService integrity)
 {
     public async Task<Dashboard> DashboardAsync(SessionContext ctx, DateOnly asOf)
     {
@@ -150,6 +150,32 @@ public sealed class OverviewService(HakDbContext db, LedgerQueryService ledger, 
         Add("loan_interest", "Trích lãi vay", activeLoans == 0 ? CheckStatus.NotApplicable : accrued ? CheckStatus.Done : CheckStatus.Todo,
             activeLoans == 0 ? "Không có khế ước vay đang hiệu lực." : accrued ? "Đã trích lãi vay kỳ này." : $"Chưa trích lãi cho {activeLoans} khế ước vay.", "loans");
 
+        // Payroll: once the company imports payroll, every period should have a posted sheet.
+        var usesPayroll = await db.PayrollSheets.AnyAsync(s => s.CompanyId == co);
+        var sheets = usesPayroll
+            ? await (from s in db.PayrollSheets
+                     join v in db.Vouchers on s.VoucherId equals v.Id
+                     where s.CompanyId == co && s.PeriodTo >= p.StartDate && s.PeriodFrom <= p.EndDate
+                           && v.Status != VoucherStatus.Cancelled && v.Status != VoucherStatus.Reversed
+                     select v.Status).ToListAsync()
+            : [];
+        var payrollPosted = sheets.Count(x => x == VoucherStatus.Posted);
+        Add("payroll", "Hạch toán bảng lương", !usesPayroll ? CheckStatus.NotApplicable : sheets.Count == 0 ? CheckStatus.Todo : payrollPosted == sheets.Count ? CheckStatus.Done : CheckStatus.Todo,
+            !usesPayroll ? "Chưa dùng nhập bảng lương." : sheets.Count == 0 ? "Chưa nhập bảng lương của kỳ này."
+                : payrollPosted == sheets.Count ? $"Đã ghi sổ {sheets.Count} bảng lương của kỳ." : $"Còn {sheets.Count - payrollPosted} bảng lương của kỳ chưa ghi sổ.", "payroll");
+
+        // Employee advances still open at period end (information: settle or carry forward).
+        var advanceAccounts = await db.AccountRoleMappings.Where(m => m.CompanyId == co && m.RoleCode == "EMPLOYEE_ADVANCE").Select(m => m.AccountId).ToListAsync();
+        if (advanceAccounts.Count > 0)
+        {
+            var advances = (await db.JournalLines.Where(l => l.CompanyId == co && advanceAccounts.Contains(l.AccountId) && l.PostingDate <= p.EndDate)
+                    .GroupBy(l => l.PartnerId).Select(g => new { g.Key, Balance = g.Sum(l => l.Side == Side.Debit ? l.Amount : -l.Amount) }).ToListAsync())
+                .Where(x => x.Balance != 0).ToList();
+            Add("advances", "Tạm ứng nhân viên còn dư", advances.Count == 0 ? CheckStatus.Done : CheckStatus.Optional,
+                advances.Count == 0 ? "Không còn số dư tạm ứng."
+                    : $"{advances.Count} người còn số dư tạm ứng, tổng {advances.Sum(x => x.Balance):#,0} — đòi hoàn ứng, thanh toán tạm ứng hoặc để chuyển kỳ sau.", "arap");
+        }
+
         var hasForeign = await db.JournalLines.AnyAsync(l => l.CompanyId == co && l.ForeignCurrency != null && l.PostingDate <= p.EndDate);
         var revalued = await db.FxRevaluationRuns.AnyAsync(r => r.CompanyId == co && r.RevaluationDate == p.EndDate && r.Status == FxRunStatus.Active);
         Add("fx", "Đánh giá lại số dư ngoại tệ", !hasForeign ? CheckStatus.NotApplicable : revalued ? CheckStatus.Done : CheckStatus.Optional,
@@ -170,6 +196,10 @@ public sealed class OverviewService(HakDbContext db, LedgerQueryService ledger, 
         Add("trial_balance", "Bảng cân đối số phát sinh cân", tb.IsBalanced ? CheckStatus.Done : CheckStatus.Todo,
             tb.IsBalanced ? $"Tổng phát sinh Nợ = Có = {tb.TotalPeriodDebit:#,0}." : "Bảng cân đối số phát sinh KHÔNG cân — kiểm tra ngay.", "tb");
 
+        var check = await integrity.RunAsync(ctx, p.EndDate);
+        Add("integrity", "Kiểm soát toàn vẹn sổ sách", check.Errors == 0 ? CheckStatus.Done : CheckStatus.Todo,
+            check.Errors == 0 ? "Không có lỗi: bút toán cân, chứng từ đã ghi có đúng một bút toán, phân bổ không vượt, tồn kho không âm."
+                : $"Có {check.Errors} lỗi ({string.Join(", ", check.Checks.Where(c => c.Severity == "Error" && c.Count > 0).Select(c => $"{c.Title}: {c.Count}"))}) — xem Kỳ kế toán → Kiểm soát toàn vẹn.", "periods");
         Add("lock", "Khóa sổ kỳ", p.Status == PeriodStatus.Locked ? CheckStatus.Done : CheckStatus.Optional,
             p.Status == PeriodStatus.Locked ? "Kỳ đã khóa sổ." : "Kỳ đang mở. Khóa sổ sau khi các bước trên hoàn tất để số liệu không bị thay đổi.", "periods");
 

@@ -190,7 +190,7 @@ public sealed class PostingRuleService(HakDbContext db, AuditService audit, IClo
                         && r.EffectiveFrom <= date && (r.EffectiveTo == null || r.EffectiveTo >= date))
             .ToListAsync();
         if (candidates.Count == 0)
-            throw new DomainException(ErrorCodes.RuleMissing, $"Chưa có quy tắc định khoản đang hiệu lực cho {documentType}/{businessEvent} ngày {date}.");
+            throw new DomainException(ErrorCodes.RuleMissing, $"Chưa có quy tắc định khoản đang hiệu lực cho {documentType}/{businessEvent} ngày {date:dd/MM/yyyy}.");
         var top = candidates.Max(r => r.Priority);
         var best = candidates.Where(r => r.Priority == top).ToList();
         if (best.Count > 1)

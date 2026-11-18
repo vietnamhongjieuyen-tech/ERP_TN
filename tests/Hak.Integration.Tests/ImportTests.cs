@@ -100,8 +100,13 @@ public class ImportTests
         var open = await s.Settlement.OpenItemsAsync(h.Auditor, h.Acc["AR"], h.Partner["KH01"], new(2026, 12, 31));
         Assert.Equal(2_000_000m, Assert.Single(open).Open);
 
-        var again = await s.CatalogImport.ImportOpeningBalancesAsync(h.Preparer, new(2026, 1, 1), null, rows, commit: false);
-        Assert.Contains(again.Notes, n => n.Contains("OPB"));
+        // The same file a second time is refused (even on another date); a different, partial file only gets a warning.
+        var again = await s.CatalogImport.ImportOpeningBalancesAsync(h.Preparer, new(2026, 2, 1), null, rows, commit: true);
+        Assert.False(again.Committed);
+        Assert.Contains(again.Issues, i => i.Field == "Trùng" && i.Message.Contains(ok.VoucherNumber!));
+        var partial = await s.CatalogImport.ImportOpeningBalancesAsync(h.Preparer, new(2026, 1, 1), null, rows[..3], commit: false);
+        Assert.DoesNotContain(partial.Issues, i => i.Field == "Trùng");
+        Assert.Contains(partial.Notes, n => n.Contains(ok.VoucherNumber!));
 
         // The OPB voucher of 01/01 is the opening balance of January, not a movement — trial balance and account ledger.
         var tb = await s.Ledger.TrialBalanceAsync(h.Auditor, new(2026, 1, 1), new(2026, 1, 31));

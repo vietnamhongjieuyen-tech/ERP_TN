@@ -54,7 +54,7 @@ public sealed class FxService(HakDbContext db, AccountingEngine engine, AuditSer
         return await db.InTransactionAsync(async () =>
         {
             var period = await db.AccountingPeriods.AsNoTracking().FirstOrDefaultAsync(p => p.CompanyId == ctx.CompanyId && p.StartDate <= date && p.EndDate >= date)
-                         ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date}.");
+                         ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date:dd/MM/yyyy}.");
             if (period.Status == PeriodStatus.Locked) throw new DomainException(ErrorCodes.PeriodLocked, $"Kỳ {period.StartDate:MM/yyyy} đã khóa sổ.");
             var last = await LastActiveAsync(ctx.CompanyId);
             if (last is not null && last.RevaluationDate >= date)

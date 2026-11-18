@@ -39,7 +39,7 @@ public sealed class PaymentOrderService(HakDbContext db, BusinessDocumentService
             if (!MoneyMath.HasAtMostDecimals(input.Amount, dp))
                 throw new DomainException(ErrorCodes.AmountPrecision, $"Số tiền vượt quá {dp} chữ số thập phân.");
             var fy = await db.FiscalYears.AsNoTracking().FirstOrDefaultAsync(f => f.CompanyId == ctx.CompanyId && f.StartDate <= input.RequestedDate && f.EndDate >= input.RequestedDate)
-                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.RequestedDate}.");
+                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.RequestedDate:dd/MM/yyyy}.");
 
             var seq = await db.VoucherNumberSequences.FirstOrDefaultAsync(s => s.CompanyId == ctx.CompanyId && s.FiscalYearId == fy.Id && s.VoucherType == "UNC");
             if (seq is null) db.VoucherNumberSequences.Add(seq = new VoucherNumberSequence { Id = Ids.New(), CompanyId = ctx.CompanyId, FiscalYearId = fy.Id, VoucherType = "UNC" });

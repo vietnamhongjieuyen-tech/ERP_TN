@@ -261,8 +261,26 @@ public sealed partial class CatalogImportService(HakDbContext db, SetupService s
         if (issues.Count == 0 && totalDebit != totalCredit)
             issues.Add(new(0, "Tổng", $"Tổng Nợ {totalDebit} khác tổng Có {totalCredit} (chênh {totalDebit - totalCredit})."));
         if (lines.Count == 0 && issues.Count == 0) issues.Add(new(0, "Tổng", "Không có dòng số dư nào."));
-        if (await db.Vouchers.AnyAsync(v => v.CompanyId == ctx.CompanyId && v.VoucherType == VoucherTypes.OpeningBalance && v.Status != VoucherStatus.Cancelled))
-            notes.Add("Công ty đã có chứng từ số dư đầu kỳ (OPB) khác — kiểm tra để tránh nhập trùng.");
+        var existing = await db.Vouchers.AsNoTracking()
+            .Where(v => v.CompanyId == ctx.CompanyId && v.VoucherType == VoucherTypes.OpeningBalance && v.Status != VoucherStatus.Cancelled && v.Status != VoucherStatus.Reversed)
+            .Select(v => new { v.Id, v.Number }).ToListAsync();
+        if (existing.Count > 0)
+        {
+            // The same file imported twice: an active OPB voucher with exactly these lines (account, side, amount, partner, currency, foreign amount).
+            static string Key(Guid account, Side side, decimal amount, Guid? partner, string? currency, decimal? foreign) =>
+                $"{account}|{(int)side}|{amount:0.####}|{partner}|{currency}|{foreign:0.####}";
+            var mine = lines.Select(l => Key(l.AccountId, l.Side, l.Amount, l.PartnerId, l.ForeignCurrency, l.ForeignAmount)).Order(StringComparer.Ordinal).ToList();
+            var ids = existing.Select(e => e.Id).ToList();
+            var theirs = (await db.VoucherLines.AsNoTracking().Where(l => ids.Contains(l.VoucherId))
+                    .Select(l => new { l.VoucherId, l.AccountId, l.Side, l.Amount, l.PartnerId, l.ForeignCurrency, l.ForeignAmount }).ToListAsync())
+                .GroupBy(l => l.VoucherId)
+                .ToDictionary(g => g.Key, g => g.Select(l => Key(l.AccountId, l.Side, l.Amount, l.PartnerId, l.ForeignCurrency, l.ForeignAmount)).Order(StringComparer.Ordinal).ToList());
+            var same = existing.FirstOrDefault(e => mine.Count > 0 && theirs.TryGetValue(e.Id, out var t) && t.SequenceEqual(mine, StringComparer.Ordinal));
+            if (same is not null)
+                issues.Add(new(0, "Trùng", $"Số dư này đã được nhập ở chứng từ {same.Number} (cùng tài khoản, đối tượng, số tiền). Không nhập lại; nếu cần sửa thì hủy hoặc đảo chứng từ đó trước."));
+            else
+                notes.Add($"Công ty đã có chứng từ số dư đầu kỳ (OPB) khác: {string.Join(", ", existing.Select(e => e.Number))} — kiểm tra để tránh nhập trùng.");
+        }
 
         var result = new ImportResult(false, lines.Count, 0, Sorted(issues), notes, TotalDebit: totalDebit, TotalCredit: totalCredit);
         if (!commit || issues.Count > 0) return result;

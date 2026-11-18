@@ -6,6 +6,7 @@ import { useUnsaved } from './leave'
 import { formatMoney, parseMoney, today } from './money'
 import { useAnalysisOptions } from './Analysis'
 import { SearchSelect } from './combo'
+import { DateInput } from './DateInput'
 
 interface Uninvoiced { stockDocumentId: string; stockDocumentNumber: string; postingDate: string; lineNo: number; itemCode: string; quantity: string; invoicedQuantity: string; bdmt: string | null }
 interface StockDoc { id: string; number: string; type: string; status: string; postingDate: string; lines: { lineNo: number; itemId: string; quantity: string }[] }
@@ -89,9 +90,9 @@ export function TradeView() {
           <label>{kind === 'Sales' ? 'Khách hàng' : 'Nhà cung cấp'}<PartnerSelect partners={partners} value={head.partnerId} onChange={v => setHead(h => ({ ...h, partnerId: v }))} /></label>
           <label>Ký hiệu HĐ<input value={head.series} onChange={e => setHead(h => ({ ...h, series: e.target.value }))} /></label>
           <label>Số HĐ<input value={head.no} onChange={e => setHead(h => ({ ...h, no: e.target.value }))} /></label>
-          <label>Ngày hóa đơn<input type="date" value={head.invoiceDate} onChange={e => setHead(h => ({ ...h, invoiceDate: e.target.value }))} /></label>
-          <label>Ngày hạch toán<input type="date" value={head.postingDate} onChange={e => setHead(h => ({ ...h, postingDate: e.target.value }))} /></label>
-          <label>Hạn thanh toán<input type="date" value={head.dueDate} onChange={e => setHead(h => ({ ...h, dueDate: e.target.value }))} /></label>
+          <label>Ngày hóa đơn<DateInput value={head.invoiceDate} onChange={e => setHead(h => ({ ...h, invoiceDate: e.target.value }))} /></label>
+          <label>Ngày hạch toán<DateInput value={head.postingDate} onChange={e => setHead(h => ({ ...h, postingDate: e.target.value }))} /></label>
+          <label>Hạn thanh toán<DateInput value={head.dueDate} onChange={e => setHead(h => ({ ...h, dueDate: e.target.value }))} /></label>
           <label>Nguyên tệ<select value={head.currency} onChange={e => setHead(h => ({ ...h, currency: e.target.value }))}><option value="">VND</option><option>USD</option><option>EUR</option><option>CNY</option><option>JPY</option></select></label>
           {head.currency && <label>Tỷ giá<input className="num" value={head.rate} onChange={e => setHead(h => ({ ...h, rate: e.target.value }))} /></label>}
           <label style={{ flex: 1, minWidth: 200 }}>Diễn giải<input value={head.description} onChange={e => setHead(h => ({ ...h, description: e.target.value }))} /></label>
@@ -201,7 +202,7 @@ function Adjust({ invoice, onDone }: { invoice: Invoice; onDone: (msg?: string) 
       <div className="form-row">
         <label>Loại<select value={purpose} onChange={e => setPurpose(e.target.value as typeof purpose)}><option value="Return">{purchase ? 'Hàng mua trả lại' : 'Hàng bán bị trả lại'}</option><option value="Discount">{purchase ? 'Giảm giá hàng mua' : 'Giảm giá / chiết khấu'}</option><option value="Increase">Điều chỉnh tăng</option></select></label>
         <label>Dòng HĐ gốc<input className="num" size={3} value={lineNo} onChange={e => setLineNo(e.target.value)} /></label>
-        <label>Ngày<input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+        <label>Ngày<DateInput value={date} onChange={e => setDate(e.target.value)} /></label>
         {purpose === 'Return' ? <>
           <label>SL trả lại (MT)<input className="num" value={qty} onChange={e => setQty(e.target.value)} /></label>
           <button style={{ alignSelf: 'flex-end' }} disabled={busy} onClick={makeReceipt}>{purchase ? '1. Lập phiếu xuất trả NCC' : '1. Lập phiếu nhập trả lại'}</button>

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hak.Integration.Tests;
 
@@ -29,6 +30,70 @@ public class ApiTests
 
     private static async Task<string> Login(HttpClient c, string user)
         => (string)(await Json(await c.PostAsJsonAsync("/api/auth/login", new { userName = user, password = Pw })))["token"]!;
+
+    /// <summary>
+    /// Every write endpoint (POST / PUT / DELETE under /api, found from the routing table, not a hand-written list) refuses a user
+    /// who may only read — the internal auditor role — and a user of another company, and nothing is written. Self-service routes
+    /// (sign-in, first run, own password) are the only exceptions.
+    /// </summary>
+    [Fact]
+    public async Task EveryWriteEndpoint_RefusesReadOnlyAndOtherCompanyUsers()
+    {
+        var dbPath = Path.Combine(TestHost.Root, $"api-perm-{Guid.NewGuid():N}.db");
+        Directory.CreateDirectory(TestHost.Root);
+        await using var f = new WebApplicationFactory<Program>().WithWebHostBuilder(b => { b.UseSetting("Hak:Environment", "Test"); b.UseSetting("Hak:DatabasePath", dbPath); });
+        var anon = f.CreateClient();
+        await Json(await anon.PostAsJsonAsync("/api/setup/bootstrap", new { userName = "admin", fullName = "Admin", password = Pw }));
+        var admin = As(f, await Login(anon, "admin"));
+        var regime = (string)(await Json(await admin.PostAsJsonAsync("/api/admin/regime-versions", new
+        {
+            regimeCode = "TEST-REGIME", regimeName = "Kiểm thử", versionCode = "TEST-1", effectiveFrom = "2020-01-01", effectiveTo = (string?)null,
+            sources = new[] { new { ruleGroup = "TEST", documentNo = "TEST-FIXTURE" } },
+        })))["id"]!;
+        string Company(string code) => (string)Json(admin.PostAsJsonAsync("/api/admin/companies", new { code, name = code, functionalCurrency = "VND", regimeVersionId = regime }).Result).Result["id"]!;
+        var mine = Company("C01");
+        var other = Company("C02");
+        var viewerId = (string)(await Json(await admin.PostAsJsonAsync("/api/admin/users", new { userName = "xem", fullName = "Chỉ xem", password = Pw })))["id"]!;
+        var outsiderId = (string)(await Json(await admin.PostAsJsonAsync("/api/admin/users", new { userName = "ngoai", fullName = "Công ty khác", password = Pw })))["id"]!;
+        await admin.PostAsJsonAsync("/api/admin/grants", new { userId = viewerId, companyId = mine, roleCode = "INTERNAL_AUDITOR" });
+        await admin.PostAsJsonAsync("/api/admin/grants", new { userId = outsiderId, companyId = other, roleCode = "ALL_IN_ONE" });
+        var fullId = (string)(await Json(await admin.PostAsJsonAsync("/api/admin/users", new { userName = "du", fullName = "Đủ quyền", password = Pw })))["id"]!;
+        await admin.PostAsJsonAsync("/api/admin/grants", new { userId = fullId, companyId = mine, roleCode = "ALL_IN_ONE" });
+        var viewer = As(f, await Login(anon, "xem"), mine);
+        var outsider = As(f, await Login(anon, "ngoai"), mine);   // full rights, but at C02 only
+        var full = As(f, await Login(anon, "du"), mine);          // every right at C01: an empty body must be refused cleanly, never a 500
+
+        var endpoints = f.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
+            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .SelectMany(e => (e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()?.HttpMethods ?? []).Select(m => (Method: m, Route: "/" + e.RoutePattern.RawText!.TrimStart('/'))))
+            .Where(x => x.Method is "POST" or "PUT" or "DELETE" && x.Route.StartsWith("/api/", StringComparison.Ordinal))
+            .Where(x => !x.Route.StartsWith("/api/auth/", StringComparison.Ordinal) && !x.Route.StartsWith("/api/setup/", StringComparison.Ordinal) && x.Route != "/api/me/password")
+            .Distinct().ToList();
+        Assert.True(endpoints.Count > 60, $"only {endpoints.Count} write endpoints found");
+
+        var counts = async () => (await Json(await As(f, await Login(anon, "admin")).GetAsync("/api/admin/users"))).AsArray().Count;
+        var usersBefore = await counts();
+        var accepted = new List<string>();
+        var statuses = new Dictionary<string, List<string>>();
+        foreach (var (method, route) in endpoints)
+        {
+            var url = System.Text.RegularExpressions.Regex.Replace(route, @"\{[^}]+\}", Guid.NewGuid().ToString());
+            foreach (var (who, client) in new[] { ("chỉ xem", viewer), ("công ty khác", outsider), ("đủ quyền", full) })
+            {
+                var r = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), url) { Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json") });
+                if (r.IsSuccessStatusCode && who != "đủ quyền") accepted.Add($"{who}: {method} {route} → {(int)r.StatusCode}");
+                if (!statuses.TryGetValue($"{who} {(int)r.StatusCode}", out var l)) statuses[$"{who} {(int)r.StatusCode}"] = l = [];
+                l.Add($"{method} {route}");
+            }
+        }
+        Assert.Empty(accepted);
+        // The outsider is stopped by the company check on every route; the read-only user mostly by a missing permission. A refusal for
+        // another reason (bad body 400, unknown id 404) is listed so a route that checks permissions only after loading data stays visible.
+        var report = string.Join("\n", statuses.OrderBy(k => k.Key).Select(k => $"{k.Key}: {k.Value.Count}" + (k.Key.EndsWith("403") ? "" : " — " + string.Join(", ", k.Value.Take(12)))));
+        Assert.True(statuses.Keys.All(k => !k.EndsWith(" 500", StringComparison.Ordinal)), report);                       // no server errors for anyone
+        Assert.True(statuses.Keys.Where(k => k.StartsWith("công ty khác", StringComparison.Ordinal)).All(k => k is "công ty khác 403" or "công ty khác 400"), report);
+        Assert.False(statuses.ContainsKey("chỉ xem 422"), report);   // permission is checked before the content (a reason, a state)
+    }
 
     [Theory]
     [InlineData("0.0000", "0")]

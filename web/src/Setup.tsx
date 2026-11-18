@@ -4,6 +4,7 @@ import { get, post, put, type Account } from './api'
 import { AccountSelect, ErrorBox, Modal, useAction } from './common'
 import { ImportData } from './ImportData'
 import { RulesSetup } from './Rules'
+import { DateInput } from './DateInput'
 
 const TABS = { accounts: 'Hệ thống tài khoản', roles: 'Vai trò tài khoản', rules: 'Quy tắc định khoản', stock: 'Kho & vật tư', years: 'Năm tài chính', analysis: 'Mẫu, mã phân tích, hạn mức duyệt', import: 'Nhập từ Excel/CSV' } as const
 
@@ -278,7 +279,7 @@ function Stock() {
         <div className="form-row">
           <label>Kho <select value={policy.warehouseId} onChange={e => setPolicy(p => ({ ...p, warehouseId: e.target.value }))}><option value="">—</option>{whs.map(w => <option key={w.id} value={w.id}>{w.code}</option>)}</select></label>
           <label>Phương pháp <select value={policy.method} onChange={e => setPolicy(p => ({ ...p, method: e.target.value }))}>{Object.entries(METHOD_VI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-          <label>Hiệu lực từ (ngày đầu năm tài chính) <input type="date" value={policy.effectiveFrom} onChange={e => setPolicy(p => ({ ...p, effectiveFrom: e.target.value }))} /></label>
+          <label>Hiệu lực từ (ngày đầu năm tài chính) <DateInput value={policy.effectiveFrom} onChange={e => setPolicy(p => ({ ...p, effectiveFrom: e.target.value }))} /></label>
           <label>Căn cứ / quyết định <input value={policy.note} onChange={e => setPolicy(p => ({ ...p, note: e.target.value }))} /></label>
           <button disabled={busy || !policy.warehouseId || !policy.effectiveFrom || !policy.note} onClick={() => act(() => post('/warehouses/costing-policy', policy), 'Đã đặt phương pháp tính giá.')}>Đặt phương pháp</button>
         </div>
@@ -319,8 +320,8 @@ function Years() {
       {info && !error && <div className="msg ok">{info}</div>}
       <div className="form-row">
         <label>Mã năm <input value={y.code} onChange={e => setY(x => ({ ...x, code: e.target.value }))} placeholder="2027" /></label>
-        <label>Từ ngày <input type="date" value={y.startDate} onChange={e => setY(x => ({ ...x, startDate: e.target.value }))} /></label>
-        <label>Đến ngày <input type="date" value={y.endDate} onChange={e => setY(x => ({ ...x, endDate: e.target.value }))} /></label>
+        <label>Từ ngày <DateInput value={y.startDate} onChange={e => setY(x => ({ ...x, startDate: e.target.value }))} /></label>
+        <label>Đến ngày <DateInput value={y.endDate} onChange={e => setY(x => ({ ...x, endDate: e.target.value }))} /></label>
         <button disabled={busy || !y.code || !y.startDate || !y.endDate} onClick={() => run(async () => { await post('/fiscal-years', y); setInfo(`Đã mở năm tài chính ${y.code}.`); setY({ code: '', startDate: '', endDate: '' }) })}>Mở năm</button>
       </div>
     </section>

@@ -182,7 +182,7 @@ public sealed class PayrollService(HakDbContext db, AccountingEngine engine, Aud
         if (errors.Count == 0)
         {
             var period = await db.AccountingPeriods.AsNoTracking().FirstOrDefaultAsync(p => p.CompanyId == ctx.CompanyId && p.StartDate <= sheet.PostingDate && p.EndDate >= sheet.PostingDate);
-            if (period is null) errors.Add(new(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {sheet.PostingDate}."));
+            if (period is null) errors.Add(new(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {sheet.PostingDate:dd/MM/yyyy}."));
             else if (period.Status == PeriodStatus.Locked) errors.Add(new(ErrorCodes.PeriodLocked, $"Kỳ {period.StartDate:MM/yyyy} đã khóa."));
         }
 

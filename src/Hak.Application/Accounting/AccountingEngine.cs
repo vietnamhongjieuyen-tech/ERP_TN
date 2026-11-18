@@ -37,6 +37,7 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
 
     public Task<Voucher> CreateDraftAsync(SessionContext ctx, VoucherInput input, Guid? adjustsVoucherId = null)
     {
+        ctx.Require(Permissions.VoucherCreate);
         if (!VoucherTypes.UserCreatable.Contains(input.VoucherType))
             throw new DomainException(ErrorCodes.ValidationFailed, $"Loại chứng từ '{input.VoucherType}' không được tạo trực tiếp.");
         return CreateDraftCoreAsync(ctx, input, adjustsVoucherId, null);
@@ -153,12 +154,14 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
 
     public Task<Voucher> RejectAsync(SessionContext ctx, Guid id, string reason, long? expectedRowVersion = null)
     {
+        ctx.Require(Permissions.VoucherApprove);   // permission before the reason check
         if (string.IsNullOrWhiteSpace(reason)) throw new DomainException(ErrorCodes.ReasonRequired, "Phải ghi lý do trả lại.");
         return TransitionAsync(ctx, id, expectedRowVersion, Permissions.VoucherApprove, "reject", (v, _) => { v.Reject(); return Task.CompletedTask; }, reason);
     }
 
     public Task<Voucher> CancelAsync(SessionContext ctx, Guid id, string reason, long? expectedRowVersion = null)
     {
+        ctx.Require(Permissions.VoucherEditDraft);
         if (string.IsNullOrWhiteSpace(reason)) throw new DomainException(ErrorCodes.ReasonRequired, "Phải ghi lý do hủy.");
         return TransitionAsync(ctx, id, expectedRowVersion, Permissions.VoucherEditDraft, "cancel", (v, _) => { v.Cancel(); return Task.CompletedTask; }, reason);
     }
@@ -178,6 +181,27 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
             var entry = await PostCoreAsync(ctx, v, company);
             await db.SaveChangesAsync();
             return entry;
+        });
+    }
+
+    /// <summary>
+    /// "Ghi sổ ngay" for companies that let one person do everything (RequireDistinctApprover = false): submit → approve → post
+    /// a draft in ONE transaction, with every check of the three steps (approval limit included). Any failure leaves the voucher
+    /// a draft. Companies with segregation of duties are refused — the steps belong to different people there.
+    /// </summary>
+    public async Task<JournalEntry> PostNowAsync(SessionContext ctx, Guid voucherId, long? expectedRowVersion = null)
+    {
+        ctx.Require(Permissions.VoucherSubmit);
+        ctx.Require(Permissions.VoucherApprove);
+        ctx.Require(Permissions.VoucherPost);
+        return await db.InTransactionAsync(async () =>
+        {
+            var company = await LoadCompanyAsync(ctx.CompanyId);
+            if (company.RequireDistinctApprover)
+                throw new DomainException(ErrorCodes.Forbidden, "Công ty đang áp dụng phân quyền đầy đủ: chứng từ phải được người khác duyệt trước khi ghi sổ.");
+            var v = await SubmitAsync(ctx, voucherId, expectedRowVersion);
+            await ApproveAsync(ctx, v.Id, v.RowVersion);
+            return await PostAsync(ctx, v.Id);
         });
     }
 
@@ -310,7 +334,7 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
             throw new DomainException(ErrorCodes.RegimeNotVerified,
                 $"Chế độ kế toán {regime.VersionCode} chưa được xác minh với văn bản pháp luật gốc; không được ghi sổ ở môi trường Production.");
         if (v.PostingDate < regime.EffectiveFrom || (regime.EffectiveTo is { } to && v.PostingDate > to))
-            throw new DomainException(ErrorCodes.RegimeNotEffective, $"Ngày hạch toán {v.PostingDate} ngoài hiệu lực của chế độ kế toán {regime.VersionCode}.");
+            throw new DomainException(ErrorCodes.RegimeNotEffective, $"Ngày hạch toán {v.PostingDate:dd/MM/yyyy} ngoài hiệu lực của chế độ kế toán {regime.VersionCode}.");
 
         var now = clock.UtcNow;
         var entry = new JournalEntry
@@ -390,7 +414,7 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
         var errors = VoucherValidator.Validate(v, accounts, partners, dp);
         var period = await db.AccountingPeriods.AsNoTracking()
             .FirstOrDefaultAsync(p => p.CompanyId == v.CompanyId && p.StartDate <= v.PostingDate && p.EndDate >= v.PostingDate);
-        if (period is null) errors.Add(new(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {v.PostingDate}."));
+        if (period is null) errors.Add(new(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {v.PostingDate:dd/MM/yyyy}."));
         else if (period.Status == PeriodStatus.Locked) errors.Add(new(ErrorCodes.PeriodLocked, $"Kỳ {period.StartDate:MM/yyyy} đã khóa sổ."));
 
         // Analysis codes must be active codes of this company.
@@ -489,7 +513,7 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
     {
         var p = await db.AccountingPeriods.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.CompanyId == companyId && x.StartDate <= date && x.EndDate >= date)
-                ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date}.");
+                ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date:dd/MM/yyyy}.");
         if (p.Status == PeriodStatus.Locked)
             throw new DomainException(ErrorCodes.PeriodLocked, $"Kỳ {p.StartDate:MM/yyyy} đã khóa sổ.");
         return p;
@@ -497,7 +521,7 @@ public sealed class AccountingEngine(HakDbContext db, AuditService audit, IClock
 
     private async Task<FiscalYear> FiscalYearForAsync(Guid companyId, DateOnly date)
         => await db.FiscalYears.AsNoTracking().FirstOrDefaultAsync(f => f.CompanyId == companyId && f.StartDate <= date && f.EndDate >= date)
-           ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {date}.");
+           ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {date:dd/MM/yyyy}.");
 
     private async Task<Company> LoadCompanyAsync(Guid companyId)
         => await db.Companies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == companyId)

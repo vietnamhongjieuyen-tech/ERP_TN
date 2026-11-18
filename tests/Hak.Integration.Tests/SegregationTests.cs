@@ -61,10 +61,28 @@ public class SegregationTests
         var v2 = await s.Engine.CreateDraftAsync(solo, h.Sale(500_000));
         await s.Engine.SubmitAsync(solo, v2.Id);
         Assert.Equal(ErrorCodes.SodViolation, await CodeOf(() => s.Engine.ApproveAsync(solo, v2.Id)));
+        // "Ghi sổ ngay" is refused under segregation and leaves the draft untouched.
+        var v3 = await s.Engine.CreateDraftAsync(solo, h.Sale(400_000));
+        Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => s.Engine.PostNowAsync(solo, v3.Id)));
+        Assert.Equal(VoucherStatus.Draft, (await s.Db.Vouchers.AsNoTracking().SingleAsync(x => x.Id == v3.Id)).Status);
         // Permissions still apply in one-person mode: someone without voucher.post cannot post.
         await setup.SetRequireDistinctApproverAsync(solo, false, "Một kế toán");
         var noPost = solo with { Permissions = new HashSet<string>(RoleCatalog.AllPermissions().Where(p => p != Permissions.VoucherPost)) };
         await s.Engine.ApproveAsync(noPost, v2.Id);
         Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => s.Engine.PostAsync(noPost, v2.Id)));
+        Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => s.Engine.PostNowAsync(noPost, v3.Id)));
+
+        // One person, one step, one transaction: draft → posted.
+        var entry = await s.Engine.PostNowAsync(solo, v3.Id);
+        Assert.Equal(v3.Number, entry.VoucherNumber);
+        Assert.Equal(VoucherStatus.Posted, (await s.Db.Vouchers.AsNoTracking().SingleAsync(x => x.Id == v3.Id)).Status);
+
+        // A failure after the submit step (above the approval limit, no higher approval right) rolls everything back: still a draft.
+        await s.Db.Companies.Where(c => c.Id == h.CompanyId).ExecuteUpdateAsync(u => u.SetProperty(c => c.ApprovalLimit, (decimal?)100_000m));
+        var noHigh = solo with { Permissions = new HashSet<string>(RoleCatalog.AllPermissions().Where(p => p != Permissions.VoucherApproveHigh)) };
+        var v4 = await s.Engine.CreateDraftAsync(noHigh, h.Sale(300_000));
+        Assert.Equal(ErrorCodes.Forbidden, await CodeOf(() => s.Engine.PostNowAsync(noHigh, v4.Id)));
+        Assert.Equal(VoucherStatus.Draft, (await s.Db.Vouchers.AsNoTracking().SingleAsync(x => x.Id == v4.Id)).Status);
+        Assert.False(await s.Db.JournalEntries.AnyAsync(j => j.VoucherId == v4.Id));
     }
 }

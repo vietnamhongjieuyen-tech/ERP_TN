@@ -243,7 +243,7 @@ public sealed class JournalVoucherPackageService(HakDbContext db, AccountingEngi
                 }).ToList() };
                 errors.AddRange(VoucherValidator.Validate(probe, accById, partnerById, dp).Select(e => new ImportError(e.Code, e.Message, e.LineNo)));
                 var period = periods.FirstOrDefault(p => p.Contains(postingDate));
-                if (period is null) errors.Add(new(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {postingDate}."));
+                if (period is null) errors.Add(new(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {postingDate:dd/MM/yyyy}."));
                 else if (period.Status == PeriodStatus.Locked) errors.Add(new(ErrorCodes.PeriodLocked, $"Kỳ {period.StartDate:MM/yyyy} đã khóa."));
             }
             plans.Add(new Plan(sourceId, errors.Count == 0 ? "VALID" : "INVALID", errors.Count == 0 ? input : null, errors));

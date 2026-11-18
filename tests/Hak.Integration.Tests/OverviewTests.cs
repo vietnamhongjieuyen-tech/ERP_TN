@@ -19,7 +19,7 @@ public class OverviewTests
     {
         using var h = await TestHost.CreateAsync();
         using var s = h.NewScope();
-        var overview = new OverviewService(s.Db, s.Ledger, s.Settlement);
+        var overview = new OverviewService(s.Db, s.Ledger, s.Settlement, new IntegrityService(s.Db));
 
         await h.PostedAsync(s, h.Sale(5_000_000, new(2026, 3, 10)));                                   // receivable, due 10/03
         await h.PostedAsync(s, new VoucherInput(VoucherTypes.General, new(2026, 3, 12), new(2026, 3, 12), "Góp vốn",
@@ -52,7 +52,7 @@ public class OverviewTests
     {
         using var h = await TestHost.CreateAsync();
         using var s = h.NewScope();
-        var overview = new OverviewService(s.Db, s.Ledger, s.Settlement);
+        var overview = new OverviewService(s.Db, s.Ledger, s.Settlement, new IntegrityService(s.Db));
         var march = await s.Db.AccountingPeriods.AsNoTracking().SingleAsync(p => p.CompanyId == h.CompanyId && p.PeriodNo == 3);
         ChecklistItem Item(ClosingChecklist c, string key) => c.Items.Single(i => i.Key == key);
 
@@ -64,8 +64,18 @@ public class OverviewTests
         Assert.Equal(CheckStatus.Done, Item(clean, "subledger").Status);
         Assert.Equal(CheckStatus.Optional, Item(clean, "lock").Status);
         Assert.Equal(CheckStatus.Optional, Item(clean, "bank").Status);                               // bank accounts exist, no statement imported
-        foreach (var key in new[] { "stock_documents", "costing", "production", "depreciation", "loan_interest", "fx" })
+        foreach (var key in new[] { "stock_documents", "costing", "production", "depreciation", "loan_interest", "payroll", "fx" })
             Assert.Equal(CheckStatus.NotApplicable, Item(clean, key).Status);
+        Assert.DoesNotContain(clean.Items, i => i.Key == "advances");                                // no advance account mapped
+
+        // Once an account is mapped to EMPLOYEE_ADVANCE, open balances per person are reported (information only, does not block).
+        s.Db.AccountRoleMappings.Add(new() { Id = Guid.NewGuid(), CompanyId = h.CompanyId, RoleCode = "EMPLOYEE_ADVANCE", AccountId = h.Acc["AR"], CreatedAt = DateTime.UtcNow, CreatedBy = h.AdminId });
+        await s.Db.SaveChangesAsync();
+        var advances = Item(await overview.ClosingChecklistAsync(h.Auditor, march.Id), "advances");
+        Assert.Equal(CheckStatus.Optional, advances.Status);
+        Assert.Contains("1 người", advances.Detail);
+        s.Db.AccountRoleMappings.RemoveRange(s.Db.AccountRoleMappings.Where(m => m.RoleCode == "EMPLOYEE_ADVANCE"));
+        await s.Db.SaveChangesAsync();
 
         // A draft dated in the period blocks the close; one dated in April does not.
         await s.Engine.CreateDraftAsync(h.Preparer, h.Sale(100, new(2026, 3, 31)));

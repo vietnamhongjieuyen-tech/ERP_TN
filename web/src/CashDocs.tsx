@@ -7,6 +7,7 @@ import { get, saveOnce, type OpenItem, type Voucher } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, TYPE_VI, useAction, useCatalog, useRequestKey } from './common'
 import { formatMoney, parseMoney, today } from './money'
 import { EVENT_VI, ruleLines, ruleNeeds, type Rule, type RuleLine } from './Rules'
+import { DateInput } from './DateInput'
 
 // Fallback when the company has no active rule yet (the server then answers that no rule applies).
 const DEFAULT_EVENTS: Record<string, string[]> = { CR: ['CUSTOMER_RECEIPT'], BR: ['CUSTOMER_RECEIPT'], CP: ['EXPENSE', 'SUPPLIER_PAYMENT'], BP: ['SUPPLIER_PAYMENT', 'INTERNAL_TRANSFER'] }
@@ -110,7 +111,7 @@ export function CashDocsView() {
               {events.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
             </select>
           </label>
-          <label>Ngày<input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+          <label>Ngày<DateInput value={date} onChange={e => setDate(e.target.value)} /></label>
           <label>{cashKind === 'Cash' ? 'Quỹ' : 'Tài khoản ngân hàng'}
             <AccountSelect accounts={accounts} value={mainAccountId} onChange={setMainAccountId} filter={a => a.cashKind === cashKind} />
           </label>

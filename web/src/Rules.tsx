@@ -3,6 +3,7 @@ import { get, post } from './api'
 import { askConfirm } from './dialogs'
 import { AccountSelect, ErrorBox, Modal, PartnerSelect, TYPE_VI, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 // Quy tắc định khoản: how a cash / bank document (phiếu thu, phiếu chi, báo Có, báo Nợ) becomes journal lines. Each rule is a
 // versioned set of line templates; a version is activated only after its test cases pass against the current chart and role
@@ -241,8 +242,8 @@ function RuleEditor({ base, roles, mappings, onClose, onSaved }: { base: Partial
         <label>Nghiệp vụ<input list="rule-events" value={event} onChange={e => setEvent(e.target.value.toUpperCase())} disabled={!!base.id} />
           <datalist id="rule-events">{Object.entries(EVENT_VI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</datalist></label>
         <label>Ưu tiên<input className="num" size={3} value={priority} onChange={e => setPriority(e.target.value)} /></label>
-        <label>Hiệu lực từ<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Hiệu lực từ<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
       </div>
       <label>Diễn giải<input value={description} onChange={e => setDescription(e.target.value)} /></label>
       <table className="grid" style={{ marginTop: 8 }}>

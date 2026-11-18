@@ -41,7 +41,7 @@ public sealed class OrderService(HakDbContext db, AuditService audit, IClock clo
                 throw new DomainException(ErrorCodes.ValidationFailed, $"Đồng tiền {cur} chưa khai báo.");
             var items = await db.Items.AsNoTracking().Where(i => i.CompanyId == ctx.CompanyId).ToDictionaryAsync(i => i.Id);
             var fy = await db.FiscalYears.AsNoTracking().FirstOrDefaultAsync(f => f.CompanyId == ctx.CompanyId && f.StartDate <= input.OrderDate && f.EndDate >= input.OrderDate)
-                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.OrderDate}.");
+                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.OrderDate:dd/MM/yyyy}.");
             var order = new TradeOrder
             {
                 Id = Ids.New(), CompanyId = ctx.CompanyId, Kind = input.Kind, PartnerId = input.PartnerId, ContractNo = input.ContractNo, OrderDate = input.OrderDate,

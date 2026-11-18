@@ -54,7 +54,7 @@ public sealed partial class InvoiceService(HakDbContext db, AccountingEngine eng
             await CheckDuplicateAsync(ctx.CompanyId, input.Kind, input.PartnerId, input.InvoiceSeries.Trim(), input.InvoiceNo.Trim(), null);
 
             var fy = await db.FiscalYears.AsNoTracking().FirstOrDefaultAsync(f => f.CompanyId == ctx.CompanyId && f.StartDate <= input.PostingDate && f.EndDate >= input.PostingDate)
-                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.PostingDate}.");
+                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.PostingDate:dd/MM/yyyy}.");
             var inv = new CommercialInvoice
             {
                 Id = Ids.New(), CompanyId = ctx.CompanyId, Kind = input.Kind, InvoiceSeries = input.InvoiceSeries.Trim(), InvoiceNo = input.InvoiceNo.Trim(),

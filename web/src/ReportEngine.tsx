@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { get, post } from './api'
 import { ErrorBox, ExportButton, useAction } from './common'
 import { formatMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 interface DefInfo { id: string; code: string; version: number; name: string; category: string; legalReference: string | null; status: 'Draft' | 'Verified'
   verificationNote: string | null; verifiedAt: string | null; lineCount: number; snapshots: number; createdAt: string }
@@ -102,12 +103,12 @@ function RunReport({ defs, onSnapshot }: { defs: DefInfo[]; onSnapshot: () => vo
       <section className="panel"><div className="form-row">
         <label style={{ flex: 1 }}>Mẫu <select value={p.definitionId} onChange={e => { setP(x => ({ ...x, definitionId: e.target.value })); setResult(null) }}>
           <option value="">—</option>{defs.map(d => <option key={d.id} value={d.id}>{d.code} v{d.version} – {d.name} ({statusVi(d)})</option>)}</select></label>
-        <label>Từ ngày <input type="date" value={p.fromDate} onChange={e => setP(x => ({ ...x, fromDate: e.target.value }))} /></label>
-        <label>Đến ngày <input type="date" value={p.toDate} onChange={e => setP(x => ({ ...x, toDate: e.target.value }))} /></label>
+        <label>Từ ngày <DateInput value={p.fromDate} onChange={e => setP(x => ({ ...x, fromDate: e.target.value }))} /></label>
+        <label>Đến ngày <DateInput value={p.toDate} onChange={e => setP(x => ({ ...x, toDate: e.target.value }))} /></label>
         <label><input type="checkbox" checked={p.compare} onChange={e => setP(x => ({ ...x, compare: e.target.checked }))} /> Cột so sánh</label>
         {p.compare && <>
-          <label>Từ <input type="date" value={p.compareFrom} onChange={e => setP(x => ({ ...x, compareFrom: e.target.value }))} /></label>
-          <label>Đến <input type="date" value={p.compareTo} onChange={e => setP(x => ({ ...x, compareTo: e.target.value }))} /></label></>}
+          <label>Từ <DateInput value={p.compareFrom} onChange={e => setP(x => ({ ...x, compareFrom: e.target.value }))} /></label>
+          <label>Đến <DateInput value={p.compareTo} onChange={e => setP(x => ({ ...x, compareTo: e.target.value }))} /></label></>}
         <button className="primary" disabled={busy || !p.definitionId} onClick={() => run(async () => { setInfo(''); setPicked(null); setResult(await post<Run>('/report-runs', body())) })}>Chạy</button>
       </div>
       {defs.length === 0 && <p className="muted">Chưa có mẫu nào — khai báo ở tab "Mẫu báo cáo".</p>}</section>

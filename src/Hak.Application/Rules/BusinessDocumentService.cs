@@ -18,6 +18,7 @@ public sealed class BusinessDocumentService(HakDbContext db, AccountingEngine en
 {
     public async Task<Voucher> CreateAsync(SessionContext ctx, BusinessDocument doc)
     {
+        ctx.Require(Permissions.VoucherCreate);   // before reading the document: a user without the right is told so first
         var (input, meta) = await PrepareAsync(ctx, doc);
         return await engine.CreateDraftCoreAsync(ctx, input, null, meta);
     }

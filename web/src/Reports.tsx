@@ -6,6 +6,7 @@ import { CashBookPrint, DetailLedgerPrint, GeneralLedgerPrint, JournalBookPrint 
 import { useCompanyInfo } from './forms'
 import { addMoney, formatMoney, parseMoney, parseRate, today } from './money'
 import { ConfirmationDialog } from './Confirmation'
+import { DateInput } from './DateInput'
 
 const firstOfMonth = () => today().slice(0, 8) + '01'
 
@@ -24,8 +25,8 @@ export function TrialBalanceView() {
     <>
       <div className="toolbar">
         <h2>Bảng cân đối số phát sinh</h2>
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <label><input type="checkbox" checked={rollup} onChange={e => setRollup(e.target.checked)} /> Cộng dồn TK tổng hợp</label>
         <button className="primary" onClick={load} disabled={busy}>Xem</button>
         <ExportButton fileName={`BCDPS_${from}_${to}`} sheet="BCĐPS" disabled={!data}
@@ -87,8 +88,8 @@ export function AccountLedgerView() {
         <h2>Sổ chi tiết tài khoản / Sổ quỹ</h2>
         <label>Tài khoản<AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} /></label>
         <label>Đối tượng<PartnerSelect partners={partners} value={partnerId} onChange={setPartnerId} /></label>
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button className="primary" onClick={() => load()} disabled={busy || !accountId}>Xem</button>
         <ExportButton fileName={`So_chi_tiet_${data?.accountCode ?? ''}_${from}_${to}`} sheet={`Sổ TK ${data?.accountCode ?? ''}`} disabled={!data}
           columns={[{ header: 'Ngày' }, { header: 'Số CT' }, { header: 'Loại' }, { header: 'Diễn giải', width: 40 }, { header: 'TK đối ứng' },
@@ -161,7 +162,7 @@ export function ReceivablesView() {
         <h2>Công nợ</h2>
         <label>Tài khoản công nợ<AccountSelect accounts={openAccounts} value={accountId} onChange={setAccountId} /></label>
         <label>Đối tượng (chi tiết)<PartnerSelect partners={partners} value={partnerId} onChange={setPartnerId} /></label>
-        <label>Đến ngày<input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
         <button className="primary" onClick={() => load()} disabled={busy || !accountId}>Xem</button>
         <button onClick={auto} disabled={busy || !accountId || !partnerId}>Tự động bù trừ (FIFO)</button>
         <button onClick={() => setConfirming(true)} disabled={!accountId || !partnerId} title="In biên bản đối chiếu công nợ với đối tượng đang chọn">Biên bản đối chiếu…</button>
@@ -269,7 +270,7 @@ function AllocateDialog({ debit, credit, asOf, onClose, onDone }: { debit: OpenI
     <div className="form-row">
       <label>Số tiền<input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" /></label>
       {foreign && <label>Nguyên tệ ({foreign})<input value={foreignAmount} onChange={e => setForeignAmount(e.target.value)} inputMode="decimal" /></label>}
-      <label>Ngày phân bổ<input type="date" value={date} min={later} onChange={e => setDate(e.target.value)} /></label>
+      <label>Ngày phân bổ<DateInput value={date} min={later} onChange={e => setDate(e.target.value)} /></label>
     </div>
     <p className="muted">Không vượt số còn lại của mỗi bên; ngày phân bổ không trước ngày hạch toán của hai chứng từ và phải thuộc kỳ chưa khóa. Phân bổ không sinh bút toán, chỉ ghi nhận chứng từ nào thanh toán cho chứng từ nào.</p>
   </Modal>
@@ -309,8 +310,8 @@ export function GeneralJournalView() {
     <>
       <div className="toolbar">
         <h2>Sổ Nhật ký chung</h2>
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button className="primary" disabled={busy} onClick={() => run(async () => setRows(await get<JournalRow[]>(`/reports/general-journal?from=${from}&to=${to}`)))}>Xem</button>
         <ExportButton fileName={`So_nhat_ky_chung_${from}_${to}`} sheet="Nhật ký chung" disabled={!rows}
           columns={[{ header: 'Ngày' }, { header: 'Số CT' }, { header: 'Loại' }, { header: 'Diễn giải', width: 40 }, { header: 'TK' }, { header: 'Đối tượng' },

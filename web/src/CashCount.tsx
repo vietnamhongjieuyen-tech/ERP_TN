@@ -3,6 +3,7 @@ import { get, session, type Account } from './api'
 import { AccountSelect, ErrorBox, Modal, PrintSheet, printSheet, useAction } from './common'
 import { addMoney, formatMoney, today } from './money'
 import { FORM_FOOT, FormHeader } from './forms'
+import { DateInput } from './DateInput'
 
 // Bảng kiểm kê quỹ (dùng cho VNĐ), Mẫu số 08a-TT Phụ lục I TT 99/2025: count of notes by denomination against the book balance of a
 // cash account on a date. Chênh lệch III = I − II (sổ − thực tế): dương là thiếu quỹ, âm là thừa. Nothing is posted:
@@ -50,7 +51,7 @@ export function CashCountDialog({ accounts, onClose }: { accounts: Account[]; on
       <ErrorBox error={error} />
       <div className="form-row">
         <label>Quỹ<AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} filter={a => a.cashKind === 'Cash'} /></label>
-        <label>Kiểm kê đến hết ngày<input type="date" value={date} onChange={e => e.target.value && setDate(e.target.value)} /></label>
+        <label>Kiểm kê đến hết ngày<DateInput value={date} onChange={e => e.target.value && setDate(e.target.value)} /></label>
       </div>
       <table className="grid">
         <thead><tr><th className="num">Mệnh giá</th><th className="num">Số tờ</th><th className="num">Thành tiền</th></tr></thead>

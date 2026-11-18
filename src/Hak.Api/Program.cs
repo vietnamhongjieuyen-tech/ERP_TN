@@ -82,10 +82,14 @@ builder.Services.AddScoped<Hak.Application.Backup.BackupScheduleService>();
 builder.Services.AddHostedService<Hak.Api.BackupScheduler>();
 builder.Services.AddScoped<Hak.Application.Reports.ReportService>();
 builder.Services.AddScoped<Hak.Application.Overview.OverviewService>();
+builder.Services.AddScoped<Hak.Application.Overview.IntegrityService>();
 builder.Services.AddScoped<WorkflowSetupService>();
 builder.Services.AddScoped<VoucherAttachmentService>();
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new DecimalAsStringConverter()));
+// An explicit null where the request type does not allow it is refused at the door with 400. (Missing optional fields stay allowed:
+// many request types declare optional values without a default, so required-parameter checking would refuse valid requests.)
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.RespectNullableAnnotations = true);
 
 var app = builder.Build();
 

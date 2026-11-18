@@ -41,8 +41,9 @@ public sealed record VoucherDto(Guid Id, string Number, string VoucherType, stri
 
 public static class Endpoints
 {
+    // A missing list in the body is an empty list (the service then refuses it with a message), never a server error.
     private static VoucherInput ToInput(VoucherRequest r) => new(r.VoucherType, r.VoucherDate, r.PostingDate, r.Description,
-        r.Lines.Select(l => new VoucherLineInput(l.AccountId, l.Side switch
+        (r.Lines ?? []).Select(l => new VoucherLineInput(l.AccountId, l.Side switch
         {
             "D" => Side.Debit,
             "C" => Side.Credit,
@@ -193,6 +194,11 @@ public static class Endpoints
         api.MapPost("/vouchers/{id:guid}/post", async (HttpContext http, Guid id, long? rowVersion, AccountingEngine e) =>
         {
             var j = await e.PostAsync(await http.SessionAsync(), id, rowVersion);
+            return Results.Ok(new { journalEntryId = j.Id, j.PostingDate, j.VoucherNumber });
+        });
+        api.MapPost("/vouchers/{id:guid}/post-now", async (HttpContext http, Guid id, long? rowVersion, AccountingEngine e) =>
+        {
+            var j = await e.PostNowAsync(await http.SessionAsync(), id, rowVersion);
             return Results.Ok(new { journalEntryId = j.Id, j.PostingDate, j.VoucherNumber });
         });
         api.MapPost("/vouchers/{id:guid}/reverse", async (HttpContext http, Guid id, ReverseRequest r, AccountingEngine e) =>

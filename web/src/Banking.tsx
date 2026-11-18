@@ -8,6 +8,7 @@ import { askDate, askText } from './dialogs'
 import { get, post, session } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, printSheet, useAction, useCatalog } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 interface PaymentOrder { id: string; number: string; partnerId: string; amount: string; requestedDate: string; description: string; status: string; executedDate: string | null; bankReference: string | null; voucherId: string | null
   bankAccountId?: string; beneficiaryAccountNo?: string | null; beneficiaryBank?: string | null }
@@ -77,7 +78,7 @@ function PaymentOrders() {
           <label>Tài khoản chi<AccountSelect accounts={accounts} value={form.bankAccountId} onChange={v => setForm(f => ({ ...f, bankAccountId: v }))} filter={a => a.cashKind === 'Bank'} /></label>
           <label>Nhà cung cấp<PartnerSelect partners={partners} value={form.partnerId} onChange={v => setForm(f => ({ ...f, partnerId: v }))} /></label>
           <label>Số tiền<input className="num" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} onBlur={() => { const p = parseMoney(form.amount); if (p) setForm(f => ({ ...f, amount: formatMoney(p) })) }} /></label>
-          <label>Ngày đề nghị<input type="date" value={form.requestedDate} onChange={e => setForm(f => ({ ...f, requestedDate: e.target.value }))} /></label>
+          <label>Ngày đề nghị<DateInput value={form.requestedDate} onChange={e => setForm(f => ({ ...f, requestedDate: e.target.value }))} /></label>
           <label>Số TK thụ hưởng<input value={form.beneficiaryAccountNo} onChange={e => setForm(f => ({ ...f, beneficiaryAccountNo: e.target.value }))} /></label>
           <label>Ngân hàng thụ hưởng<input value={form.beneficiaryBank} onChange={e => setForm(f => ({ ...f, beneficiaryBank: e.target.value }))} /></label>
           <label style={{ flex: 1, minWidth: 220 }}>Nội dung<input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></label>
@@ -217,7 +218,7 @@ function Reconciliation() {
       {info && !error && <div className="msg ok">{info}</div>}
       <div className="toolbar">
         <label>Tài khoản ngân hàng<AccountSelect accounts={accounts} value={bankAccountId} onChange={setBankAccountId} filter={a => a.cashKind === 'Bank'} /></label>
-        <label>Đến ngày<input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
         <button className="primary" onClick={load} disabled={busy || !bankAccountId}>Xem đối chiếu</button>
       </div>
       <details className="panel">
@@ -227,8 +228,8 @@ function Reconciliation() {
             onChange={e => { readFile(e.target.files?.[0]); e.target.value = '' }} /></label>
         </div>
         <div className="form-row">
-          <label>Từ ngày<input type="date" value={hdr.fromDate} onChange={e => setHdr(h => ({ ...h, fromDate: e.target.value }))} /></label>
-          <label>Đến ngày<input type="date" value={hdr.toDate} onChange={e => setHdr(h => ({ ...h, toDate: e.target.value }))} /></label>
+          <label>Từ ngày<DateInput value={hdr.fromDate} onChange={e => setHdr(h => ({ ...h, fromDate: e.target.value }))} /></label>
+          <label>Đến ngày<DateInput value={hdr.toDate} onChange={e => setHdr(h => ({ ...h, toDate: e.target.value }))} /></label>
           <label>Số dư đầu<input className="num" value={hdr.opening} onChange={e => setHdr(h => ({ ...h, opening: e.target.value }))} /></label>
           <label>Số dư cuối<input className="num" value={hdr.closing} onChange={e => setHdr(h => ({ ...h, closing: e.target.value }))} /></label>
           <label>Tên file<input value={hdr.sourceName} onChange={e => setHdr(h => ({ ...h, sourceName: e.target.value }))} /></label>

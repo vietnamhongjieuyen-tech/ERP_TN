@@ -4,6 +4,7 @@ import { get, post } from './api'
 import { ErrorBox, PERM_VI, useAction } from './common'
 import { formatMoney, today } from './money'
 import { downloadXlsx } from './xlsx'
+import { DateInput } from './DateInput'
 
 interface Me { id: string; userName: string; fullName: string; isSystemAdmin: boolean }
 interface Grant { companyId: string; companyCode: string; roleCode: string; roleName: string }
@@ -92,13 +93,13 @@ function Regimes({ onChange }: { onChange: () => void }) {
         <label>Mã chế độ <input value={f.regimeCode} onChange={e => setF(x => ({ ...x, regimeCode: e.target.value.toUpperCase() }))} /></label>
         <label style={{ flex: 1 }}>Tên chế độ <input value={f.regimeName} onChange={e => setF(x => ({ ...x, regimeName: e.target.value }))} /></label>
         <label>Mã phiên bản <input value={f.versionCode} onChange={e => setF(x => ({ ...x, versionCode: e.target.value }))} /></label>
-        <label>Hiệu lực từ <input type="date" value={f.effectiveFrom} onChange={e => setF(x => ({ ...x, effectiveFrom: e.target.value }))} /></label>
-        <label>đến <input type="date" value={f.effectiveTo} onChange={e => setF(x => ({ ...x, effectiveTo: e.target.value }))} /></label>
+        <label>Hiệu lực từ <DateInput value={f.effectiveFrom} onChange={e => setF(x => ({ ...x, effectiveFrom: e.target.value }))} /></label>
+        <label>đến <DateInput value={f.effectiveTo} onChange={e => setF(x => ({ ...x, effectiveTo: e.target.value }))} /></label>
       </div>
       {sources.map((s, i) => <div className="form-row" key={i}>
         <label>Nhóm quy định <input value={s.ruleGroup} onChange={e => src(i, 'ruleGroup', e.target.value)} placeholder="VD: Hệ thống tài khoản" /></label>
         <label>Số văn bản <input value={s.documentNo} onChange={e => src(i, 'documentNo', e.target.value)} /></label>
-        <label>Ngày ban hành <input type="date" value={s.issuedDate ?? ''} onChange={e => src(i, 'issuedDate', e.target.value)} /></label>
+        <label>Ngày ban hành <DateInput value={s.issuedDate ?? ''} onChange={e => src(i, 'issuedDate', e.target.value)} /></label>
         <label>Điều / phụ lục <input value={s.article ?? ''} onChange={e => src(i, 'article', e.target.value)} /></label>
         <label style={{ flex: 1 }}>Đường dẫn văn bản <input value={s.url ?? ''} onChange={e => src(i, 'url', e.target.value)} /></label>
         {sources.length > 1 && <button onClick={() => setSources(x => x.filter((_, j) => j !== i))}>Bỏ</button>}
@@ -351,8 +352,8 @@ function AuditLog() {
       <h3>Nhật ký kiểm toán (công ty đang chọn)</h3>
       <ErrorBox error={error} />
       <div className="form-row">
-        <label>Từ <input type="date" value={filter.from} onChange={e => setFilter(f => ({ ...f, from: e.target.value }))} /></label>
-        <label>Đến <input type="date" value={filter.to} onChange={e => setFilter(f => ({ ...f, to: e.target.value }))} /></label>
+        <label>Từ <DateInput value={filter.from} onChange={e => setFilter(f => ({ ...f, from: e.target.value }))} /></label>
+        <label>Đến <DateInput value={filter.to} onChange={e => setFilter(f => ({ ...f, to: e.target.value }))} /></label>
         <label>Hành động bắt đầu bằng <input value={filter.action} onChange={e => setFilter(f => ({ ...f, action: e.target.value }))} placeholder="voucher.post, loan., …" /></label>
         <button disabled={busy} onClick={() => load(0)}>Lọc</button>
         <button disabled={busy} onClick={() => run(async () => {

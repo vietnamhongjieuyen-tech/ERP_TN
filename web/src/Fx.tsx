@@ -3,6 +3,7 @@ import { askText } from './dialogs'
 import { get, post, type OpenItem } from './api'
 import { AccountSelect, ErrorBox, PartnerSelect, useAction, useCatalog } from './common'
 import { formatMoney, parseMoney, parseRate, today } from './money'
+import { DateInput } from './DateInput'
 
 interface BalanceRow {
   accountId: string; accountCode: string; partnerId: string | null; partnerCode: string | null; currency: string
@@ -43,7 +44,7 @@ export function FxView() {
     <>
       <div className="toolbar">
         <h2>Ngoại tệ — số dư và đánh giá lại cuối kỳ</h2>
-        <label>Tại ngày <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
+        <label>Tại ngày <DateInput value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
         <button onClick={() => load()}>Tải lại</button>
       </div>
       <p className="muted">Số dư theo từng tài khoản – đối tượng – loại tiền. Đánh giá lại áp dụng cho tiền, tiền gửi, vay… (không theo dõi công nợ chi tiết); chênh lệch ghi vào TK ánh xạ vai trò FX_REVALUATION. Tỷ giá áp cho số dư Nợ / số dư Có theo chính sách của doanh nghiệp [CẦN XÁC MINH căn cứ TT99].</p>

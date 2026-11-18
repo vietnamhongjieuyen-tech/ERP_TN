@@ -6,6 +6,7 @@ import { newRequestKey, saveOnce } from './api'
 import { Modal } from './common'
 import { DialogHost } from './dialogs'
 import { confirmLeave, unsavedScreens, useUnsaved } from './leave'
+import { DateInput } from './DateInput'
 
 afterEach(() => cleanup())
 
@@ -69,4 +70,34 @@ describe('Lưu khi mất kết nối', () => {
     expect(await saveOnce<{ id: string }>('POST', '/vouchers', { a: 1 }, key)).toEqual({ id: 'v1' })
     expect(keys).toEqual([key, key])
   }, 10_000)
+})
+describe('Ô ngày dd/MM/yyyy', () => {
+  function Harness({ min }: { min?: string }) {
+    const [v, setV] = useState('2026-03-05')
+    return <><DateInput aria-label="Ngày" value={v} min={min} onChange={e => setV(e.target.value)} /><output>{v}</output></>
+  }
+  const box = () => screen.getByRole('textbox', { name: 'Ngày' }) as HTMLInputElement
+
+  it('shows dd/MM/yyyy and passes on ISO once the typed date is real', () => {
+    render(<Harness />)
+    expect(box().value).toBe('05/03/2026')
+    fireEvent.focus(box())
+    fireEvent.change(box(), { target: { value: '31/12/2026' } })
+    expect(screen.getByRole('status').textContent).toBe('2026-12-31')
+    fireEvent.change(box(), { target: { value: '31/02/2026' } })   // not a date: the last good value stays
+    expect(screen.getByRole('status').textContent).toBe('2026-12-31')
+    expect(box().getAttribute('aria-invalid')).toBe('true')
+    fireEvent.blur(box())
+    expect(box().value).toBe('31/12/2026')
+  })
+
+  it('takes a two-digit year on leaving the field, clears to empty, respects min', () => {
+    render(<Harness min="2026-01-01" />)
+    fireEvent.focus(box()); fireEvent.change(box(), { target: { value: '1/2/27' } }); fireEvent.blur(box())
+    expect(screen.getByRole('status').textContent).toBe('2027-02-01')
+    fireEvent.focus(box()); fireEvent.change(box(), { target: { value: '01/01/2025' } }); fireEvent.blur(box())
+    expect(screen.getByRole('status').textContent).toBe('2027-02-01')   // before min: refused
+    fireEvent.focus(box()); fireEvent.change(box(), { target: { value: '' } }); fireEvent.blur(box())
+    expect(screen.getByRole('status').textContent).toBe('')
+  })
 })

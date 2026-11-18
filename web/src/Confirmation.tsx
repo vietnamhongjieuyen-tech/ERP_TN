@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { get, session, type Account, type Partner } from './api'
 import { ErrorBox, Modal, PrintSheet, printSheet, useAction } from './common'
 import { amountInWords, balanceText, formatMoney } from './money'
+import { DateInput } from './DateInput'
 
 interface LedgerRow { postingDate: string; voucherNumber: string; description: string | null; debit: string; credit: string; runningBalance: string
   foreignCurrency?: string | null; foreignAmount?: string | null }
@@ -30,7 +31,7 @@ export function ConfirmationDialog({ account, partner, to, onClose }: { account:
     <Modal title={`Biên bản đối chiếu công nợ — ${partner.code}`} onClose={onClose}
       footer={<><button onClick={onClose}>Đóng</button><button className="primary" disabled={!ledger} onClick={printSheet}>In biên bản</button></>}>
       <ErrorBox error={error} />
-      <label>Từ ngày<input type="date" value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} /></label>
+      <label>Từ ngày<DateInput value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} /></label>
       {!ledger ? <span className="muted">Đang tải…</span> : <>
         <p>TK {ledger.accountCode} – {ledger.accountName}, từ {d(from)} đến {d(to)}: {ledger.rows.length} chứng từ.</p>
         <p>Số dư đầu kỳ: {balanceText(ledger.openingBalance, partner.name)}<br />

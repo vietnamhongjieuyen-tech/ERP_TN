@@ -79,6 +79,7 @@ public sealed class DrynessService(HakDbContext db, AuditService audit, IClock c
     /// <summary>Replaces the active measurement of a line (e.g. corrected certificate). The old row stays in history.</summary>
     public Task<StockMeasurement> SupersedeAsync(SessionContext ctx, Guid measurementId, MeasurementInput input, string reason)
     {
+        ctx.Require(Permissions.StockDocument);
         if (string.IsNullOrWhiteSpace(reason)) throw new DomainException(ErrorCodes.ReasonRequired, "Phải ghi lý do thay thế kết quả đo.");
         return RecordCoreAsync(ctx, input, measurementId, reason);
     }
@@ -105,7 +106,7 @@ public sealed class DrynessService(HakDbContext db, AuditService audit, IClock c
             var date = doc.PostingDate;
             var method = await db.DrynessMethods.AsNoTracking().Where(m => m.CompanyId == ctx.CompanyId && m.EffectiveFrom <= date)
                              .OrderByDescending(m => m.EffectiveFrom).FirstOrDefaultAsync()
-                         ?? throw new DomainException(ErrorCodes.CostingPolicyMissing, $"Chưa có phương pháp quy đổi MT→BDMT được phê duyệt hiệu lực ngày {date}.");
+                         ?? throw new DomainException(ErrorCodes.CostingPolicyMissing, $"Chưa có phương pháp quy đổi MT→BDMT được phê duyệt hiệu lực ngày {date:dd/MM/yyyy}.");
             var mt = input.MeasuredMt ?? line.Quantity;
             var bdmt = DrynessCalculator.Bdmt(mt, input.DrynessPercent, method);
 

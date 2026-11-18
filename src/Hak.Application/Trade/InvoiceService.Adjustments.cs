@@ -97,7 +97,7 @@ public sealed partial class InvoiceService
             var company = await db.Companies.AsNoTracking().FirstAsync(c => c.Id == ctx.CompanyId);
             var (_, rate, curDp, funcDp) = await CurrencyAsync(company, orig.Currency, orig.ExchangeRate);
             var fy = await db.FiscalYears.AsNoTracking().FirstOrDefaultAsync(f => f.CompanyId == ctx.CompanyId && f.StartDate <= input.PostingDate && f.EndDate >= input.PostingDate)
-                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.PostingDate}.");
+                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.PostingDate:dd/MM/yyyy}.");
 
             var inv = new CommercialInvoice
             {

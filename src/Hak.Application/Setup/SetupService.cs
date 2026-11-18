@@ -221,6 +221,8 @@ public sealed partial class SetupService(HakDbContext db, AuditService audit, IC
     public async Task<FiscalYear> CreateFiscalYearAsync(SessionContext ctx, string code, DateOnly start, DateOnly end)
     {
         ctx.Require(Permissions.ConfigManage);
+        if (string.IsNullOrWhiteSpace(code)) throw new DomainException(ErrorCodes.ValidationFailed, "Nhập mã năm tài chính.");
+        if (start.Year < 1900) throw new DomainException(ErrorCodes.ValidationFailed, "Nhập ngày bắt đầu năm tài chính.");
         if (end < start) throw new DomainException(ErrorCodes.ValidationFailed, "Ngày kết thúc phải sau ngày bắt đầu.");
         return await db.InTransactionAsync(async () =>
         {
@@ -242,6 +244,7 @@ public sealed partial class SetupService(HakDbContext db, AuditService audit, IC
 
     public Task ReopenPeriodAsync(SessionContext ctx, Guid periodId, string reason)
     {
+        ctx.Require(Permissions.PeriodReopen);   // permission first: a user without it is told so, not asked for a reason
         if (string.IsNullOrWhiteSpace(reason)) throw new DomainException(ErrorCodes.ReasonRequired, "Mở lại kỳ phải ghi rõ lý do.");
         return SetPeriodStatusAsync(ctx, periodId, PeriodStatus.Open, reason);
     }

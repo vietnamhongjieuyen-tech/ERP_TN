@@ -3,6 +3,8 @@ import { askConfirm, askText } from './dialogs'
 import { get, post, type Period, type Voucher } from './api'
 import { ErrorBox, useAction } from './common'
 import { goTo, takeParams } from './nav'
+import { DateInput } from './DateInput'
+import { today } from './money'
 
 interface ChecklistItem { key: string; title: string; status: 'Done' | 'Todo' | 'Optional' | 'NotApplicable'; detail: string; screen: string }
 interface Checklist { period: { id: string; periodNo: number; startDate: string; endDate: string; status: string }; readyToLock: boolean; items: ChecklistItem[] }
@@ -81,6 +83,39 @@ export function PeriodsView() {
           </tr>))}
         </tbody>
       </table>
+      <IntegrityPanel />
     </>
+  )
+}
+
+interface IntegrityCheck { code: string; title: string; severity: 'Error' | 'Warning'; count: number; findings: { reference: string; detail: string; voucherId: string | null }[] }
+
+/** Kiểm soát toàn vẹn: the ledger invariants run read-only on the books up to a date (nothing is changed). */
+function IntegrityPanel() {
+  const [asOf, setAsOf] = useState(today())
+  const [checks, setChecks] = useState<IntegrityCheck[] | null>(null)
+  const { busy, error, run } = useAction()
+  const errors = checks?.filter(c => c.severity === 'Error').reduce((s, c) => s + c.count, 0) ?? 0
+  return (
+    <section className="panel" style={{ marginTop: 12 }}>
+      <div className="toolbar">
+        <strong>Kiểm soát toàn vẹn sổ sách</strong>
+        <label>Đến ngày<DateInput value={asOf} onChange={e => e.target.value && setAsOf(e.target.value)} /></label>
+        <button disabled={busy} onClick={() => run(async () => setChecks((await get<{ checks: IntegrityCheck[] }>(`/integrity?asOf=${asOf}`)).checks))}>Chạy kiểm soát</button>
+        {checks && <span className={errors ? 'field-warn' : 'muted'}>{errors ? `${errors} lỗi cần xem` : 'Không có lỗi'}</span>}
+      </div>
+      <p className="muted">Kiểm: bút toán cân; mỗi chứng từ đã ghi sổ có đúng một bút toán; dòng sổ dùng tài khoản của công ty; phân bổ công nợ không vượt số tiền dòng; tồn kho không âm; mỗi biến động kho định giá một lần. Chỉ đọc, không sửa dữ liệu.</p>
+      <ErrorBox error={error} />
+      {checks && <table className="grid">
+        <thead><tr><th>Kiểm tra</th><th>Mức</th><th className="num">Số trường hợp</th><th>Chi tiết</th></tr></thead>
+        <tbody>{checks.map(c => (
+          <tr key={c.code} className={c.count && c.severity === 'Error' ? 'warn' : undefined}>
+            <td>{c.title}</td><td>{c.severity === 'Error' ? 'Lỗi' : 'Lưu ý'}</td><td className="num">{c.count}</td>
+            <td style={{ whiteSpace: 'normal' }}>{c.count === 0 ? <span className="muted">Đạt</span> : c.findings.map((f, i) => (
+              <div key={i}>{f.voucherId ? <a href="#" onClick={e => { e.preventDefault(); goTo('vouchers', { voucherId: f.voucherId! }) }}>{f.reference}</a> : f.reference}: {f.detail}</div>))}
+              {c.count > c.findings.length && <div className="muted">… và {c.count - c.findings.length} trường hợp khác</div>}</td>
+          </tr>))}</tbody>
+      </table>}
+    </section>
   )
 }

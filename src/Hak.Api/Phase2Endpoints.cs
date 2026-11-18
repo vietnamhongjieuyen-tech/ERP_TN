@@ -32,7 +32,7 @@ public sealed record BankInfoRequest(string? BankAccountNo, string? BankName);
 public static class Phase2Endpoints
 {
     private static BusinessDocument ToDoc(DocumentRequest r) => new(r.DocumentType, r.BusinessEvent, r.VoucherDate, r.PostingDate, r.Description,
-        r.PartnerId, r.MainAccountId, r.Lines.Select(l => new BusinessDocumentLine(l.Amount, l.CounterAccountId, l.SettleJournalLineId, l.Description, l.DueDate, l.AnalysisCodeId)).ToList());
+        r.PartnerId, r.MainAccountId, (r.Lines ?? []).Select(l => new BusinessDocumentLine(l.Amount, l.CounterAccountId, l.SettleJournalLineId, l.Description, l.DueDate, l.AnalysisCodeId)).ToList());
 
     public static void MapPhase2Endpoints(this WebApplication app)
     {
@@ -60,7 +60,7 @@ public static class Phase2Endpoints
         api.MapPost("/rules", async (HttpContext http, RuleRequest r, PostingRuleService s) =>
         {
             var rule = await s.CreateDraftAsync(await http.SessionAsync(), r.Code, r.DocumentType, r.BusinessEvent, r.Priority, r.EffectiveFrom, r.EffectiveTo,
-                r.Definition.GetRawText(), r.TestCases.ValueKind == JsonValueKind.Undefined ? "[]" : r.TestCases.GetRawText(), r.Description);
+                r.Definition.ValueKind == JsonValueKind.Undefined ? "" : r.Definition.GetRawText(), r.TestCases.ValueKind == JsonValueKind.Undefined ? "[]" : r.TestCases.GetRawText(), r.Description);
             return Results.Ok(new { rule.Id, rule.Version });
         });
         api.MapPost("/rules/{id:guid}/test", async (HttpContext http, Guid id, PostingRuleService s) => Results.Ok(await s.RunTestsAsync(await http.SessionAsync(), id)));
@@ -157,6 +157,8 @@ public static class Phase2Endpoints
         // ---- overviews (read-only) ----
         api.MapGet("/dashboard", async (HttpContext http, DateOnly? asOf, Hak.Application.Overview.OverviewService s, IClock clock) =>
             Results.Ok(await s.DashboardAsync(await http.SessionAsync(), asOf ?? DateOnly.FromDateTime(clock.UtcNow.ToLocalTime()))));
+        api.MapGet("/integrity", async (HttpContext http, DateOnly? asOf, Hak.Application.Overview.IntegrityService s, IClock clock) =>
+            Results.Ok(await s.RunAsync(await http.SessionAsync(), asOf ?? DateOnly.FromDateTime(clock.UtcNow))));
         api.MapGet("/closing/checklist", async (HttpContext http, Guid periodId, Hak.Application.Overview.OverviewService s) =>
         {
             var c = await s.ClosingChecklistAsync(await http.SessionAsync(), periodId);

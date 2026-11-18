@@ -3,6 +3,7 @@ import { get, post, put, session } from './api'
 import { askConfirm, askText } from './dialogs'
 import { ErrorBox, ExportButton, useAction } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 export interface AnalysisCode { id: string; kind: string; code: string; name: string; isActive: boolean }
 interface Row { analysisCodeId: string; kind: string; code: string; name: string; accountCode: string; accountName: string; debit: string; credit: string }
@@ -127,8 +128,8 @@ export function AnalysisReportView() {
     <>
       <div className="toolbar">
         <h2>Phân tích theo mã</h2>
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button className="primary" disabled={busy} onClick={() => run(async () => setRows(await get<Row[]>(`/reports/analysis?from=${from}&to=${to}`)))}>Xem</button>
         <ExportButton fileName={`Phan_tich_theo_ma_${from}_${to}`} sheet="Phân tích" disabled={!rows}
           columns={[{ header: 'Nhóm' }, { header: 'Mã' }, { header: 'Tên', width: 30 }, { header: 'TK' }, { header: 'Tên tài khoản', width: 34 },

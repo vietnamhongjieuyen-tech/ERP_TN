@@ -356,7 +356,7 @@ public sealed class SettlementService(HakDbContext db, AuditService audit, ICloc
     private async Task RequireOpenPeriodAsync(Guid companyId, DateOnly date)
     {
         var p = await db.AccountingPeriods.AsNoTracking().FirstOrDefaultAsync(x => x.CompanyId == companyId && x.StartDate <= date && x.EndDate >= date)
-                ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date}.");
+                ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date:dd/MM/yyyy}.");
         if (p.Status == PeriodStatus.Locked) throw new DomainException(ErrorCodes.PeriodLocked, $"Kỳ {p.StartDate:MM/yyyy} đã khóa sổ.");
     }
 

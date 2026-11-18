@@ -8,6 +8,7 @@ import { get, post, put, saveOnce, session, type Voucher } from './api'
 import { dateWords, FORM_FOOT, FormHeader } from './forms'
 import { AccountSelect, CASHFLOW_VI, ErrorBox, PartnerSelect, PERM_VI, PrintSheet, printSheet, STATUS_VI, TYPE_VI, useAction, useCatalog, usePermissions, useRequestKey } from './common'
 import { addMoney, amountInWords, formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 interface LineDraft { accountId: string; side: 'D' | 'C'; amount: string; partnerId: string; description: string; cashFlowCode: string; analysisCodeId?: string }
 const emptyLine = (side: 'D' | 'C'): LineDraft => ({ accountId: '', side, amount: '', partnerId: '', description: '', cashFlowCode: '', analysisCodeId: '' })
@@ -91,8 +92,7 @@ export function VouchersView() {
         if (finish === 'post') {
           if (errs.length) setInfo(`Đã lưu nháp ${saved.number}, chưa ghi sổ vì cần xem lại: ${text}`)
           else {
-            let rv = saved.rowVersion
-            for (const s of ['submit', 'approve', 'post']) rv = (await post<Voucher>(`/vouchers/${saved.id}/${s}?rowVersion=${rv}`)).rowVersion
+            await post(`/vouchers/${saved.id}/post-now?rowVersion=${saved.rowVersion}`)
             setInfo(`Đã lưu và ghi sổ ${saved.number}.`)
           }
         } else if (finish === 'submit') {
@@ -108,8 +108,8 @@ export function VouchersView() {
     <>
       <div className="toolbar">
         <h2>Chứng từ kế toán</h2>
-        <label>Từ ngày<input type="date" value={from} onChange={e => { setFrom(e.target.value); setPage(0) }} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => { setTo(e.target.value); setPage(0) }} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => { setFrom(e.target.value); setPage(0) }} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => { setTo(e.target.value); setPage(0) }} /></label>
         <label>Trạng thái
           <select value={status} onChange={e => { setStatus(e.target.value); setPage(0) }}>
             <option value="">Tất cả</option>
@@ -136,7 +136,7 @@ export function VouchersView() {
         <button disabled={busy || !count('Submitted')} onClick={() => bulk('Đã duyệt', ['Submitted'], ['approve'])}>Duyệt ({count('Submitted')})</button>
         <button disabled={busy || !count('Approved')} onClick={() => bulk('Đã ghi sổ', ['Approved'], ['post'])}>Ghi sổ ({count('Approved')})</button>
         <button className="primary" disabled={busy || !count('Submitted')} onClick={() => bulk('Đã duyệt và ghi sổ', ['Submitted'], ['approve', 'post'])}>Duyệt và ghi sổ ({count('Submitted')})</button>
-        {oneStep && <button className="primary" disabled={busy || !count('Draft')} onClick={() => bulk('Đã ghi sổ', ['Draft'], ['submit', 'approve', 'post'])}>Ghi sổ ngay ({count('Draft')})</button>}
+        {oneStep && <button className="primary" disabled={busy || !count('Draft')} onClick={() => bulk('Đã ghi sổ', ['Draft'], ['post-now'])}>Ghi sổ ngay ({count('Draft')})</button>}
         <button disabled={busy} onClick={() => setChecked(new Set())}>Bỏ chọn</button>
         <span className="muted">Làm lần lượt theo ngày; chứng từ nào không qua kiểm tra được liệt kê, các chứng từ khác vẫn tiếp tục.</span>
       </div>}
@@ -155,8 +155,7 @@ export function VouchersView() {
             })}>Kiểm tra</button>
             {v.status === 'Draft' && <button {...gate('voucher.submit')} onClick={() => act('Đã gửi duyệt', () => post(`/vouchers/${v.id}/submit?rowVersion=${v.rowVersion}`))}>Gửi duyệt</button>}
             {v.status === 'Draft' && oneStep && <button className="primary" {...gate('voucher.submit', 'voucher.approve', 'voucher.post')} onClick={() => act('Đã ghi sổ', async () => {
-              let rv = v.rowVersion
-              for (const s of ['submit', 'approve', 'post']) rv = (await post<Voucher>(`/vouchers/${v.id}/${s}?rowVersion=${rv}`)).rowVersion
+              await post(`/vouchers/${v.id}/post-now?rowVersion=${v.rowVersion}`)
             })}>Ghi sổ ngay</button>}
             {v.status === 'Submitted' && <button {...gate('voucher.approve')} onClick={() => act('Đã duyệt', () => post(`/vouchers/${v.id}/approve?rowVersion=${v.rowVersion}`))}>Duyệt</button>}
             {(v.status === 'Submitted' || v.status === 'Approved') && <button {...gate('voucher.approve')} onClick={async () => {
@@ -472,8 +471,8 @@ function VoucherForm({ voucher, seed, onDone, oneStep }: { voucher: Voucher | nu
               {MANUAL_TYPES.map(t => <option key={t} value={t}>{t} – {TYPE_VI[t]}</option>)}
             </select>
           </label>
-          <label>Ngày chứng từ<input type="date" value={voucherDate} onChange={e => { setVoucherDate(e.target.value); if (postingDate === voucherDate) setPostingDate(e.target.value) }} /></label>
-          <label>Ngày hạch toán<input type="date" value={postingDate} onChange={e => setPostingDate(e.target.value)} /></label>
+          <label>Ngày chứng từ<DateInput value={voucherDate} onChange={e => { setVoucherDate(e.target.value); if (postingDate === voucherDate) setPostingDate(e.target.value) }} /></label>
+          <label>Ngày hạch toán<DateInput value={postingDate} onChange={e => setPostingDate(e.target.value)} /></label>
           <label style={{ flex: 1, minWidth: 240 }}>Diễn giải<input value={description} onChange={e => setDescription(e.target.value)} /></label>
           {!voucher && <label>Định khoản mẫu
             <select value="" onChange={e => { const t = templates.find(x => x.id === e.target.value); if (t) applyTemplate(t) }}>

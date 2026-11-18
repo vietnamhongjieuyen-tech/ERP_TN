@@ -45,6 +45,8 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
     public async Task<Warehouse> CreateWarehouseAsync(SessionContext ctx, string code, string name)
     {
         ctx.Require(Permissions.CatalogManage);
+        if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name)) throw new DomainException(ErrorCodes.ValidationFailed, "Nhập mã và tên kho.");
+        code = code.Trim(); name = name.Trim();
         return await db.InTransactionAsync(async () =>
         {
             if (await db.Warehouses.AnyAsync(w => w.CompanyId == ctx.CompanyId && w.Code == code))
@@ -104,7 +106,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
     public async Task<CostingMethod> MethodForAsync(Guid companyId, Guid warehouseId, DateOnly date)
         => (await db.CostingPolicies.AsNoTracking().Where(p => p.CompanyId == companyId && p.WarehouseId == warehouseId && p.EffectiveFrom <= date)
                .OrderByDescending(p => p.EffectiveFrom).FirstOrDefaultAsync())?.Method
-           ?? throw new DomainException(ErrorCodes.CostingPolicyMissing, $"Kho chưa được thiết lập phương pháp tính giá xuất kho tại ngày {date}.");
+           ?? throw new DomainException(ErrorCodes.CostingPolicyMissing, $"Kho chưa được thiết lập phương pháp tính giá xuất kho tại ngày {date:dd/MM/yyyy}.");
 
     // ------------------------------------------------------------------ documents
 
@@ -154,7 +156,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
             }
 
             var fy = await db.FiscalYears.AsNoTracking().FirstOrDefaultAsync(f => f.CompanyId == ctx.CompanyId && f.StartDate <= input.PostingDate && f.EndDate >= input.PostingDate)
-                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.PostingDate}.");
+                     ?? throw new DomainException(ErrorCodes.FiscalYearNotFound, $"Không có năm tài chính chứa ngày {input.PostingDate:dd/MM/yyyy}.");
             var prefix = input.Type switch { StockDocumentType.Receipt => "PN", StockDocumentType.Issue => "PX", _ => "DC" };
             var doc = new StockDocument
             {
@@ -660,7 +662,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
         var local = db.StockMovements.Local.Where(m => m.WarehouseId == warehouseId && m.ItemId == itemId).Select(m => (DateOnly?)m.MovementDate).Max();
         if ((last is { } l && l > date) || (local is { } lc && lc > date))
             throw new DomainException(ErrorCodes.StockBackdated,
-                $"Kho đã có nghiệp vụ của vật tư này sau ngày {date}; không ghi sổ lùi ngày để không làm sai giá xuất đã tính.");
+                $"Kho đã có nghiệp vụ của vật tư này sau ngày {date:dd/MM/yyyy}; không ghi sổ lùi ngày để không làm sai giá xuất đã tính.");
         await GuardCostedAsync(companyId, warehouseId, date);
         return method;
     }
@@ -668,7 +670,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
     private async Task GuardCostedAsync(Guid companyId, Guid warehouseId, DateOnly date)
     {
         if (await db.CostingRuns.AnyAsync(r => r.CompanyId == companyId && r.WarehouseId == warehouseId && r.Status == CostingRunStatus.Active && r.PeriodEnd >= date))
-            throw new DomainException(ErrorCodes.PeriodCosted, $"Kho đã tính giá bình quân cho kỳ chứa hoặc sau ngày {date}; hủy lần tính giá trước.");
+            throw new DomainException(ErrorCodes.PeriodCosted, $"Kho đã tính giá bình quân cho kỳ chứa hoặc sau ngày {date:dd/MM/yyyy}; hủy lần tính giá trước.");
     }
 
     private async Task<decimal?> IssueValueAsync(Guid companyId, Guid warehouseId, Guid itemId, decimal qty, CostingMethod method, int dp)
@@ -740,7 +742,7 @@ public sealed class StockService(HakDbContext db, AccountingEngine engine, Audit
     private async Task RequireOpenPeriodAsync(Guid companyId, DateOnly date)
     {
         var p = await db.AccountingPeriods.AsNoTracking().FirstOrDefaultAsync(x => x.CompanyId == companyId && x.StartDate <= date && x.EndDate >= date)
-                ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date}.");
+                ?? throw new DomainException(ErrorCodes.PeriodNotFound, $"Không có kỳ kế toán chứa ngày {date:dd/MM/yyyy}.");
         if (p.Status == PeriodStatus.Locked) throw new DomainException(ErrorCodes.PeriodLocked, $"Kỳ {p.StartDate:MM/yyyy} đã khóa sổ.");
     }
 

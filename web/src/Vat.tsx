@@ -5,6 +5,7 @@ import { askText } from './dialogs'
 import { ApiError, get, post, session } from './api'
 import { ErrorBox, useAction } from './common'
 import { formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 const DIFF_VI: Record<string, string> = {
   MissingInBooks: 'Có HĐĐT, chưa ghi sổ', MissingEInvoice: 'Có trong sổ, không có HĐĐT', AmountDifference: 'Lệch tiền hàng', VatDifference: 'Lệch thuế',
@@ -43,8 +44,8 @@ function Reconciliation() {
   return (
     <>
       <div className="toolbar">
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button className="primary" disabled={busy} onClick={load}>Đối chiếu</button>
       </div>
       <ErrorBox error={error} />
@@ -74,8 +75,8 @@ function Listing() {
     <>
       <div className="toolbar">
         <label>Loại<select value={direction} onChange={e => setDirection(e.target.value as typeof direction)}><option value="Input">Đầu vào</option><option value="Output">Đầu ra</option></select></label>
-        <label>Từ ngày<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label>Đến ngày<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+        <label>Từ ngày<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label>Đến ngày<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
         <button className="primary" disabled={busy} onClick={load}>Xem</button>
       </div>
       <ErrorBox error={error} />
@@ -167,8 +168,8 @@ function Declarations() {
       <div className="panel">
         <p className="muted">Nhập số liệu đã kê khai theo mẫu tờ khai đang dùng (mã & tên chỉ tiêu do kế toán nhập — hệ thống không mô phỏng mẫu tờ khai). Chỉ tiêu có “so với” sẽ được đối chiếu với sổ.</p>
         <div className="form-row">
-          <label>Kỳ từ<input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-          <label>đến<input type="date" value={to} onChange={e => setTo(e.target.value)} /></label>
+          <label>Kỳ từ<DateInput value={from} onChange={e => setFrom(e.target.value)} /></label>
+          <label>đến<DateInput value={to} onChange={e => setTo(e.target.value)} /></label>
           <button className="primary" style={{ alignSelf: 'flex-end' }} disabled={busy} onClick={save}>Lưu</button>
         </div>
         <table className="grid">

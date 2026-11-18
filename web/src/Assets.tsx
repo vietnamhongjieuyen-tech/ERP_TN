@@ -3,6 +3,7 @@ import { askText } from './dialogs'
 import { get, post, type Period } from './api'
 import { AccountSelect, ErrorBox, ExportButton, useAction, useCatalog } from './common'
 import { addMoney, formatMoney, parseMoney, today } from './money'
+import { DateInput } from './DateInput'
 
 interface RegisterRow {
   id: string; code: string; name: string; class: 'FixedAsset' | 'Tool'; status: 'Draft' | 'Active' | 'Disposed' | 'Cancelled'
@@ -56,7 +57,7 @@ export function AssetsView() {
     <>
       <div className="toolbar">
         <h2>Tài sản cố định & công cụ dụng cụ</h2>
-        <label>Tại ngày <input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
+        <label>Tại ngày <DateInput value={asOf} onChange={e => setAsOf(e.target.value)} /></label>
         <button onClick={() => load()}>Tải lại</button>
         <button className="primary" onClick={() => { setCreating(true); setDetail(null) }}>Thêm thẻ tài sản</button>
         <ExportButton fileName={'So_TSCD_' + asOf} sheet="Sổ tài sản" columns={[{ header: 'Mã' }, { header: 'Tên', width: 30 }, { header: 'Loại' }, { header: 'Trạng thái' }, { header: 'TK' }, { header: 'Ngày sử dụng' },
@@ -161,7 +162,7 @@ function Dispose({ row, accounts, busy, onSubmit, onCancel }: {
     <section className="panel">
       <h3>Ghi giảm {row.code} – {row.name}</h3>
       <p className="muted">Hệ thống ghi khấu hao của tháng ghi giảm theo cách tính tháng đã chọn, xóa nguyên giá và hao mòn; giá trị còn lại ghi vào TK chọn dưới đây. Tiền thu thanh lý lập hóa đơn bán riêng.</p>
-      <label>Ngày ghi giảm <input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+      <label>Ngày ghi giảm <DateInput value={date} onChange={e => setDate(e.target.value)} /></label>
       <label>TK nhận giá trị còn lại <AccountSelect accounts={accounts} value={accountId} onChange={setAccountId} ariaLabel="TK giá trị còn lại" /></label>
       <label>Căn cứ / diễn giải <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Biên bản thanh lý số…" /></label>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -216,7 +217,7 @@ function NewAsset({ accounts, onDone }: { accounts: ReturnType<typeof useCatalog
         <label>TK tài sản <AccountSelect accounts={accounts} value={f.assetAccountId} onChange={v => set('assetAccountId', v)} filter={a => a.cashKind === 'None' && a.openItemNature === 'None' && !a.requiresPartner} ariaLabel="TK tài sản" /></label>
         {f.class === 'FixedAsset' && <label>TK hao mòn <AccountSelect accounts={accounts} value={f.accumulatedAccountId} onChange={v => set('accumulatedAccountId', v)} ariaLabel="TK hao mòn" /></label>}
         <label>TK chi phí <AccountSelect accounts={accounts} value={f.expenseAccountId} onChange={v => set('expenseAccountId', v)} ariaLabel="TK chi phí" /></label>
-        <label>Ngày đưa vào sử dụng <input type="date" value={f.inServiceDate} onChange={e => set('inServiceDate', e.target.value)} /></label>
+        <label>Ngày đưa vào sử dụng <DateInput value={f.inServiceDate} onChange={e => set('inServiceDate', e.target.value)} /></label>
         <label>Thời gian sử dụng (tháng) <input inputMode="numeric" value={f.usefulLifeMonths} onChange={e => set('usefulLifeMonths', e.target.value)} /></label>
         <label>Giá trị thu hồi ước tính <input inputMode="decimal" value={f.residualValue} onChange={e => set('residualValue', e.target.value)} /></label>
         <label>Tính tháng đầu/cuối <select value={f.proration} onChange={e => set('proration', e.target.value)}>
@@ -225,7 +226,7 @@ function NewAsset({ accounts, onDone }: { accounts: ReturnType<typeof useCatalog
         {f.takenOver && <>
           <label>Hao mòn lũy kế đến ngày chuyển <input inputMode="decimal" value={f.openingAccumulated} onChange={e => set('openingAccumulated', e.target.value)} /></label>
           <label>Số tháng còn lại <input inputMode="numeric" value={f.remainingLifeMonths} onChange={e => set('remainingLifeMonths', e.target.value)} /></label>
-          <label>Bắt đầu khấu hao trên hệ thống mới <input type="date" value={f.scheduleStartDate} onChange={e => set('scheduleStartDate', e.target.value)} /></label>
+          <label>Bắt đầu khấu hao trên hệ thống mới <DateInput value={f.scheduleStartDate} onChange={e => set('scheduleStartDate', e.target.value)} /></label>
         </>}
       </div>
       <h4>Bút toán hình thành nguyên giá (phát sinh Nợ TK tài sản, đã ghi sổ)</h4>
